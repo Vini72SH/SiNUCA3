@@ -34,10 +34,10 @@
 namespace sinuca {
 
 enum ConfigValueType {
-    ConfigValueTypeString,
-    ConfigValueTypeDouble,
+    ConfigValueTypeBoolean,
+    ConfigValueTypeNumber,
     ConfigValueTypeInteger,
-    ConfigValueTypeObjectReference,
+    ConfigValueTypeComponentReference,
 };
 
 // Pre-declaration for ConfigValue.
@@ -46,8 +46,8 @@ class Component;
 struct ConfigValue {
     ConfigValueType type;
     union {
-        char* string;
-        double doub;
+        bool boolean;
+        double number;
         long integer;
         Component* componentReference;
     } value;
@@ -57,6 +57,7 @@ class Component {
   public:
     virtual int SetConfigParameter(const char* parameter,
                                    ConfigValue value) = 0;
+    inline virtual ~Component() {}
 };
 
 #define COMPONENT(type) \
@@ -70,6 +71,7 @@ class Component {
     }                                                          \
     }
 
+Component* CreateDefaultComponentByName(const char* name);
 Component* CreateCustomComponentByName(const char* name);
 
 // Pre-defines for MemoryPacket.

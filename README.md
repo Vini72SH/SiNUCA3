@@ -8,11 +8,10 @@ Third iteration of the Simulator of Non-Uniform Cache Architectures.
 
 todo: put the name of everyone here.
 
-## Third-party code
+## Dependências
 
-We embed the code for [json-parser](https://github.com/json-parser/json-parser),
-which is licensed under BSD-2-Clause. For more information, check
-`src/json/json_parser/LICENSE`.
+SiNUCA3 depends on libyaml (`sudo apt install libyaml-dev` on Debian, Ubuntu and
+derivatives).
 
 ## Building
 
