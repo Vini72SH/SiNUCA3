@@ -473,5 +473,24 @@ Engine* config::SimulatorBuilder::InstantiateSimulationEngine(
     const char* configFile) {
     if (this->ParseFile(configFile)) return NULL;
     Engine* engine = new Engine();
+
+    ComponentWithName* firstStage =
+        this->GetComponentReferenceByName("firstStage");
+
+    if (firstStage == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Configuration has no required component 'firstStage'\n");
+        delete engine;
+        return NULL;
+    }
+
+    if (engine->AddFirstStage(firstStage->component)) {
+        SINUCA3_ERROR_PRINTF(
+            "Component set to be the firstStage is not a "
+            "FirstStagePipeline.\n");
+        delete engine;
+        return NULL;
+    }
+
     return engine;
 }

@@ -39,7 +39,7 @@
     }
 
 #define SINUCA3_LOG_PRINTF(...) \
-    { printf(__VA_ARGS__) }
+    { printf(__VA_ARGS__); }
 
 #ifndef NDEBUG
 #define SINUCA3_DEBUG_PRINTF(...) \

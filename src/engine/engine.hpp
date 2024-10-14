@@ -29,8 +29,12 @@
 namespace sinuca {
 
 class Engine {
+  private:
+    FirstStagePipeline* firstStage;
+
   public:
-    Engine();
+    int AddFirstStage(Component* component);
+    int Simulate();
 };
 
 }  // namespace sinuca

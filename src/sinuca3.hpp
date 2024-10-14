@@ -119,6 +119,13 @@ class MemoryRequester {
     virtual void Response(MemoryPacket packet) = 0;
 };
 
+/** @brief Required component in all simulations that receives instructions from
+ * the real fetcher (trace reader or similar). */
+class FirstStagePipeline {
+  public:
+    virtual void NextInstruction(InstructionPacket packet) = 0;
+};
+
 class Prefetch {};
 
 class BranchPredictor {};

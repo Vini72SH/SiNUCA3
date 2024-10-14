@@ -21,7 +21,18 @@
  */
 
 #include "engine.hpp"
+#include "../utils/logging.hpp"
 
 using namespace sinuca;
 
-Engine::Engine() {}
+int Engine::AddFirstStage(Component *component) {
+    this->firstStage = dynamic_cast<FirstStagePipeline *>(component);
+    return (this->firstStage == NULL);
+}
+
+int Engine::Simulate() {
+    SINUCA3_DEBUG_PRINTF("Simulation starting.\n");
+    SINUCA3_DEBUG_PRINTF("Simulation ending.\n");
+
+    return 0;
+}
