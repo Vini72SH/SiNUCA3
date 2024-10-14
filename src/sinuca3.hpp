@@ -33,6 +33,7 @@
 
 namespace sinuca {
 
+/** @brief Types of configuration values. */
 enum ConfigValueType {
     ConfigValueTypeBoolean,
     ConfigValueTypeNumber,
@@ -43,6 +44,7 @@ enum ConfigValueType {
 // Pre-declaration for ConfigValue.
 class Component;
 
+/** @brief Tagged union of ConfigValueType. */
 struct ConfigValue {
     ConfigValueType type;
     union {
@@ -53,10 +55,20 @@ struct ConfigValue {
     } value;
 };
 
+/** @brief Everything is a component. */
 class Component {
   public:
+    /**
+     * @brief Called when the SimulatorBuilder parses a config parameter inside
+     * a component.
+     * @param parameter The name (key) of the parameter.
+     * @param value The value.
+     * @return 0 when success, 1 if there's a problem with the configuration
+     * parameter.
+     */
     virtual int SetConfigParameter(const char* parameter,
                                    ConfigValue value) = 0;
+    /** @brief Needed because of C++. */
     inline virtual ~Component() {}
 };
 
@@ -65,34 +77,45 @@ class Component {
 
 #define COMPONENTS(components)                                 \
     namespace sinuca {                                         \
-    Component* CreateCustomComponentByName(const char* name) { \
+    Component* CreateCustomComponentByClass(const char* name) { \
         components;                                            \
         return 0;                                              \
     }                                                          \
     }
 
-Component* CreateDefaultComponentByName(const char* name);
-Component* CreateCustomComponentByName(const char* name);
+/** @brief Don't call, used by the SimulatorBuilder. */
+Component* CreateDefaultComponentByClass(const char* name);
+/** @brief Don't call, used by the SimulatorBuilder. */
+Component* CreateCustomComponentByClass(const char* name);
 
 // Pre-defines for MemoryPacket.
 class MemoryRequester;
 class MemoryComponent;
 
+/** @brief Exchanged between MemoryComponent and MemoryRequester. */
 struct MemoryPacket {
     MemoryRequester* respondTo;
     MemoryComponent* responser;
+    /** @brief Components may use it to identify specific packets. */
+    const long id;
 };
 
+/** @brief Exchanged between the engine, FirstStagePipeline and other pipeline
+ * stages. */
 struct InstructionPacket {};
 
-// A MemoryComponent receives messages from MemoryRequesters.
+/** @brief MemoryComponents can receive memory requests from MemoryRequesters.
+ * */
 class MemoryComponent {
   public:
+    /** @brief Called by MemoryRequesters. */
     virtual void Request(MemoryPacket packet) = 0;
 };
 
+/** @brief MemoryRequesters send memory requests to MemoryComponents. */
 class MemoryRequester {
   public:
+    /** @brief Called by MemoryComponents in response to a specific packet. */
     virtual void Response(MemoryPacket packet) = 0;
 };
 
