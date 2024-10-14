@@ -40,11 +40,6 @@ struct ComponentWithName {
     char* name;           /** @brief Self-explanatory. */
     char* anchor;         /** @brief Used to resolve copies with alias. */
     Component* component; /** @brief Self-explanatory. */
-    /**
-     * @brief Tells if the component has any reference, as to garbage-collect
-     * them after reading the config file. This does not solve cycles tho.
-     */
-    bool hasReference;
 };
 
 const long DEFAULT_COMPONENT_ARRAY_SIZE = 4096 / sizeof(ComponentWithName);
@@ -59,6 +54,10 @@ class SimulatorBuilder {
     long size; /** @brief Amount of instantiated components. */
 
     // Internal methods.
+    int ParseConfigParameter(const char* componentName, const char* parameter,
+                             ConfigValue* value);
+    void AddComponentToArray(ComponentWithName component);
+    ComponentWithName* GetComponentReferenceByName(const char* name);
     int ParseFile(const char* filePath);
     int IncludeFiles(yaml_parser_t* parser);
     int InstantiateNewComponent(yaml_parser_t* parser, const char* string);
