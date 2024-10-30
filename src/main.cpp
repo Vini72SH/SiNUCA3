@@ -26,9 +26,6 @@
 #include <cassert>
 #include <cstdlib>
 
-#include "config/yaml_parser.hpp"
-#include "engine/engine.hpp"
-#include "sinuca3.hpp"
 #include "utils/logging.hpp"
 
 /**

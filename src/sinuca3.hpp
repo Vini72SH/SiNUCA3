@@ -25,7 +25,10 @@
 
 #include <cstring>
 
-#include "engine/component.hpp"
+// These pragmas make clangd don't warn about unused includes when using just
+// sinuca3.hpp to include the below files.
+#include "config/config.hpp"     // IWYU pragma: export
+#include "engine/component.hpp"  // IWYU pragma: export
 #include "engine/linkable.hpp"
 
 namespace sinuca {
