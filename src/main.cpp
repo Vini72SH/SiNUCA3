@@ -23,9 +23,10 @@
 
 #include <getopt.h>
 
+#include <cassert>
 #include <cstdlib>
 
-#include "config/simulator_builder.hpp"
+#include "config/yaml_parser.hpp"
 #include "engine/engine.hpp"
 #include "sinuca3.hpp"
 #include "utils/logging.hpp"
@@ -97,18 +98,7 @@ int main(int argc, char* const argv[]) {
         return 1;
     }
 
-    sinuca::config::SimulatorBuilder* builder =
-        new sinuca::config::SimulatorBuilder();
+    assert(0 && "TODO!");
 
-    sinuca::Engine* engine =
-        builder->InstantiateSimulationEngine(rootConfigFile);
-
-    delete builder;
-
-    if (engine == NULL) return 1;
-
-    int ret = engine->Simulate();
-    delete engine;
-
-    return ret;
+    return 0;
 }
