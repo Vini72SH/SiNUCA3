@@ -30,6 +30,8 @@
 
 #include "../utils/logging.hpp"
 
+// This functions are declared up here because they're codependencies with other
+// parsing functions.
 static inline sinuca::yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser);
 static inline sinuca::yaml::YamlValue* ParseYamlValueFromEvent(
     yaml_parser_t* parser, yaml_event_t* event);
