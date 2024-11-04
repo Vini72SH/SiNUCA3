@@ -24,7 +24,7 @@ class CustomExample : public sinuca::Component<int> {
   public:
     void Clock();
     int FinishSetup();
-    virtual int SetConfigParameter(const std::string* parameter,
+    virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);
 };
 

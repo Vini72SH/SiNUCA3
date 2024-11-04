@@ -26,8 +26,8 @@
  */
 
 #include <cassert>
-#include <string>
 #include <vector>
+#include <cstdlib>
 
 namespace sinuca {
 namespace yaml {
@@ -48,13 +48,13 @@ enum YamlValueType {
 struct YamlValue;
 
 struct YamlMappingEntry {
-    const std::string* name;
+    const char* name;
     YamlValue* value;
 
     // The constructors and destructors of this struct are defined after
     // YamlValue because "deleting incomplete type may cause undefined
     // behaviour".
-    YamlMappingEntry(const std::string* name, YamlValue* value);
+    YamlMappingEntry(const char* name, YamlValue* value);
     ~YamlMappingEntry();
 };
 
@@ -65,8 +65,8 @@ struct YamlValue {
     union {
         double number;
         bool boolean;
-        const std::string* string;
-        const std::string* alias;
+        const char* string;
+        const char* alias;
         std::vector<YamlValue*>* array;
         std::vector<YamlMappingEntry*>* mapping;
     } value;
@@ -105,10 +105,10 @@ struct YamlValue {
     inline ~YamlValue() {
         switch (this->type) {
             case YamlValueTypeAlias:
-                delete this->value.alias;
+                delete[] this->value.alias;
                 break;
             case YamlValueTypeString:
-                delete this->value.string;
+                delete[] this->value.string;
                 break;
             case YamlValueTypeArray:
                 for (unsigned int i = 0; i < this->value.array->size(); ++i)
@@ -127,11 +127,10 @@ struct YamlValue {
 };
 
 // See the comment on the struct definition.
-inline YamlMappingEntry::YamlMappingEntry(const std::string* name,
-                                          YamlValue* value)
+inline YamlMappingEntry::YamlMappingEntry(const char* name, YamlValue* value)
     : name(name), value(value) {}
 inline YamlMappingEntry::~YamlMappingEntry() {
-    delete this->name;
+    delete[] this->name;
     delete this->value;
 }
 
@@ -145,7 +144,7 @@ inline YamlMappingEntry::~YamlMappingEntry() {
  * @return NULL on error. If not NULL, the caller must delete the returned value
  * sometime.
  */
-YamlValue* ParseFile(const std::string* configFile);
+YamlValue* ParseFile(const char* configFile);
 
 #ifndef NDEBUG
 /**

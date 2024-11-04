@@ -22,7 +22,7 @@
 
 #include "simple_memory.hpp"
 
-int SimpleMemory::SetConfigParameter(const std::string *parameter,
+int SimpleMemory::SetConfigParameter(const char* parameter,
                                      sinuca::config::ConfigValue value) {
     (void)parameter;
     (void)value;

@@ -56,7 +56,7 @@ class Linkable {
     /* Usually engine methods. */
     void PreClock();
     void PosClock();
-    virtual int SetConfigParameter(const std::string* parameter,
+    virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value) = 0;
 
     virtual void Clock() = 0;

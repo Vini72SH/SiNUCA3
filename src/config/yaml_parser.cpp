@@ -26,6 +26,7 @@
 #include <yaml.h>
 
 #include <cstdio>
+#include <cstring>
 #include <vector>
 
 #include "../utils/logging.hpp"
@@ -84,7 +85,10 @@ static inline sinuca::yaml::YamlMappingEntry* ParseMappingEntry(
     sinuca::yaml::YamlValue* value = ParseYamlValue(parser);
     if (value == NULL) return NULL;
 
-    return new sinuca::yaml::YamlMappingEntry(new std::string(name), value);
+    long sizeOfName = strlen(name);
+    char* newStrName = new char[sizeOfName + 1];
+    memcpy(newStrName, name, sizeOfName + 1);
+    return new sinuca::yaml::YamlMappingEntry(newStrName, value);
 }
 
 static inline sinuca::yaml::YamlValue* ParseMapping(yaml_parser_t* parser) {
@@ -152,7 +156,8 @@ static inline sinuca::yaml::YamlValue* ParseSequence(yaml_parser_t* parser) {
     }
 }
 
-static inline sinuca::yaml::YamlValue* ParseScalar(const char* scalar) {
+static inline sinuca::yaml::YamlValue* ParseScalar(const char* scalar,
+                                                   long scalarSize) {
     double number;
     if (sscanf(scalar, "%lf", &number) == 1)
         return new sinuca::yaml::YamlValue(number);
@@ -163,22 +168,27 @@ static inline sinuca::yaml::YamlValue* ParseScalar(const char* scalar) {
 
     sinuca::yaml::YamlValue* value =
         new sinuca::yaml::YamlValue(sinuca::yaml::YamlValueTypeString);
-    value->value.string = new std::string(scalar);
+    value->value.string = new char[scalarSize + 1];
+    memcpy((void*)value->value.string, (const void*)scalar, scalarSize + 1);
     return value;
 }
 
 static inline sinuca::yaml::YamlValue* ParseYamlValueFromEvent(
     yaml_parser_t* parser, yaml_event_t* event) {
     sinuca::yaml::YamlValue* value = NULL;
+    long strSize;
     switch (event->type) {
         case YAML_ALIAS_EVENT:
             value =
                 new sinuca::yaml::YamlValue(sinuca::yaml::YamlValueTypeAlias);
-            value->value.alias =
-                new std::string((const char*)event->data.alias.anchor);
+            strSize = strlen((const char*)event->data.alias.anchor);
+            value->value.alias = new char[strSize + 1];
+            memcpy((void*)value->value.alias,
+                   (const void*)event->data.alias.anchor, strSize + 1);
             break;
         case YAML_SCALAR_EVENT:
-            value = ParseScalar((const char*)event->data.scalar.value);
+            value = ParseScalar((const char*)event->data.scalar.value,
+                                event->data.scalar.length);
             break;
         case YAML_MAPPING_START_EVENT:
             value = ParseMapping(parser);
@@ -204,9 +214,8 @@ static inline sinuca::yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser) {
     return value;
 }
 
-sinuca::yaml::YamlValue* sinuca::yaml::ParseFile(
-    const std::string* configFile) {
-    FILE* fp = fopen(configFile->c_str(), "r");
+sinuca::yaml::YamlValue* sinuca::yaml::ParseFile(const char* configFile) {
+    FILE* fp = fopen(configFile, "r");
     if (fp == NULL) return NULL;
 
     // This only fails on allocation failure, and we don't care about them lmao.
@@ -236,10 +245,10 @@ void sinuca::yaml::PrintYaml(YamlValue* value) {
             printf("%f\n", value->value.number);
             break;
         case sinuca::yaml::YamlValueTypeString:
-            printf("%s\n", value->value.string->c_str());
+            printf("%s\n", value->value.string);
             break;
         case sinuca::yaml::YamlValueTypeAlias:
-            printf("%s\n", value->value.alias->c_str());
+            printf("%s\n", value->value.alias);
             break;
         case sinuca::yaml::YamlValueTypeArray:
             printf("[\n");
@@ -250,7 +259,7 @@ void sinuca::yaml::PrintYaml(YamlValue* value) {
         case sinuca::yaml::YamlValueTypeMapping:
             printf("{\n");
             for (unsigned int i = 0; i < value->value.mapping->size(); ++i) {
-                printf("%s: ", ((*value->value.mapping)[i])->name->c_str());
+                printf("%s: ", ((*value->value.mapping)[i])->name);
                 PrintYaml(((*value->value.mapping)[i])->value);
             }
             printf("}\n");

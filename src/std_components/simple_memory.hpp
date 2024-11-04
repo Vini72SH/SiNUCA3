@@ -34,7 +34,7 @@
  */
 class SimpleMemory : public sinuca::Component<sinuca::MessagePacket> {
   public:
-    int SetConfigParameter(const std::string* parameter,
+    int SetConfigParameter(const char* parameter,
                            sinuca::config::ConfigValue value);
     void Clock();
 };
