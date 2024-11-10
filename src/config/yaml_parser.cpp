@@ -216,7 +216,10 @@ static inline sinuca::yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser) {
 
 sinuca::yaml::YamlValue* sinuca::yaml::ParseFile(const char* configFile) {
     FILE* fp = fopen(configFile, "r");
-    if (fp == NULL) return NULL;
+    if (fp == NULL) {
+        SINUCA3_ERROR_PRINTF("No such config file: %s.\n", configFile);
+        return NULL;
+    }
 
     // This only fails on allocation failure, and we don't care about them lmao.
     yaml_parser_t parser;
