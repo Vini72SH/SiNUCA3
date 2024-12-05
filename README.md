@@ -34,10 +34,11 @@ headers have changed.
 
 As said in building, you can just throw a .cpp or .c file inside `src/` and
 it'll be picked up by the build system. For creating your own components, it may
-be a good idea to keep things organized and put them into the `src/custom/`
-directory.
+be a good idea to keep things organized and put them into the
+`src/custom_components/` directory.
 
-You'll need to add your custom components to the `config.cpp` file also.
+You'll need to add your custom components to the
+`src/custom_components/custom.cpp` file also.
 
 Most of the API is accessible via `sinuca3.hpp`.
 
@@ -77,7 +78,7 @@ Guide](https://google.github.io/styleguide/cppguide.html) with some extensions:
   guards ends with `HPP_`.
 - Static storage duration still should be avoided but we're more permissive
   towards it then Google due to the nature of our project.
-- Usually you should only inherit from virtual classes.
+- *Usually* you should only inherit from virtual classes.
 - Operator overloading is strictly forbidden.
 - We do not use references, only raw pointers. Of course we do not use smart
   pointers and move semantics as we're stuck in C++98.

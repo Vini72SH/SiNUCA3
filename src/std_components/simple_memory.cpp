@@ -22,14 +22,14 @@
 
 #include "simple_memory.hpp"
 
-void SimpleMemory::Request(sinuca::MemoryPacket packet) {
-    packet.respondTo->Response(packet);
-}
-
 int SimpleMemory::SetConfigParameter(const char* parameter,
-                                     sinuca::ConfigValue value) {
+                                     sinuca::config::ConfigValue value) {
     (void)parameter;
     (void)value;
 
     return 1;
 }
+
+int SimpleMemory::FinishSetup() { return 0; }
+
+void SimpleMemory::Clock() {}

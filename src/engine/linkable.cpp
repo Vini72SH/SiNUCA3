@@ -16,20 +16,15 @@
 //
 
 /**
- * @file std_components.cpp
- * @brief Declaration of the std components.
+ * @file linkable.cpp
+ * @brief Implementation of the Linkable class.
  */
 
-#include <cstdlib>
-#include <cstring>
+#include "linkable.hpp"
 
-#include "../sinuca3.hpp"
-#include "simple_memory.hpp"
+sinuca::engine::Linkable::Linkable(long bufferSize, long numberOfBuffers)
+    : bufferSize(bufferSize), numberOfBuffers(numberOfBuffers) {}
 
-using namespace sinuca;
-
-engine::Linkable* sinuca::CreateDefaultComponentByClass(const char* name) {
-    COMPONENT(SimpleMemory);
-
-    return NULL;
+sinuca::engine::Linkable::~Linkable() {
+    delete[] this->buffers;
 }

@@ -15,20 +15,23 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 
-#include "custom_example.hpp"
+/**
+ * @file custom_example.cpp
+ * @brief Implements an example custom component to show how to create them.
+ */
 
-#include <cstdio>
+#include "custom_example.hpp"
 
 #include "../sinuca3.hpp"
 
-void CustomExample::Request(sinuca::MemoryPacket packet) {
-    packet.respondTo->Response(packet);
-}
-
 int CustomExample::SetConfigParameter(const char* parameter,
-                                      sinuca::ConfigValue value) {
+                                      sinuca::config::ConfigValue value) {
     (void)parameter;
     (void)value;
 
     return 1;
 }
+
+void CustomExample::Clock() {}
+
+int CustomExample::FinishSetup() { return 0; }

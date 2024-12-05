@@ -32,10 +32,13 @@
  * every request. I.e., it's the perfect memory: big and works at the light
  * speed!
  */
-class SimpleMemory : public sinuca::MemoryComponent, public sinuca::Component {
+class SimpleMemory : public sinuca::Component<sinuca::MessagePacket> {
   public:
-    void Request(sinuca::MemoryPacket packet);
-    int SetConfigParameter(const char* parameter, sinuca::ConfigValue value);
+    virtual int FinishSetup();
+    virtual int SetConfigParameter(const char* parameter,
+                           sinuca::config::ConfigValue value);
+    virtual void Clock();
+    ~SimpleMemory();
 };
 
 #endif  // SINUCA3_SIMPLE_MEMORY_HPP_
