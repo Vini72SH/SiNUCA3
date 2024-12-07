@@ -25,7 +25,6 @@
  * implementation details, check yaml_parser.cpp.
  */
 
-#include <cassert>
 #include <cstdlib>
 #include <vector>
 
@@ -142,6 +141,16 @@ inline YamlMappingEntry::~YamlMappingEntry() {
     delete[] this->name;
     delete this->value;
 }
+
+/**
+ * @details Same as ParseFile but deals with include entries in the toplevel.
+ * Each `include` parameter in the root of each file will be treated either as a
+ * file path or an array of file paths.
+ * @param configFile name of the root configuration file.
+ * @return NULL on error. If not NULL, the caller must delete the returned value
+ * sometime.
+ */
+YamlValue* ParseFileWithIncludes(const char* configFile);
 
 /**
  * @details Opens a configuration file by name and parses it, including it's
