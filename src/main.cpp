@@ -23,9 +23,10 @@
 
 #include <getopt.h>
 
-#include <cassert>
+// #include <cassert>
 #include <cstdlib>
 
+#include "config/engine_builder.hpp"
 #include "utils/logging.hpp"
 
 /**
@@ -95,7 +96,10 @@ int main(int argc, char* const argv[]) {
         return 1;
     }
 
-    assert(0 && "TODO!");
+    sinuca::config::EngineBuilder builder;
+    builder.Instantiate(rootConfigFile);
+
+    // assert(0 && "TODO!");
 
     return 0;
 }

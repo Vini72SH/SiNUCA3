@@ -53,7 +53,9 @@ struct Parameter {
         ComponentDefinition* referenceToDefinition;
     } value;
     const char* name;
-    sinuca::builder::ParameterType type;
+    ParameterType type;
+
+    inline Parameter() : type(ParameterTypeInteger) {}
 
     inline ~Parameter() {
         if (this->type == ParameterTypeArray)
@@ -70,9 +72,10 @@ struct ParameterMap {
     ParameterMapItem* items;
     long size;
 
+    inline ParameterMap() { this->items = NULL; }
+
     inline ~ParameterMap() {
-        assert(this->items != NULL);
-        delete[] items;
+        if (this->items != NULL) delete[] this->items;
     }
 };
 
@@ -104,7 +107,7 @@ class EngineBuilder {
     // these are not zeroed, we know that the parameter was defined multiple
     // times. For pratical reasons, what this means is that these two variables
     // are "actually initialized" after we reach the `cores` parameter.
-    builder::ComponentInstantiation** cores;
+    builder::ComponentDefinition** cores;
     long numberOfCores;
 
     /** @brief Initializes the cores and numberOfCores passed by reference, and
@@ -131,6 +134,11 @@ class EngineBuilder {
     int FillParametersAndComponent(
         builder::ComponentDefinition* definition,
         const std::vector<yaml::YamlMappingEntry*>* config);
+
+    builder::ComponentDefinition* GetComponentDefinitionOrMakeDummy(
+        const char* name);
+    builder::ComponentInstantiation* GetComponentInstantiationOrMakeDummy(
+        const char* alias);
 
     builder::ComponentDefinition* GetComponentDefinition(const char* name);
     builder::ComponentInstantiation* GetComponentInstantiation(

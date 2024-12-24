@@ -70,6 +70,24 @@ sinuca::config::EngineBuilder::GetComponentInstantiation(const char* alias) {
     return NULL;
 }
 
+sinuca::builder::ComponentDefinition*
+sinuca::config::EngineBuilder::GetComponentDefinitionOrMakeDummy(
+    const char* name) {
+    builder::ComponentDefinition* definition =
+        this->GetComponentDefinition(name);
+    if (definition == NULL) definition = this->AddDummyDefinition(name);
+    return definition;
+}
+
+sinuca::builder::ComponentInstantiation*
+sinuca::config::EngineBuilder::GetComponentInstantiationOrMakeDummy(
+    const char* alias) {
+    builder::ComponentInstantiation* instance =
+        this->GetComponentInstantiation(alias);
+    if (instance == NULL) instance = this->AddDummyInstance(alias);
+    return instance;
+}
+
 static inline void YamlNumber2Parameter(sinuca::builder::Parameter* dest,
                                         double number) {
     long integer = trunc(number);
@@ -117,17 +135,11 @@ int sinuca::config::EngineBuilder::Yaml2Parameter(const char* name,
             break;
         case yaml::YamlValueTypeString:
             dest->value.referenceToDefinition =
-                this->GetComponentDefinition(src->value.string);
-            if (dest->value.referenceToDefinition == NULL)
-                dest->value.referenceToDefinition =
-                    this->AddDummyDefinition(src->value.string);
+                this->GetComponentDefinitionOrMakeDummy(src->value.string);
             break;
         case yaml::YamlValueTypeAlias:
             dest->value.referenceToInstance =
-                this->GetComponentInstantiation(src->value.alias);
-            if (dest->value.referenceToInstance == NULL)
-                dest->value.referenceToInstance =
-                    this->AddDummyInstance(src->value.alias);
+                this->GetComponentInstantiationOrMakeDummy(src->value.alias);
             break;
     }
 
@@ -135,7 +147,7 @@ int sinuca::config::EngineBuilder::Yaml2Parameter(const char* name,
 }
 
 static inline int AddClass(sinuca::builder::ComponentDefinition* definition,
-                           sinuca::yaml::YamlValue* value) {
+                           const sinuca::yaml::YamlValue* value) {
     if (definition->clazz != NULL) {
         SINUCA3_ERROR_PRINTF(
             "While trying to define component %s: parameter `class` "
@@ -179,10 +191,7 @@ int sinuca::config::EngineBuilder::FillParametersAndComponent(
     for (unsigned long i = 0; i < config->size(); ++i) {
         // Get the class.
         if (strcmp((*config)[i]->name, "class") == 0) {
-            if (AddClass(definition, (*config)[i]->value)) {
-                delete definition->parameters.items;
-                return 1;
-            }
+            if (AddClass(definition, (*config)[i]->value)) return 1;
 
             continue;
         }
@@ -194,7 +203,6 @@ int sinuca::config::EngineBuilder::FillParametersAndComponent(
                 "While trying to define component %s: parameter `class` was "
                 "not provided.\n",
                 definition->name);
-            delete definition->parameters.items;
             return 1;
         }
 
@@ -203,10 +211,8 @@ int sinuca::config::EngineBuilder::FillParametersAndComponent(
             &definition->parameters.items[itemsIndex];
         parameter->name = (*config)[i]->name;
         if (this->Yaml2Parameter(parameter->name, &parameter->value,
-                                 (*config)[i]->value)) {
-            delete definition->parameters.items;
+                                 (*config)[i]->value))
             return 1;
-        }
 
         ++itemsIndex;
     }
@@ -219,15 +225,17 @@ sinuca::config::EngineBuilder::AddComponentDefinitionFromYamlMapping(
     const char* name, const std::vector<yaml::YamlMappingEntry*>* config) {
     builder::ComponentDefinition definition =
         builder::ComponentDefinition(name, true);
+    this->componentDefinitions.push_back(definition);
 
-    if (this->FillParametersAndComponent(&definition, config)) {
+    builder::ComponentDefinition* addr =
+        &this->componentDefinitions[this->componentDefinitions.size() - 1];
+
+    if (this->FillParametersAndComponent(addr, config)) {
         this->componentDefinitions.pop_back();
         return NULL;
     }
 
-    this->componentDefinitions.push_back(definition);
-
-    return &this->componentDefinitions[this->componentDefinitions.size() - 1];
+    return addr;
 }
 
 sinuca::builder::ComponentInstantiation*
@@ -248,15 +256,31 @@ sinuca::config::EngineBuilder::AddComponentInstantiationFromYamlMapping(
 int sinuca::config::EngineBuilder::AddCores(
     const std::vector<sinuca::yaml::YamlValue*>* coresConfig) {
     for (long i = 0; i < this->numberOfCores; ++i) {
-        builder::ComponentInstantiation* instance =
-            this->AddComponentInstantiationFromYamlMapping(
-                NULL, NULL, (*coresConfig)[i]->value.mapping);
-        if (instance == NULL) {
+        const sinuca::yaml::YamlValue* entry = (*coresConfig)[i];
+        builder::ComponentDefinition* definition = NULL;
+
+        switch (entry->type) {
+            case sinuca::yaml::YamlValueTypeMapping:
+                definition = this->AddComponentDefinitionFromYamlMapping(
+                    NULL, entry->value.mapping);
+                break;
+            case sinuca::yaml::YamlValueTypeString:
+                definition = this->GetComponentDefinitionOrMakeDummy(
+                    entry->value.string);
+                break;
+            default:
+                SINUCA3_ERROR_PRINTF(
+                    "Core configuration must be a component definition. Got "
+                    "%s.\n",
+                    entry->TypeAsString());
+                return 1;
+        }
+        if (definition == NULL) {
             SINUCA3_ERROR_PRINTF("Inside of the definition for the %ld core.\n",
                                  i);
             return 1;
         }
-        this->cores[i] = instance;
+        this->cores[i] = definition;
     }
 
     return 0;
@@ -283,7 +307,7 @@ int sinuca::config::EngineBuilder::TreatCoresParameter(
         return 1;
     }
 
-    this->cores = new sinuca::builder::ComponentInstantiation*[array->size()];
+    this->cores = new sinuca::builder::ComponentDefinition*[array->size()];
     this->numberOfCores = array->size();
 
     return 0;
@@ -332,12 +356,19 @@ sinuca::engine::Engine* sinuca::config::EngineBuilder::Instantiate(
             delete yamlConfig;
             return NULL;
         }
-        if (value->anchor != NULL)
-            this->AddComponentInstantiationFromYamlMapping(
-                name, value->anchor, value->value.mapping);
-        else
-            this->AddComponentDefinitionFromYamlMapping(name,
-                                                        value->value.mapping);
+        if (value->anchor != NULL) {
+            if (this->AddComponentInstantiationFromYamlMapping(
+                    name, value->anchor, value->value.mapping) == NULL) {
+                delete yamlConfig;
+                return NULL;
+            }
+        } else {
+            if (this->AddComponentDefinitionFromYamlMapping(
+                    name, value->value.mapping) == NULL) {
+                delete yamlConfig;
+                return NULL;
+            }
+        }
     }
 
     sinuca::engine::Engine* engine = new sinuca::engine::Engine;
