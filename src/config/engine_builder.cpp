@@ -424,7 +424,7 @@ int sinuca::config::EngineBuilder::ArrayParameter2ConfigValue(
     const builder::ParameterArray* parameter, ConfigValue* value) {
     std::vector<ConfigValue>* array = new std::vector<ConfigValue>;
     array->reserve(parameter->size);
-    for (unsigned long i = 0; i < parameter->size; ++i) {
+    for (long i = 0; i < parameter->size; ++i) {
         ConfigValue itemValue;
         if (this->Parameter2ConfigValue(&parameter->parameters[i],
                                         &itemValue)) {
