@@ -97,9 +97,12 @@ int main(int argc, char* const argv[]) {
     }
 
     sinuca::config::EngineBuilder builder;
-    builder.Instantiate(rootConfigFile);
+    sinuca::engine::Engine* engine = builder.Instantiate(rootConfigFile);
+    if (engine == NULL) return 1;
 
-    // assert(0 && "TODO!");
+#ifdef NDEBUG
+    engine->Simulate();
+#endif
 
     return 0;
 }
