@@ -28,44 +28,47 @@
 
 #include <cstring>
 
+#include "trace_reader.hpp"
+
 const int TRACE_LINE_SIZE = 512;
 
 namespace sinuca {
+namespace traceReader {
 namespace orcsTraceReader {
 
 /** @brief Enumerates the INSTRUCTION (Opcode and Uop) operation type. */
 enum InstructionOperation {
     // NOP
-    INSTRUCTION_OPERATION_NOP,
+    InstructionOperationNop,
     // INTEGERS
-    INSTRUCTION_OPERATION_INT_ALU,
-    INSTRUCTION_OPERATION_INT_MUL,
-    INSTRUCTION_OPERATION_INT_DIV,
+    InstructionOperationIntAlu,
+    InstructionOperationIntMul,
+    InstructionOperationIntDiv,
     // FLOAT POINT
-    INSTRUCTION_OPERATION_FP_ALU,
-    INSTRUCTION_OPERATION_FP_MUL,
-    INSTRUCTION_OPERATION_FP_DIV,
+    InstructionOperationFPAlu,
+    InstructionOperationFPMul,
+    InstructionOperationFPDiv,
     // BRANCHES
-    INSTRUCTION_OPERATION_BRANCH,
+    InstructionOperationBranch,
     // MEMORY OPERATIONS
-    INSTRUCTION_OPERATION_MEM_LOAD,
-    INSTRUCTION_OPERATION_MEM_STORE,
+    InstructionOperationMemLoad,
+    InstructionOperationMemStore,
     // NOT IDENTIFIED
-    INSTRUCTION_OPERATION_OTHER,
+    InstructionOperationOther,
     // SYNCHRONIZATION
-    INSTRUCTION_OPERATION_BARRIER,
+    InstructionOperationBarrier,
     // HMC
-    INSTRUCTION_OPERATION_HMC_ROA,  // #12 READ+OP +Answer
-    INSTRUCTION_OPERATION_HMC_ROWA  // #13 READ+OP+WRITE +Answer
+    InstructionOperationHMCROA,  // #12 READ+OP +Answer
+    InstructionOperationHMCROWA  // #13 READ+OP+WRITE +Answer
 };
 
 /** @brief Enumerates the types of branches. */
 enum Branch {
-    BRANCH_SYSCALL,
-    BRANCH_CALL,
-    BRANCH_RETURN,
-    BRANCH_UNCOND,
-    BRANCH_COND
+    BranchSyscall,
+    BranchCall,
+    BranchReturn,
+    BranchUncond,
+    BranchCond
 };
 
 struct OpcodePackage {
@@ -102,12 +105,12 @@ struct OpcodePackage {
         memset(this, 0, sizeof(*this));
 
         memcpy(this->opcodeAssembly, "N/A", 4);
-        this->branchType = BRANCH_UNCOND;
+        this->branchType = BranchUncond;
     }
 };
 
 /** @brief Port of the trace reader from OrCS (a.k.a. SiNUCA2). */
-class OrCSTraceReader {
+class OrCSTraceReader : public TraceReader {
   private:
     gzFile gzStaticTraceFile;
     gzFile gzDynamicTraceFile;
@@ -128,17 +131,6 @@ class OrCSTraceReader {
 
     uint64_t fetchInstructions;
 
-  public:
-    int OpenTrace(const char *trace);
-
-    inline ~OrCSTraceReader() {
-        gzclose(this->gzStaticTraceFile);
-        gzclose(this->gzDynamicTraceFile);
-        gzclose(this->gzMemoryTraceFile);
-    }
-
-    void Statistics();
-
     // Generate the static dictionary.
     int GetTotalBBLs();
     int DefineBinaryBBLSize();
@@ -148,10 +140,23 @@ class OrCSTraceReader {
     int TraceNextDynamic(uint32_t *next_bbl);
     int TraceNextMemory(uint64_t *next_address, uint32_t *operation_size,
                         bool *is_read);
+
     int TraceFetch(OpcodePackage *m);
+
+  public:
+    virtual int OpenTrace(const char *traceFileName);
+
+    inline ~OrCSTraceReader() {
+        gzclose(this->gzStaticTraceFile);
+        gzclose(this->gzDynamicTraceFile);
+        gzclose(this->gzMemoryTraceFile);
+    }
+
+    virtual void PrintStatistics();
 };
 
 }  // namespace orcsTraceReader
+}  // namespace traceReader
 }  // namespace sinuca
 
 #endif  // SINUCA3_ORCS_TRACE_READER_HPP

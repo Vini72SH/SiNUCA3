@@ -29,12 +29,12 @@
 
 #include "../utils/logging.hpp"
 
-int sinuca::orcsTraceReader::OrCSTraceReader::OpenTrace(
-    const char *traceFilePath) {
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::OpenTrace(
+    const char *traceFileName) {
     char fileName[TRACE_LINE_SIZE];
 
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "%s.tid%d.stat.out.gz", traceFilePath,
+    snprintf(fileName, sizeof(fileName), "%s.tid%d.stat.out.gz", traceFileName,
              0);
     SINUCA3_DEBUG_PRINTF("Static File = %s => READY !\n", fileName);
 
@@ -49,7 +49,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::OpenTrace(
 
     // Open the Dynamic Trace File.
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "%s.tid%d.dyn.out.gz", traceFilePath,
+    snprintf(fileName, sizeof(fileName), "%s.tid%d.dyn.out.gz", traceFileName,
              0);
 
     // Open the .gz group.
@@ -63,7 +63,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::OpenTrace(
 
     // Open the Memory Trace File.
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "%s.tid%d.mem.out.gz", traceFilePath,
+    snprintf(fileName, sizeof(fileName), "%s.tid%d.mem.out.gz", traceFileName,
              0);
 
     // Open the .gz group.
@@ -100,7 +100,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::OpenTrace(
     return 0;
 };
 
-int sinuca::orcsTraceReader::OrCSTraceReader::GetTotalBBLs() {
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::GetTotalBBLs() {
     char file_line[TRACE_LINE_SIZE] = "";
     bool file_eof = false;
     uint32_t bbl = 0;
@@ -135,7 +135,8 @@ int sinuca::orcsTraceReader::OrCSTraceReader::GetTotalBBLs() {
     return 0;
 };
 
-int sinuca::orcsTraceReader::OrCSTraceReader::DefineBinaryBBLSize() {
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
+    DefineBinaryBBLSize() {
     char file_line[TRACE_LINE_SIZE] = "";
     bool file_eof = false;
     uint32_t bbl = 0;
@@ -168,7 +169,8 @@ int sinuca::orcsTraceReader::OrCSTraceReader::DefineBinaryBBLSize() {
     return 0;
 };
 
-int sinuca::orcsTraceReader::OrCSTraceReader::GenerateBinaryDict() {
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
+    GenerateBinaryDict() {
     char file_line[TRACE_LINE_SIZE] = "";
     bool file_eof = false;
     uint32_t bbl = 0;  // Actual BBL (Index of the Vector).
@@ -251,7 +253,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::GenerateBinaryDict() {
  * CALL_NEAR 9 4345036 5 2 35 15 2 35 15 15 0 1 0 0 1 0 0 0
  * clang-format on
  */
-int sinuca::orcsTraceReader::OrCSTraceReader::TraceStringToOpcode(
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceStringToOpcode(
     char *input_string, OpcodePackage *opcode) {
     char *sub_string = NULL;
     char *tmp_ptr = NULL;
@@ -330,7 +332,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::TraceStringToOpcode(
 };
 
 // =============================================================================
-int sinuca::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
     uint32_t *next_bbl) {
     static char file_line[TRACE_LINE_SIZE];
     file_line[0] = '\0';
@@ -397,7 +399,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
  * W 8 140735291283432 1238
  * clang-format on
  */
-int sinuca::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
     uint64_t *mem_address, uint32_t *mem_size, bool *mem_is_read) {
     static char file_line[TRACE_LINE_SIZE];
     file_line[0] = '\0';
@@ -453,7 +455,8 @@ int sinuca::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
     return 0;
 };
 
-int sinuca::orcsTraceReader::OrCSTraceReader::TraceFetch(OpcodePackage *m) {
+int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
+    OpcodePackage *m) {
     OpcodePackage newOpcode;
     bool success;
     uint32_t new_BBL;
@@ -516,7 +519,7 @@ int sinuca::orcsTraceReader::OrCSTraceReader::TraceFetch(OpcodePackage *m) {
 };
 
 // =============================================================================
-void sinuca::orcsTraceReader::OrCSTraceReader::Statistics() {
+void sinuca::traceReader::orcsTraceReader::OrCSTraceReader::PrintStatistics() {
     SINUCA3_LOG_PRINTF(
         "######################################################\n");
     SINUCA3_LOG_PRINTF("trace_reader_t\n");
