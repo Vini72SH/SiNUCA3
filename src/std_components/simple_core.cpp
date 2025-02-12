@@ -63,3 +63,5 @@ int SimpleCore::SetConfigParameter(const char* parameter,
 int SimpleCore::FinishSetup() { return 0; }
 
 void SimpleCore::Clock() {}
+
+SimpleCore::~SimpleCore() {}

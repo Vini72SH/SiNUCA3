@@ -28,6 +28,7 @@
 #include <cstring>  // strcmp, strcpy
 
 #include "../utils/logging.hpp"
+#include "trace_reader.hpp"
 
 int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::OpenTrace(
     const char *traceFileName) {
@@ -98,7 +99,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::OpenTrace(
     if (this->GenerateBinaryDict()) return 1;
 
     return 0;
-};
+}
 
 int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::GetTotalBBLs() {
     char file_line[TRACE_LINE_SIZE] = "";
@@ -133,7 +134,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::GetTotalBBLs() {
     this->binaryTotalBBLs++;
 
     return 0;
-};
+}
 
 int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
     DefineBinaryBBLSize() {
@@ -167,7 +168,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
     }
 
     return 0;
-};
+}
 
 int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
     GenerateBinaryDict() {
@@ -226,7 +227,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
     }
 
     return 0;
-};
+}
 
 /**
  * clang-format off
@@ -329,7 +330,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceStringToOpcode(
     opcode->isPrefetch = (sub_string[0] == '1');
 
     return 0;
-};
+}
 
 // =============================================================================
 int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
@@ -379,7 +380,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
     }
 
     return 0;
-};
+}
 
 /**
  * @details
@@ -453,24 +454,23 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
         }
     }
     return 0;
-};
+}
 
-int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
+sinuca::traceReader::FetchResult
+sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
     OpcodePackage *m) {
     OpcodePackage newOpcode;
-    bool success;
     uint32_t new_BBL;
 
     // Fetch new BBL inside the dynamic file.
     if (!this->isInsideBBL) {
-        success = this->TraceNextDynamic(&new_BBL);
-        if (success) {
+        if (this->TraceNextDynamic(&new_BBL)) {
             this->currectBBL = new_BBL;
             this->currectOpcode = 0;
             this->isInsideBBL = true;
         } else {
             SINUCA3_LOG_PRINTF("End of dynamic simulation trace\n");
-            return 1;
+            return FetchResultEnd;
         }
     }
 
@@ -492,36 +492,52 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
     bool mem_is_read;
     if (m->isRead) {
         if (TraceNextMemory(&m->readAddress, &m->readSize, &mem_is_read))
-            return 1;
+            return FetchResultError;
         if (!mem_is_read) {
             SINUCA3_ERROR_PRINTF("Expecting a read from memory trace\n");
+            return FetchResultError;
         }
     }
 
     if (m->isRead2) {
         if (TraceNextMemory(&m->readAddress, &m->readSize, &mem_is_read))
-            return 1;
+            return FetchResultError;
         if (!mem_is_read) {
             SINUCA3_ERROR_PRINTF("Expecting a read2 from memory trace\n");
+            return FetchResultError;
         }
     }
 
     if (m->isWrite) {
         if (TraceNextMemory(&m->readAddress, &m->readSize, &mem_is_read))
-            return 1;
+            return FetchResultError;
         if (!mem_is_read) {
             SINUCA3_ERROR_PRINTF("Expecting a write from memory trace\n");
+            return FetchResultError;
         }
     }
 
     this->fetchInstructions++;
-    return 0;
-};
+    return FetchResultOk;
+}
 
-// =============================================================================
+sinuca::traceReader::FetchResult
+sinuca::traceReader::orcsTraceReader::OrCSTraceReader::Fetch(
+    sinuca::InstructionPacket *ret) {
+    OpcodePackage orcsOpcode;
+    FetchResult result = this->TraceFetch(&orcsOpcode);
+    if (result != FetchResultOk) return result;
+
+    ret->address = orcsOpcode.opcodeAddress;
+    ret->size = static_cast<unsigned char>(orcsOpcode.opcodeSize);
+    ret->opcode = NULL;
+
+    return FetchResultOk;
+}
+
 void sinuca::traceReader::orcsTraceReader::OrCSTraceReader::PrintStatistics() {
     SINUCA3_LOG_PRINTF(
         "######################################################\n");
     SINUCA3_LOG_PRINTF("trace_reader_t\n");
     SINUCA3_LOG_PRINTF("fetch_instructions:%lu\n", this->fetchInstructions);
-};
+}

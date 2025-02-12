@@ -141,18 +141,18 @@ class OrCSTraceReader : public TraceReader {
     int TraceNextMemory(uint64_t *next_address, uint32_t *operation_size,
                         bool *is_read);
 
-    int TraceFetch(OpcodePackage *m);
+    FetchResult TraceFetch(OpcodePackage *m);
 
   public:
     virtual int OpenTrace(const char *traceFileName);
+    virtual void PrintStatistics();
+    virtual FetchResult Fetch(InstructionPacket *ret);
 
     inline ~OrCSTraceReader() {
         gzclose(this->gzStaticTraceFile);
         gzclose(this->gzDynamicTraceFile);
         gzclose(this->gzMemoryTraceFile);
     }
-
-    virtual void PrintStatistics();
 };
 
 }  // namespace orcsTraceReader

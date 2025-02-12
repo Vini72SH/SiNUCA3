@@ -54,13 +54,15 @@ engine::Linkable* CreateCustomComponentByClass(const char* name);
  */
 struct InstructionPacket {
     const char* opcode;
+    unsigned long address;
+    unsigned char size;
 };
 
 /**
  * @brief The core shall respond this to inform the engine to stall the
  * fetching for the next cycle.
  */
-const InstructionPacket STALL_FETCHING = {0};
+const InstructionPacket STALL_FETCHING = {NULL, 0, 0};
 
 /**
  * @brief Used by SimpleMemory.

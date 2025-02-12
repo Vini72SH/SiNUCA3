@@ -28,6 +28,12 @@
 namespace sinuca {
 namespace traceReader {
 
+enum FetchResult {
+    FetchResultOk,
+    FetchResultEnd,
+    FetchResultError,
+};
+
 /**
  * @brief TraceReader is a pure virtual class that all trace readers must
  * implement.
@@ -37,7 +43,7 @@ class TraceReader {
     /** @brief Return non-zero on failure. */
     virtual int OpenTrace(const char* traceFileName) = 0;
     virtual void PrintStatistics() = 0;
-    virtual InstructionPacket Fetch() = 0;
+    virtual FetchResult Fetch(InstructionPacket* ret) = 0;
 };
 
 }  // namespace traceReader
