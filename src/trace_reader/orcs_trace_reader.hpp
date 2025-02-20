@@ -145,6 +145,8 @@ class OrCSTraceReader : public TraceReader {
 
   public:
     virtual int OpenTrace(const char *traceFileName);
+    virtual unsigned long GetTraceSize();
+    virtual unsigned long GetNumberOfFetchedInstructions();
     virtual void PrintStatistics();
     virtual FetchResult Fetch(InstructionPacket *ret);
 

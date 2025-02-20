@@ -192,7 +192,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
         gzgets(this->gzStaticTraceFile, file_line, TRACE_LINE_SIZE);
         file_eof = gzeof(this->gzStaticTraceFile);
 
-        SINUCA3_DEBUG_PRINTF("orcs: Read: %s\n", file_line);
+        SINUCA3_DEBUG_PRINTF("orcs: Read: %s", file_line);
         if (file_line[0] == '\0' || file_line[0] == '#') {
             // If Comment, then ignore.
             continue;
@@ -354,17 +354,17 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextDynamic(
 
         // Analyze the trace line.
         if (file_line[0] == '\0' || file_line[0] == '#') {
-            SINUCA3_DEBUG_PRINTF(
-                "orcs: Dynamic trace line (empty/comment): %s\n", file_line);
+            SINUCA3_DEBUG_PRINTF("orcs: Dynamic trace line (empty/comment): %s",
+                                 file_line);
             continue;
         } else if (file_line[0] == '$') {
             SINUCA3_DEBUG_PRINTF(
-                "orcs: Dynamic trace line (synchronization): %s\n", file_line);
+                "orcs: Dynamic trace line (synchronization): %s", file_line);
             continue;
         } else {
             // BBL is always greater than 0.
             // If strtoul==0 the line could not be converted.
-            SINUCA3_DEBUG_PRINTF("orcs: Dynamic trace line: %s\n", file_line);
+            SINUCA3_DEBUG_PRINTF("orcs: Dynamic trace line: %s", file_line);
 
             *next_bbl = strtoul(file_line, NULL, 10);
             if (*next_bbl == 0) {
@@ -420,8 +420,8 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
 
         // Analyze the trace line.
         if (file_line[0] == '\0' || file_line[0] == '#') {
-            SINUCA3_DEBUG_PRINTF(
-                "orcs: Memory trace line (empty/comment): %s\n", file_line);
+            SINUCA3_DEBUG_PRINTF("orcs: Memory trace line (empty/comment): %s",
+                                 file_line);
             continue;
         } else {
             char *sub_string = NULL;
@@ -438,7 +438,7 @@ int sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceNextMemory(
                     count);
                 return 1;
             }
-            SINUCA3_DEBUG_PRINTF("orcs: Memory trace line: %s\n", file_line);
+            SINUCA3_DEBUG_PRINTF("orcs: Memory trace line: %s", file_line);
 
             sub_string = strtok_r(file_line, " ", &tmp_ptr);
             *mem_is_read = strcmp(sub_string, "R") == 0;
@@ -464,7 +464,7 @@ sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
 
     // Fetch new BBL inside the dynamic file.
     if (!this->isInsideBBL) {
-        if (this->TraceNextDynamic(&new_BBL)) {
+        if (!this->TraceNextDynamic(&new_BBL)) {
             this->currectBBL = new_BBL;
             this->currectOpcode = 0;
             this->isInsideBBL = true;
@@ -533,6 +533,16 @@ sinuca::traceReader::orcsTraceReader::OrCSTraceReader::Fetch(
     ret->opcode = NULL;
 
     return FetchResultOk;
+}
+
+unsigned long
+sinuca::traceReader::orcsTraceReader::OrCSTraceReader::GetTraceSize() {
+    return this->binaryTotalBBLs;
+}
+
+unsigned long sinuca::traceReader::orcsTraceReader::OrCSTraceReader::
+    GetNumberOfFetchedInstructions() {
+    return this->fetchInstructions;
 }
 
 void sinuca::traceReader::orcsTraceReader::OrCSTraceReader::PrintStatistics() {
