@@ -31,7 +31,7 @@
 namespace sinuca {
 namespace engine {
 /* Documentar classe */
-class Buffer {
+class CircularBuffer {
   private:
     void* buffer;
     int occupation;
@@ -41,7 +41,7 @@ class Buffer {
     int endOfBuffer;
 
   public:
-    Buffer()
+    CircularBuffer()
         : buffer(NULL),
           occupation(0),
           bufferSize(0),
@@ -49,7 +49,15 @@ class Buffer {
           startOfBuffer(0),
           endOfBuffer(0){};
 
-    bool isAllocated() const;
+    inline bool isAllocated() const;
+
+    inline int getSize() const;
+
+    inline int getOccupation() const;
+
+    inline bool isFull() const;
+
+    inline bool isEmpty() const;
 
     void allocate(int bufferSize, int messageSize);
 
@@ -57,11 +65,7 @@ class Buffer {
 
     void* dequeue();
 
-    int getStart();
-
-    int getEnd();
-
-    ~Buffer() {
+    ~CircularBuffer() {
         if (this->buffer) {
             delete[] (char*)this->buffer;
         }

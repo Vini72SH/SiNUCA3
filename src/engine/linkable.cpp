@@ -25,11 +25,27 @@
 #include <cstddef>
 
 /* Métodos a comentar */
-bool sinuca::engine::Buffer::isAllocated() const {
+inline bool sinuca::engine::CircularBuffer::isAllocated() const {
     return (this->buffer != NULL);
 };
 
-void sinuca::engine::Buffer::allocate(int bufferSize, int messageSize) {
+inline int sinuca::engine::CircularBuffer::getSize() const {
+    return (this->bufferSize);
+};
+
+inline int sinuca::engine::CircularBuffer::getOccupation() const {
+    return (this->occupation);
+};
+
+inline bool sinuca::engine::CircularBuffer::isFull() const {
+    return (this->occupation == this->bufferSize);
+};
+
+inline bool sinuca::engine::CircularBuffer::isEmpty() const {
+    return (this->occupation == 0);
+};
+
+void sinuca::engine::CircularBuffer::allocate(int bufferSize, int messageSize) {
     this->occupation = 0;
     this->startOfBuffer = 0;
     this->endOfBuffer = 0;
@@ -42,7 +58,7 @@ void sinuca::engine::Buffer::allocate(int bufferSize, int messageSize) {
     }
 };
 
-int sinuca::engine::Buffer::enqueue(void* element) {
+int sinuca::engine::CircularBuffer::enqueue(void* element) {
     if (occupation < bufferSize) {
         void* target = static_cast<char*>(buffer) + (endOfBuffer * messageSize);
         memcpy(target, element, messageSize);
@@ -59,7 +75,7 @@ int sinuca::engine::Buffer::enqueue(void* element) {
     return 0;
 };
 
-void* sinuca::engine::Buffer::dequeue() {
+void* sinuca::engine::CircularBuffer::dequeue() {
     if (occupation > 0) {
         void* element =
             static_cast<char*>(buffer) + (startOfBuffer * messageSize);
@@ -76,10 +92,6 @@ void* sinuca::engine::Buffer::dequeue() {
 
     return NULL;
 };
-
-int sinuca::engine::Buffer::getStart() { return startOfBuffer; };
-
-int sinuca::engine::Buffer::getEnd() { return endOfBuffer; };
 
 sinuca::engine::Linkable::Linkable(long bufferSize, long numberOfBuffers)
     : bufferSize(bufferSize), numberOfBuffers(numberOfBuffers) {}
