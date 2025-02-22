@@ -22,8 +22,43 @@
 
 #include "linkable.hpp"
 
-sinuca::engine::Linkable::Linkable(long bufferSize, long numberOfBuffers)
-    : bufferSize(bufferSize), numberOfBuffers(numberOfBuffers) {}
+/* ============================================================== */
+// Connection Methods
+/* ============================================================== */
+void sinuca::engine::Connection::CreateBuffers(int bufferSize,
+                                               int messageSize) {
+    this->bufferSize = bufferSize;
+    this->messageSize = messageSize;
+
+    this->requestBuffers[0].Allocate(bufferSize, messageSize);
+    this->requestBuffers[1].Allocate(bufferSize, messageSize);
+
+    this->responseBuffers[0].Allocate(bufferSize, messageSize);
+    this->responseBuffers[1].Allocate(bufferSize, messageSize);
+};
+
+inline int sinuca::engine::Connection::GetBufferSize() const {
+    return this->bufferSize;
+};
+
+inline int sinuca::engine::Connection::GetMessageSize() const {
+    return this->messageSize;
+};
+
+void sinuca::engine::Connection::SendRequest(char id, void* message) {
+    this->requestBuffers[id].Enqueue(message);
+};
+
+void* sinuca::engine::Connection::RecieveResponse(char id) {
+    return this->responseBuffers[id].Dequeue();
+};
+
+/* ============================================================== */
+// Linkable Methods
+/* ============================================================== */
+
+sinuca::engine::Linkable::Linkable(long numberOfBuffers)
+    : numberOfBuffers(numberOfBuffers) {}
 
 sinuca::engine::Linkable::~Linkable() {}
 

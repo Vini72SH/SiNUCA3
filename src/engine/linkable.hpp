@@ -24,9 +24,54 @@
  */
 
 #include "../config/config.hpp"
+#include "../utils/circularBuffer.hpp"
 
 namespace sinuca {
 namespace engine {
+
+struct Connection {
+  private:
+    int bufferSize;
+    int messageSize;
+    CircularBuffer requestBuffers[2];  /**<Array of the request buffers, swapped
+                                           each cycle.>*/
+    CircularBuffer responseBuffers[2]; /**<Array of the response buffers,
+                                           swapped each cycle.>*/
+
+  public:
+    Connection() : bufferSize(0), messageSize(0){};
+
+    /**
+     * @brief Allocate the buffers used to channels
+     * @param bufferSize self-explanatory.
+     * @param messageSize self-explanatory.
+     */
+    void CreateBuffers(int bufferSize, int messageSize);
+
+    /**
+     * @brief Self-explanatory
+     */
+    inline int GetBufferSize() const;
+
+    /**
+     * @brief Self-explanatory
+     */
+    inline int GetMessageSize() const;
+
+    /**
+     * @brief Send a request to a certain requestBuffer
+     * @param id The id of the certain buffer
+     * @param message A pointer to the message to send
+     */
+    void SendRequest(char id, void* message);
+
+    /**
+     * @brief Return a response of a certain responseBuffer
+     * @param id The id of the certain buffer
+     * @return A pointer to the received message
+     */
+    void* RecieveResponse(char id);
+};
 
 /**
  * @brief Do not inherit directly from this class.
@@ -40,40 +85,22 @@ namespace engine {
  */
 class Linkable {
   private:
-    /**
-     * @brief sizeof(MessageType).
-     */
-    long bufferSize;
-    /**
-     * @brief When zero, allows an infinite amount of messages to be buffered
-     * (bounded by your computer memory).
-     */
-    long numberOfBuffers;
-    /**
-     * @brief Counts how much connections other components have initialized.
-     */
-    long numberOfConnections;
-    /**
-     * @brief Array of all connections buffers.
-     */
-    char* buffers;  // No I'm not using vector for this.
-    /**
-     * @brief Array of the request buffers, swapped each cycle.
-     */
-    char* requestBuffers[2];
-    /**
-     * @brief Array of the response buffers, swapped each cycle.
-     */
-    char* responseBuffers[2];
+    long
+        numberOfBuffers; /**< When zero, allows an infinite amount of messages
+                            to be buffered (bounded by your computer memory). */
+
+    long numberOfConnections; /**< Counts how much connections other components
+                                  have initialized. */
+
+    Connection* connections; /**< Array of all connections buffers.*/
 
   protected:
     /**
      * @brief Constructor.
-     * @param bufferSize self-explanatory (message buffer size).
      * @param numberOfBuffers number of buffers per connection. When zero,
      * allows an infinite amount of messages to be buffered.
      */
-    Linkable(long bufferSize, long numberOfBuffers);
+    Linkable(long numberOfBuffers);
     /**
      * @brief Allocates the buffers with the specified number of connections.
      * @param numberOfConnections Self-explanatory.
