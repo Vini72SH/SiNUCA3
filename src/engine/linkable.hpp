@@ -26,6 +26,9 @@
 #include "../config/config.hpp"
 #include "../utils/circularBuffer.hpp"
 
+#define SOURCE_ID 0
+#define DEST_ID 1
+
 namespace sinuca {
 namespace engine {
 
@@ -62,12 +65,20 @@ struct Connection {
      * @brief Send a request to a certain requestBuffer
      * @param id The id of the certain buffer
      * @param message A pointer to the message to send
+     * @details The Linkable that connected to another through the Connect call
+     * becomes the SOURCE, so to send a message to the recipient it uses DEST_ID
+     * as a parameter. Otherwise, the recipient is sending a message to the
+     * source Linkable, so it uses SOURCE_ID as a parameter.
      */
     void SendRequest(char id, void* message);
 
     /**
      * @brief Return a response of a certain responseBuffer
      * @param id The id of the certain buffer
+     * details The Linkable that connected to another through the Connect call
+     * becomes the SOURCE, so to receive a message from the recipient it uses
+     * SOURCE_ID as a parameter. Otherwise, the recipient is receiving a message
+     * from the source Linkable, so it uses DEST_ID as a parameter.
      * @return A pointer to the received message
      */
     void* RecieveResponse(char id);
@@ -85,27 +96,36 @@ struct Connection {
  */
 class Linkable {
   private:
-    long
-        numberOfBuffers; /**< When zero, allows an infinite amount of messages
-                            to be buffered (bounded by your computer memory). */
-
     long numberOfConnections; /**< Counts how much connections other components
                                   have initialized. */
 
-    Connection* connections; /**< Array of all connections buffers.*/
+    std::vector<Connection>
+        connections; /**< Array of all connections buffers.*/
 
   protected:
-    /**
-     * @brief Constructor.
-     * @param numberOfBuffers number of buffers per connection. When zero,
-     * allows an infinite amount of messages to be buffered.
-     */
-    Linkable(long numberOfBuffers);
     /**
      * @brief Allocates the buffers with the specified number of connections.
      * @param numberOfConnections Self-explanatory.
      */
     void AllocateBuffers(long numberOfConnections);
+
+    /**
+     * @brief Add the new connection in the connections array.
+     * @param newConnection self-explanatory.
+     */
+    void AddConnection(Connection newConnection);
+
+    /**
+     * @brief Connect to *this* component.
+     * @param bufferSize The size of the buffer used in the connection.
+     * @param messageSize The size of the message stored in the buffer.
+     * @details Method used by other components to connect to *this* component,
+     * establishing a connection where *this* component is the one that responds
+     * to received messages.
+     * @return Returns the connection structure with *this* method.
+     */
+    Connection Connect(int bufferSize, int messageSize);
+
     /**
      * @brief Self-explanatory. The -Linkable suffix avoids clashes with the
      * higher-level wrapper methods from the Component<T> children class
@@ -126,6 +146,7 @@ class Linkable {
   public:
     /* Usually engine methods. */
 
+    Linkable();
     /**
      * @brief Don't call this method.
      * @details The engine calls this method before each clock cycle to swap the

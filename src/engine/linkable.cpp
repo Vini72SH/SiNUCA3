@@ -57,10 +57,31 @@ void* sinuca::engine::Connection::RecieveResponse(char id) {
 // Linkable Methods
 /* ============================================================== */
 
-sinuca::engine::Linkable::Linkable(long numberOfBuffers)
-    : numberOfBuffers(numberOfBuffers) {}
+sinuca::engine::Linkable::Linkable() : numberOfConnections(0){};
 
-sinuca::engine::Linkable::~Linkable() {}
+void sinuca::engine::Linkable::AllocateBuffers(long numberOfConnections) {
+    this->numberOfConnections = numberOfConnections;
+    this->connections.reserve(numberOfConnections);
+};
+
+void sinuca::engine::Linkable::AddConnection(Connection newConnection) {
+    int connectionsSize = this->connections.size();
+    this->connections.push_back(newConnection);
+
+    if (connectionsSize > this->numberOfConnections)
+        this->numberOfConnections = connectionsSize;
+};
+
+sinuca::engine::Connection sinuca::engine::Linkable::Connect(int bufferSize,
+                                                             int messageSize) {
+    Connection newConnection;
+    newConnection.CreateBuffers(bufferSize, messageSize);
+    this->AddConnection(newConnection);
+
+    return newConnection;
+};
+
+sinuca::engine::Linkable::~Linkable(){};
 
 void sinuca::engine::Linkable::PreClock() {}
 void sinuca::engine::Linkable::PosClock() {}
