@@ -26,8 +26,8 @@
 #include "../config/config.hpp"
 #include "../utils/circularBuffer.hpp"
 
-#define SOURCE_ID 0
-#define DEST_ID 1
+static const int SOURCE_ID = 0;
+static const int DEST_ID = 1;
 
 namespace sinuca {
 namespace engine {
