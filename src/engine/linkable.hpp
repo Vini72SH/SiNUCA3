@@ -37,9 +37,9 @@ struct Connection {
     int bufferSize;
     int messageSize;
     CircularBuffer requestBuffers[2];  /**<Array of the request buffers, swapped
-                                           each cycle.>*/
+                                           each cycle.*/
     CircularBuffer responseBuffers[2]; /**<Array of the response buffers,
-                                           swapped each cycle.>*/
+                                           swapped each cycle.*/
 
   public:
     Connection() : bufferSize(0), messageSize(0){};
@@ -62,9 +62,9 @@ struct Connection {
     inline int GetMessageSize() const;
 
     /**
-     * @brief Send a request to a certain requestBuffer
-     * @param id The id of the certain buffer
-     * @param message A pointer to the message to send
+     * @brief Send a request to a certain requestBuffer.
+     * @param id The id of the certain buffer.
+     * @param message A pointer to the message to send.
      * @details The Linkable that connected to another through the Connect call
      * becomes the SOURCE, so to send a message to the recipient it uses DEST_ID
      * as a parameter. Otherwise, the recipient is sending a message to the
@@ -73,9 +73,9 @@ struct Connection {
     void SendRequest(char id, void* message);
 
     /**
-     * @brief Return a response of a certain responseBuffer
-     * @param id The id of the certain buffer
-     * details The Linkable that connected to another through the Connect call
+     * @brief Return a response of a certain responseBuffer.
+     * @param id The id of the certain buffer.
+     * @details The Linkable that connected to another through the Connect call
      * becomes the SOURCE, so to receive a message from the recipient it uses
      * SOURCE_ID as a parameter. Otherwise, the recipient is receiving a message
      * from the source Linkable, so it uses DEST_ID as a parameter.

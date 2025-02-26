@@ -81,7 +81,7 @@ sinuca::engine::Connection sinuca::engine::Linkable::Connect(int bufferSize,
     return newConnection;
 };
 
-sinuca::engine::Linkable::~Linkable(){};
-
 void sinuca::engine::Linkable::PreClock() {}
 void sinuca::engine::Linkable::PosClock() {}
+
+sinuca::engine::Linkable::~Linkable(){};
