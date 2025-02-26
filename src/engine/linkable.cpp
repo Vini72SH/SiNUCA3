@@ -22,9 +22,6 @@
 
 #include "linkable.hpp"
 
-/* ============================================================== */
-// Connection Methods
-/* ============================================================== */
 void sinuca::engine::Connection::CreateBuffers(int bufferSize,
                                                int messageSize) {
     this->bufferSize = bufferSize;
@@ -52,10 +49,6 @@ void sinuca::engine::Connection::SendRequest(char id, void* message) {
 void* sinuca::engine::Connection::RecieveResponse(char id) {
     return this->responseBuffers[id].Dequeue();
 };
-
-/* ============================================================== */
-// Linkable Methods
-/* ============================================================== */
 
 sinuca::engine::Linkable::Linkable() : numberOfConnections(0){};
 
