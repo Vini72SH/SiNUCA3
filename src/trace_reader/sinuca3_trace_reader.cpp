@@ -32,6 +32,7 @@
 #include "trace_reader.hpp"
 
 #include <iostream> // TMP
+#include "../../sinuca3_pintool.hpp"
 
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     const char *traceFileName) {
@@ -79,10 +80,6 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     // Obtain the number of BBLs.
     if (this->GetTotalBBLs()) return 1;
 
-    this->binaryBBLsSize = new uint32_t[this->binaryTotalBBLs];
-    memset(this->binaryBBLsSize, 0,
-           this->binaryTotalBBLs * sizeof(*this->binaryBBLsSize));
-
     // Create the opcode for each BBL.
     this->binaryDict = new OpcodePackage* [this->binaryTotalBBLs];
     if (this->GenerateBinaryDict()) return 1;
@@ -100,65 +97,103 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs() {
     rewind(this->StaticTraceFile);
     size_t read = fread((void*)count, 1, sizeof(*count), StaticTraceFile);
     if (read == 0) {return 1;}
-    std::cout << *count << std::endl;
+    SINUCA3_DEBUG_PRINTF("NUMBER OF BBLs => %u\n", *count);
 
     return 0;
 }
-
-#define BUFFER_SIZE 1 << 21
 
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     GenerateBinaryDict() {
     //------------------//
     unsigned int *count = &this->binaryTotalBBLs;
-    char line[BUFFER_SIZE], byte;
-    size_t read, strSize, cpySize, bufSize, bufPointer;
+    char buf[BUFFER_SIZE];
+    size_t read, strSize, bufSize;
     int numInstBbl, savedNumInst, bbl = 0;
     OpcodePackage* package;
     
     fseek(this->StaticTraceFile, sizeof(*count), SEEK_SET);
+    read = 0;
     read = fread(&bufSize, 1, sizeof(bufSize), this->StaticTraceFile);
-    while(read > 0) {
-        SINUCA3_DEBUG_PRINTF("BUFFER SIZE => %lu\n", bufSize);
-        fread(line, 1, bufSize, this->StaticTraceFile);
-        bufPointer = 0;
-        do {
-            memcpy(&numInstBbl, line+bufPointer, sizeof(numInstBbl));
-            SINUCA3_DEBUG_PRINTF("BBL SIZE => %d\n", numInstBbl);
-            this->binaryDict[bbl] = new OpcodePackage[numInstBbl];
-            savedNumInst = numInstBbl;
+    if (read <= 0) {
+        SINUCA3_ERROR_PRINTF("INCOMPATIBLE STATIC TRACE SIZE (BINARY DICT)");
+        return 1;
+    }
+    if (bufSize > BUFFER_SIZE) {
+        SINUCA3_ERROR_PRINTF("INCOMPATIBLE BUFFER SIZE (BINARY DICT)");
+        return 1;
+    }
+    fread(buf, 1, bufSize, this->StaticTraceFile);
+    read = 0;
 
-            while (numInstBbl > 0) {
-                package = &this->binaryDict[bbl][savedNumInst-numInstBbl];
-                
-                strSize = snprintf(package->opcodeAssembly, 512, "%s", line+bufPointer);
-                bufPointer += strSize;
-                
-                cpySize = sizeof(package->opcodeAddress)+
-                    sizeof(package->opcodeSize)+
-                    sizeof(package->baseReg)+
-                    sizeof(package->indexReg);
-                memcpy(&package->opcodeAddress, line+bufPointer, cpySize);
-                bufPointer += cpySize;
-                
-                memcpy(&byte, line+bufPointer, 1);
-                if ((byte & 1) == 1) {package->isPrefetch = true;}
-                if ((byte & (1 << 1)) == (1 << 1)) {package->isPredicated = true;}
-                if ((byte & (1 << 2)) == (1 << 2)) {
-                    package->isControlFlow = true;
-                    if ((byte & (1 << 3)) == (1 << 3)) {package->isIndirect = true;}
-                    memcpy(&package->branchType, line+bufPointer, 1);
+    while (bbl < this->binaryTotalBBLs) {
+        numInstBbl = *(int*)(buf + read); 
+        SINUCA3_DEBUG_PRINTF("BBL SIZE => %d\n", numInstBbl);
+        this->binaryDict[bbl] = new OpcodePackage[numInstBbl];
+        savedNumInst = numInstBbl;
+        read += sizeof(numInstBbl);
+
+        while (numInstBbl > 0) {
+            if (read == bufSize) {
+                read = fread(&bufSize, 1, sizeof(bufSize), this->StaticTraceFile);
+                if (read <= 0) {
+                    SINUCA3_ERROR_PRINTF("INCOMPATIBLE FILE SIZE (BINARY DICT)\n");
+                    return 1;
                 }
-
-                numInstBbl--;
+                if (bufSize > BUFFER_SIZE) {
+                    SINUCA3_ERROR_PRINTF("INCOMPATIBLE BUFFER SIZE (BINARY DICT)");
+                    return 1;
+                }
+                fread(buf, 1, bufSize, this->StaticTraceFile);
+                read = 0;
             }
 
-            bbl++;
-        } while (bufPointer < bufSize);
+            package = &this->binaryDict[bbl][savedNumInst-numInstBbl];
+            
+            //== sizeof(DataINS) written to Package ==//
+            DataINS* data = (DataINS*)(buf + read);
+            package->opcodeAddress = data->addr;
+            package->opcodeSize = data->size;
+            package->baseReg = data->baseReg;
+            package->indexReg = data->indexReg;
+            SINUCA3_DEBUG_PRINTF("INS ADDR => %p INS SIZE => %d\n", 
+                                (void*)package->opcodeAddress,
+                                package->opcodeSize);
+            
+            if ((data->booleanValues & (1 << 0)) == (1 << 0)) {
+                package->isPrefetch = true;
+            }
+            if ((data->booleanValues & (1 << 1)) == (1 << 1)) {
+                package->isPredicated = true;
+            }
+            if ((data->booleanValues & (1 << 2)) == (1 << 2)) {
+                memcpy(&package->branchType, &data->branchType, sizeof(data->branchType));
+                read += sizeof(data->branchType);
+                package->isControlFlow = true;
+                if ((data->booleanValues & (1 << 3)) == (1 << 3)) {
+                    package->isIndirect = true;
+                }
+            }
+            read += SIZE_DATA_INS;
 
-        read = fread(&bufSize, 1, sizeof(bufSize), this->StaticTraceFile);
+            //=== size of string written to Package ===//
+            strSize = strlen(buf+read) + 1;
+            if (strSize > TRACE_LINE_SIZE) {
+                SINUCA3_ERROR_PRINTF("INCOMPATIBLE STRING SIZE (BINARY DICT)\n");
+                return 1;
+            }
+            memcpy(package->opcodeAssembly, buf+read, strSize);
+            read += strSize;
+            SINUCA3_DEBUG_PRINTF("INS MNEMONIC => %s, BBL => %d, INS => %d\n",
+                                package->opcodeAssembly, bbl, numInstBbl);
+
+            //=========================================//
+            numInstBbl--;
+        }
+
+        bbl++;
     }
 
+    SINUCA3_DEBUG_PRINTF("READ BYTES => %lu BUF SIZE => %lu\n", read, bufSize);
 
     return 0;
 }
@@ -188,11 +223,6 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
  * CALL_NEAR 9 4345036 5 2 35 15 2 35 15 15 0 1 0 0 1 0 0 0
  * clang-format on
  */
-int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceStringToOpcode(
-    char *input_string, OpcodePackage *opcode) {
-    
-    return 0;
-}
 
 // =============================================================================
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextDynamic(
@@ -290,26 +320,26 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
 //     return FetchResultOk;
 // }
 
-// sinuca::traceReader::FetchResult
-// sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::Fetch(
-//     sinuca::InstructionPacket *ret) {
-//     OpcodePackage orcsOpcode;
-//     FetchResult result = this->TraceFetch(&orcsOpcode);
-//     if (result != FetchResultOk) return result;
+sinuca::traceReader::FetchResult
+sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::Fetch(
+    sinuca::InstructionPacket *ret) {
+    OpcodePackage orcsOpcode;
+    // FetchResult result = this->TraceFetch(&orcsOpcode);
+    // if (result != FetchResultOk) return result;
 
-//     ret->address = orcsOpcode.opcodeAddress;
-//     ret->size = static_cast<unsigned char>(orcsOpcode.opcodeSize);
-//     ret->opcode = NULL;
+    ret->address = orcsOpcode.opcodeAddress;
+    ret->size = static_cast<unsigned char>(orcsOpcode.opcodeSize);
+    ret->opcode = NULL;
 
-//     return FetchResultOk;
-// }
+    return FetchResultOk;
+}
 
-// void sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::PrintStatistics() {
-//     SINUCA3_LOG_PRINTF(
-//         "######################################################\n");
-//     SINUCA3_LOG_PRINTF("trace_reader_t\n");
-//     SINUCA3_LOG_PRINTF("fetch_instructions:%lu\n", this->fetchInstructions);
-// }
+void sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::PrintStatistics() {
+    SINUCA3_LOG_PRINTF(
+        "######################################################\n");
+    SINUCA3_LOG_PRINTF("trace_reader_t\n");
+    SINUCA3_LOG_PRINTF("fetch_instructions:%lu\n", this->fetchInstructions);
+}
 
 int main() {
     sinuca::traceReader::TraceReader* reader = new (sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader);

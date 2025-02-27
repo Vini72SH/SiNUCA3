@@ -85,7 +85,6 @@ struct OpcodePackage {
     int32_t readRegs[MAX_REGISTERS];
     int32_t writeRegs[MAX_REGISTERS];
 
-
     // long readsAddr[MAX_MEM_OPERATIONS]; //
     unsigned int readsSize[MAX_MEM_OPERATIONS];
     unsigned int numReads;
@@ -112,7 +111,7 @@ struct OpcodePackage {
     }
 };
 
-/** @brief Port of the trace reader from OrCS (a.k.a. SiNUCA2). */
+/** @brief  */
 class SinucaTraceReader : public TraceReader {
   private:
     FILE *StaticTraceFile;
@@ -136,15 +135,14 @@ class SinucaTraceReader : public TraceReader {
 
     // Generate the static dictionary.
     int GetTotalBBLs();
-    int DefineBinaryBBLSize();
+    int DefineBinaryBBLSize(char* buf, size_t read);
     int GenerateBinaryDict();
 
-    int TraceStringToOpcode(char *input_string, OpcodePackage *opcode);
     int TraceNextDynamic(uint32_t *next_bbl);
     int TraceNextMemory(uint64_t *next_address, uint32_t *operation_size,
                        bool *is_read);
 
-    FetchResult TraceFetch(OpcodePackage *m);
+    // FetchResult TraceFetch(OpcodePackage *m);
 
   public:
     virtual int OpenTrace(const char *traceFileName);
