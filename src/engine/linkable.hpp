@@ -92,7 +92,7 @@ struct Connection {
      * from the source Linkable, so it uses DEST_ID as a parameter.
      * @return A pointer to the received message
      */
-    void* RecieveRequest(char id);
+    void* ReceiveRequest(char id);
 
     /**
      * @brief Return a response of a certain responseBuffer.
@@ -103,7 +103,7 @@ struct Connection {
      * from the source Linkable, so it uses DEST_ID as a parameter.
      * @return A pointer to the received message
      */
-    void* RecieveResponse(char id);
+    void* ReceiveResponse(char id);
 };
 
 /**
@@ -184,7 +184,7 @@ class Linkable {
      * @param connectionID The connection ID obtained by the Connect method with
      * the desired Linkable.
      */
-    void* RecieveRequestFromLinkable(Linkable* dest, int connectionID);
+    void* ReceiveRequestFromLinkable(Linkable* dest, int connectionID);
 
     /**
      * @brief This method is used by a Linkable Source to receive a response
@@ -193,7 +193,43 @@ class Linkable {
      * @param connectionID The connection ID obtained by the Connect method with
      * the desired Linkable.
      */
-    void* RecieveResponseFromLinkable(Linkable* dest, int connectionID);
+    void* ReceiveResponseFromLinkable(Linkable* dest, int connectionID);
+
+    /* Recipient Methods */
+
+    /**
+     * @brief This method is used by a recipient Linkable to send a request to a
+     * connection.
+     * @param connectionID The connection ID of the connection that Linkable
+     * wants to send a request to.
+     * @param message The request message to be sent.
+     */
+    void SendRequestToConnection(int connectionID, void* message);
+
+    /**
+     * @brief This method is used by a recipient Linkable to send a response to
+     * a connection.
+     * @param connectionID The connection ID of the connection that Linkable
+     * wants to send a response to.
+     * @param message The response message to be sent.
+     */
+    void SendResponseToConnection(int connectionID, void* message);
+
+    /**
+     * @brief This method is used by a recipient Linkable to receive a request
+     * from a connection.
+     * @param connectionID The connection ID of the connection that Linkable
+     * wants to receive a request from.
+     */
+    void* ReceiveRequestFromConnection(int connectionID);
+
+    /**
+     * @brief This method is used by a recipient Linkable to receive a response
+     * from a connection.
+     * @param connectionID The connection ID of the connection that Linkable
+     * wants to receive a response from.
+     */
+    void* ReceiveResponseFromConnection(int connectionID);
 
   public:
     /* Usually engine methods. */

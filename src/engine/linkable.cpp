@@ -50,11 +50,11 @@ void sinuca::engine::Connection::SendResponse(char id, void* message) {
     this->responseBuffers[id].Enqueue(message);
 };
 
-void* sinuca::engine::Connection::RecieveRequest(char id) {
+void* sinuca::engine::Connection::ReceiveRequest(char id) {
     return this->requestBuffers[id].Dequeue();
 };
 
-void* sinuca::engine::Connection::RecieveResponse(char id) {
+void* sinuca::engine::Connection::ReceiveResponse(char id) {
     return this->responseBuffers[id].Dequeue();
 };
 
@@ -103,14 +103,33 @@ void sinuca::engine::Linkable::SendResponseToLinkable(Linkable* dest,
     dest->connections[connectionID]->SendResponse(DEST_ID, message);
 };
 
-void* sinuca::engine::Linkable::RecieveRequestFromLinkable(Linkable* dest,
+void* sinuca::engine::Linkable::ReceiveRequestFromLinkable(Linkable* dest,
                                                            int connectionID) {
-    return dest->connections[connectionID]->RecieveRequest(SOURCE_ID);
+    return dest->connections[connectionID]->ReceiveRequest(SOURCE_ID);
 };
 
-void* sinuca::engine::Linkable::RecieveResponseFromLinkable(Linkable* dest,
+void* sinuca::engine::Linkable::ReceiveResponseFromLinkable(Linkable* dest,
                                                             int connectionID) {
-    return dest->connections[connectionID]->RecieveResponse(SOURCE_ID);
+    return dest->connections[connectionID]->ReceiveResponse(SOURCE_ID);
+};
+
+void sinuca::engine::Linkable::SendRequestToConnection(int connectionID,
+                                                       void* message) {
+    this->connections[connectionID]->SendRequest(SOURCE_ID, message);
+};
+
+void sinuca::engine::Linkable::SendResponseToConnection(int connectionID,
+                                                        void* message) {
+    this->connections[connectionID]->SendResponse(SOURCE_ID, message);
+};
+
+void* sinuca::engine::Linkable::ReceiveRequestFromConnection(int connectionID) {
+    return this->connections[connectionID]->ReceiveRequest(DEST_ID);
+};
+
+void* sinuca::engine::Linkable::ReceiveResponseFromConnection(
+    int connectionID) {
+    return this->connections[connectionID]->ReceiveResponse(DEST_ID);
 };
 
 void sinuca::engine::Linkable::PreClock() {}
