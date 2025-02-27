@@ -104,6 +104,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs() {
 
 void readRegs(const char* buf, size_t *read, unsigned short int *vet,
             unsigned int numRegs) {
+    //------------------//
     unsigned int it;
     *read += sizeof(numRegs);
     for (it = 0; it < numRegs; it++) {
