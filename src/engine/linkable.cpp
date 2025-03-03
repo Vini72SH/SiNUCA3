@@ -58,16 +58,16 @@ void* sinuca::engine::Connection::ReceiveResponse(char id) {
     return this->responseBuffers[id].Dequeue();
 };
 
-sinuca::engine::Linkable::Linkable() : messageSize(0), numberOfConnections(0){};
+sinuca::engine::Linkable::Linkable(int messageSize)
+    : messageSize(messageSize), numberOfConnections(0){};
 
-void sinuca::engine::Linkable::AllocateBuffers(long messageSize,
-                                               long numberOfConnections) {
-    this->messageSize = messageSize;
+void sinuca::engine::Linkable::AllocateConnectionsBuffer(
+    long numberOfConnections) {
     this->numberOfConnections = numberOfConnections;
     this->connections.reserve(numberOfConnections);
 };
 
-void sinuca::engine::Linkable::DeallocateBuffers() {
+void sinuca::engine::Linkable::DeallocateConnectionsBuffer() {
     for (int i = 0; i < numberOfConnections; ++i) {
         delete this->connections[i];
     }

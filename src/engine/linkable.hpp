@@ -130,12 +130,12 @@ class Linkable {
      * @brief Allocates the buffers with the specified number of connections.
      * @param numberOfConnections Self-explanatory.
      */
-    void AllocateBuffers(long messageSize, long numberOfConnections);
+    void AllocateConnectionsBuffer(long numberOfConnections);
 
     /**
      * @brief Frees memory allocated for connections
      */
-    void DeallocateBuffers();
+    void DeallocateConnectionsBuffer();
 
     /**
      * @brief Add the new connection in the connections array.
@@ -232,9 +232,7 @@ class Linkable {
     void* ReceiveResponseFromConnection(int connectionID);
 
   public:
-    /* Usually engine methods. */
-
-    Linkable();
+    Linkable(int messageSize);
     /**
      * @brief Don't call this method.
      * @details The engine calls this method before each clock cycle to swap the

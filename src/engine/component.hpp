@@ -44,41 +44,71 @@ namespace sinuca {
 template <typename MessageType>
 class Component : public engine::Linkable {
   public:
-    /* Other component methods. */
+    /**
+     * @param messageSize The size of the message that will be used by the
+     * component.
+     */
+    inline Component(int messageSize) : engine::Linkable(messageSize) {}
 
     /**
-     * @brief This method should be called by other components to send a message
-     * to the component.
-     * @param message The message to send.
-     * @param channelID The ID of the channel on which to send the message.
-     * @returns Non-zero if the message cannot be sent (i.e., there's no space
-     * left for buffering, case where the sender may want to buffer itself the
-     * message for trying again in the next cycles or just give up trying to
-     * send). 0 otherwise.
+     * @brief Wrapper to SendRequestToLinkable method
      */
-    inline int SendMessage(const MessageType message, int channelID) {
-        return this->SendMessageLinkable((const char*)&message, channelID);
-    }
-    /**
-     * @brief This method should be called by other components to read the
-     * response buffered.
-     * @param message The buffer on which to copy the response message.
-     * @param channelID The ID of the channel from which to retrieve a response.
-     * @returns Non-zero if there's no response buffered yet. In this case,
-     * message is not touched. 0 otherwise, and message is populated with the
-     * response.
-     */
-    inline int RetrieveResponse(MessageType* message, int channelID) {
-        return this->RetrieveResponseLinkable((const char*)&message, channelID);
-    }
+    inline void SendRequestToComponent(Linkable* component, int connectionID,
+                                       void* message) {
+        this->SendRequestToLinkable(component, connectionID, message);
+    };
 
     /**
-     * @param numberOfBuffers 0 to allow an infinite amount of messages to be
-     * buffered (i.e., the simulation ignores the fact that messages have to be
-     * buffered at all). This is per connection.
+     * @brief Wrapper to SendResponseToLinkable method
      */
-    inline Component(long numberOfBuffers = 0)
-        : engine::Linkable(sizeof(MessageType), numberOfBuffers) {}
+    inline void SendResponseToComponent(Linkable* component, int connectionID,
+                                        void* message) {
+        this->SendResponseToLinkable(component, connectionID, message);
+    };
+
+    /**
+     * @brief Wrapper to ReceiveRequestFromLinkable method
+     */
+    inline MessageType* ReceiveRequestFromComponent(Linkable* component,
+                                             int connectionID) {
+        return this->ReceiveRequestFromLinkable(component, connectionID);
+    };
+
+    /**
+     * @brief Wrapper to ReceiveResponseFromLinkable method
+     */
+    inline MessageType* ReceiveResponseFromComponent(Linkable* component,
+                                              int connectionID) {
+        return this->ReceiveResponseFromLinkable(component, connectionID);
+    };
+
+    /**
+     * @brief Wrapper to SendRequestToConnection method
+     */
+    inline void SendRequestForConnection(int connectionID, void* message) {
+        this->SendRequestToConnection(connectionID, message);
+    };
+
+    /**
+     * @brief Wrapper to SendResponseToConnection method
+     */
+    inline void SendResponseForConnection(int connectionID, void* message) {
+        this->SendResponseToConnection(connectionID, message);
+    };
+
+    /**
+     * @brief Wrapper to ReceiveRequestFromConnection method
+     */
+    inline MessageType* ReceiveRequestForAConnection(int connectionID) {
+        return this->ReceiveRequestFromConnection(connectionID);
+    };
+
+    /**
+     * @brief Wrapper to ReceiveResponseFromConnection method
+     */
+    inline MessageType* ReceiveResponseForAConnection(int connectionID) {
+        return this->ReceiveResponseFromConnection(connectionID);
+    };
 
     inline ~Component() {}
 };
