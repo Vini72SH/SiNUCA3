@@ -81,18 +81,18 @@ struct OpcodePackage {
     unsigned short int baseReg;
     unsigned short int indexReg;
 
-    unsigned short int readRegs[MAX_REGISTERS];
-    unsigned short int writeRegs[MAX_REGISTERS];
+    short readRegs[MAX_REGISTERS];
+    short writeRegs[MAX_REGISTERS];
 
-    // long readsAddr[MAX_MEM_OPERATIONS]; //
-    unsigned int readsSize[MAX_MEM_OPERATIONS];
-    unsigned int numReads;
-
-    // long writesAddr[MAX_MEM_OPERATIONS]; //
-    unsigned int writesSize[MAX_MEM_OPERATIONS];
-    unsigned int numWrites;
+    long readsAddr[MAX_MEM_OPERATIONS];
+    long writesAddr[MAX_MEM_OPERATIONS];
+    int readsSize[MAX_MEM_OPERATIONS];
+    int writesSize[MAX_MEM_OPERATIONS];
+    short numReadings;
+    short numWritings;
 
     Branch branchType;
+    bool isNonStdMemOp;
     bool isControlFlow;
     bool isIndirect;
     bool isPredicated;
@@ -139,7 +139,7 @@ class SinucaTraceReader : public TraceReader {
     int TraceNextDynamic(unsigned int*);
     int TraceNextMemory(long*, unsigned int*, bool*);
 
-    FetchResult TraceFetch(const OpcodePackage**);
+    FetchResult TraceFetch(OpcodePackage**);
 
   public:
     virtual int OpenTrace(const char*);

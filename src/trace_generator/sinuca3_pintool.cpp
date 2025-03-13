@@ -1,4 +1,5 @@
 #include "pin.H"
+#include "types_vmapi.PH"
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -92,9 +93,9 @@ VOID appendToDynamicTrace(UINT32 bblId) {
     }
 }
 
-VOID copyRegs(const INS *ins, unsigned short int *regs,
+UINT16 fillRegs(const INS *ins, unsigned short int *regs,
     unsigned int maxRegs, REG (*func)(INS, UINT32)) {
-    //-----------------------//     
+    //---------------------------------------------//     
     unsigned short int reg, it, cont;
 
     for (it = 0, cont = 0; it < maxRegs; it++) {
@@ -104,69 +105,8 @@ VOID copyRegs(const INS *ins, unsigned short int *regs,
             cont++;
         }
     }
-}
 
-VOID x86ToStaticBuf(const INS* ins, DataINS *data) {
-    namespace reader = sinuca::traceReader::sinuca3TraceReader;
-    reader::Branch branchType;
-    char* buf = staticBuffer->store;
-    size_t* used = &staticBuffer->numUsedBytes;
-    static unsigned short int regs[64];
-    
-    unsigned int maxRRegs = INS_MaxNumRRegs(*ins);
-    unsigned int maxWRegs = INS_MaxNumWRegs(*ins);
-    std::string name = INS_Mnemonic(*ins);
-    staticBuffer->setMinNecessary(name.size()+24+maxRRegs+maxWRegs);
-    if (staticBuffer->isBufFull()) {
-        staticBuffer->loadBufToFile(staticTrace);
-    }
-
-    data->addr = static_cast<long>(INS_Address(*ins));
-    data->size = static_cast<unsigned char>(INS_Size(*ins));
-    data->baseReg = static_cast<unsigned short int>(INS_MemoryBaseReg(*ins));
-    data->indexReg = static_cast<unsigned short int>(INS_MemoryIndexReg(*ins));
-    data->booleanValues = 0;
-
-    if (INS_IsPredicated(*ins)) {
-        setBit(&data->booleanValues, 0);
-    }
-    if (INS_IsPrefetch(*ins)) {
-        setBit(&data->booleanValues, 1);
-    }
-    bool flag;
-    if ((flag = INS_IsCall(*ins))) {
-        branchType = reader::BranchCall; 
-    } else if ((flag = INS_IsRet(*ins))) {
-        branchType = reader::BranchReturn; 
-    } else if ((flag = INS_IsSyscall(*ins))) {
-        branchType = reader::BranchSyscall; 
-    } else if ((flag = INS_IsControlFlow(*ins))) {
-        if (INS_HasFallThrough(*ins)) {
-            branchType = reader::BranchCond;
-        } else {
-            branchType = reader::BranchUncond;
-        }
-    }
-    if (flag == true) {
-        setBit(&data->booleanValues, 2);
-        if (INS_IsIndirectControlFlow(*ins)) {
-            setBit(&data->booleanValues, 3);
-        }
-    }
-
-    // copy data
-    copy(buf, used, data, sizeof(*data));
-
-    // copy branch type
-    if (flag == true) {
-        copy(buf, used, &branchType, sizeof(branchType));
-    }
-    // copy mnemonic
-    copy(buf, used, (void*)name.c_str(), name.size()+1);
-    // copy read regs
-    copyRegs(ins, regs, maxRRegs, INS_RegR);
-    // copy write regs
-    copyRegs(ins, regs, maxWRegs, INS_RegW);
+    return cont;
 }
 
 VOID appendToMemTraceStd(ADDRINT addr, INT32 size) {
@@ -183,28 +123,117 @@ VOID appendToMemTraceStd(ADDRINT addr, INT32 size) {
     }
 }
 
-VOID appendToMemTraceNonStd() {}
+VOID appendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* acessInfo) {
+    char* buf = memoryBuffer->store;
+    size_t* used = &memoryBuffer->numUsedBytes;
+    static DataMEM data;
+    unsigned short numMemOps;
+    PIN_MEM_ACCESS_INFO* memop;
+    memOpType type;
+    
+    numMemOps = static_cast<unsigned short>(acessInfo->numberOfMemops);
+    copy(buf, used, &numMemOps, sizeof(numMemOps));
+    for (unsigned short it = 0; it < numMemOps; it++) {
+        memop = &acessInfo->memop[it];
+        data.addr = memop->memoryAddress;
+        data.size = memop->bytesAccessed;
+        copy(buf, used, &data, sizeof(data));
+        type = (memop->memopType == PIN_MEMOP_LOAD) ? LOAD : STORE;
+        copy(buf, used, &type, sizeof(type));
+    }
+}
 
-VOID instrumentMem(INS* ins, DataINS *data) {
+VOID instrumentMem(const INS* ins, DataINS *data) {
     if (!INS_IsStandardMemop(*ins)) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)appendToMemTraceNonStd, 
-                       MEMREAD_EA, MEMREAD_SIZE, IARG_END);
-        
+                       IARG_MULTI_MEMORYACCESS_EA, IARG_END);
+        setBit(&data->booleanValues, 4, true);
+
         return;
     }
 
     if (INS_IsMemoryRead(*ins)) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)appendToMemTraceStd, 
-                       MEMREAD_EA, MEMREAD_SIZE, IARG_END);
+                        MEMREAD_EA, MEMREAD_SIZE, IARG_END);
+        setBit(&data->booleanValues, 5, true);
     }
     if (INS_HasMemoryRead2(*ins)) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)appendToMemTraceStd, 
-                       MEMREAD2_EA, MEMREAD_SIZE, IARG_END);
+                        MEMREAD2_EA, MEMREAD_SIZE, IARG_END);
+        setBit(&data->booleanValues, 6, true);
     }
     if (INS_IsMemoryWrite(*ins)) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)appendToMemTraceStd,
-                       MEMWRITE_EA, MEMWRITE_SIZE, IARG_END);
+                        MEMWRITE_EA, MEMWRITE_SIZE, IARG_END);
+        setBit(&data->booleanValues, 7, true);
     }
+}
+
+VOID x86ToStaticBuf(const INS* ins, DataINS *data) {
+    namespace reader = sinuca::traceReader::sinuca3TraceReader;
+    reader::Branch branchType;
+    char* buf = staticBuffer->store;
+    size_t* used = &staticBuffer->numUsedBytes;
+    static unsigned short int readRegs[64];
+    static unsigned short int writeRegs[64];
+    
+    unsigned int maxRRegs = INS_MaxNumRRegs(*ins);
+    unsigned int maxWRegs = INS_MaxNumWRegs(*ins);
+    std::string name = INS_Mnemonic(*ins);
+    staticBuffer->setMinNecessary(name.size()+24+maxRRegs+maxWRegs);
+    if (staticBuffer->isBufFull()) {
+        staticBuffer->loadBufToFile(staticTrace);
+    }
+
+    data->addr = static_cast<long>(INS_Address(*ins));
+    data->size = static_cast<unsigned char>(INS_Size(*ins));
+    data->baseReg = static_cast<unsigned short int>(INS_MemoryBaseReg(*ins));
+    data->indexReg = static_cast<unsigned short int>(INS_MemoryIndexReg(*ins));
+    data->booleanValues = 0;
+
+    if (INS_IsPredicated(*ins)) {
+        setBit(&data->booleanValues, 0, true);
+    }
+    if (INS_IsPrefetch(*ins)) {
+        setBit(&data->booleanValues, 1, true);
+    }
+    bool flag;
+    if ((flag = INS_IsCall(*ins))) {
+        branchType = reader::BranchCall; 
+    } else if ((flag = INS_IsRet(*ins))) {
+        branchType = reader::BranchReturn; 
+    } else if ((flag = INS_IsSyscall(*ins))) {
+        branchType = reader::BranchSyscall; 
+    } else if ((flag = INS_IsControlFlow(*ins))) {
+        if (INS_HasFallThrough(*ins)) {
+            branchType = reader::BranchCond;
+        } else {
+            branchType = reader::BranchUncond;
+        }
+    }
+    if (flag == true) {
+        setBit(&data->booleanValues, 2, true);
+        if (INS_IsIndirectControlFlow(*ins)) {
+            setBit(&data->booleanValues, 3, true);
+        }
+    }
+
+    instrumentMem(ins, data);
+    data->numReadRegs = fillRegs(ins, readRegs, maxRRegs, INS_RegR);
+    data->numWriteRegs = fillRegs(ins, writeRegs, maxWRegs, INS_RegW);
+    // copy data
+    copy(buf, used, data, sizeof(*data));
+    // copy read regs
+    copy(buf, used, readRegs, sizeof(*readRegs)*data->numReadRegs);
+    // copy write regs
+    copy(buf, used, writeRegs, sizeof(*writeRegs)*data->numWriteRegs);
+    
+    // copy branch type
+    if (flag == true) {
+        copy(buf, used, &branchType, sizeof(branchType));
+    }
+    // copy mnemonic
+    copy(buf, used, (void*)name.c_str(), name.size()+1);
 }
 
 VOID trace(TRACE trace, VOID *ptr) {
@@ -231,7 +260,6 @@ VOID trace(TRACE trace, VOID *ptr) {
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             numInstBbl++;
             x86ToStaticBuf(&ins, &data);
-            instrumentMem(&ins, &data);
         }
         std::memcpy(buf+bblInit, &numInstBbl, sizeof(numInstBbl));
     }

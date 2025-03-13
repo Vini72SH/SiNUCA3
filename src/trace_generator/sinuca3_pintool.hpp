@@ -10,9 +10,18 @@ inline void copy(char* buf, size_t* used, void* src, size_t size) {
     (*used)+=size;
 }
 
-inline void setBit(unsigned char *byte, int position) {
-    *byte |= (1 << position);
+inline void setBit(unsigned char *byte, int position, bool flag) {
+    if (flag == true) {
+        *byte |= (1 << position);
+    } else {
+        *byte &= 0xff - (1 << position);
+    }
 }
+
+enum memOpType {
+    LOAD,
+    STORE
+};
 
 struct DataINS {
     long addr;
@@ -20,9 +29,7 @@ struct DataINS {
     unsigned short int indexReg;
     unsigned char size;
     unsigned char booleanValues;
-    unsigned char numMemReads;
-    unsigned char numMemWrites;
-    unsigned char numReadregs;
+    unsigned char numReadRegs;
     unsigned char numWriteRegs;
 } __attribute__((packed)); // no padding
 
