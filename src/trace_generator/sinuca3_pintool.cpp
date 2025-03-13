@@ -170,7 +170,7 @@ VOID instrumentMem(const INS* ins, DataINS *data) {
 }
 
 VOID x86ToStaticBuf(const INS* ins, DataINS *data) {
-    namespace reader = sinuca::traceReader::sinuca3TraceReader;
+    namespace reader = sinuca::traceReader;
     reader::Branch branchType;
     char* buf = staticBuffer->store;
     size_t* used = &staticBuffer->numUsedBytes;
@@ -197,21 +197,22 @@ VOID x86ToStaticBuf(const INS* ins, DataINS *data) {
     if (INS_IsPrefetch(*ins)) {
         setBit(&data->booleanValues, 1, true);
     }
-    bool flag;
-    if ((flag = INS_IsCall(*ins))) {
+    bool isBranch;
+    if ((isBranch = INS_IsCall(*ins))) {
         branchType = reader::BranchCall; 
-    } else if ((flag = INS_IsRet(*ins))) {
+    } else if ((isBranch = INS_IsRet(*ins))) {
         branchType = reader::BranchReturn; 
-    } else if ((flag = INS_IsSyscall(*ins))) {
+    } else if ((isBranch = INS_IsSyscall(*ins))) {
         branchType = reader::BranchSyscall; 
-    } else if ((flag = INS_IsControlFlow(*ins))) {
+    } else if ((isBranch = INS_IsControlFlow(*ins))) {
         if (INS_HasFallThrough(*ins)) {
             branchType = reader::BranchCond;
         } else {
             branchType = reader::BranchUncond;
         }
     }
-    if (flag == true) {
+
+    if (isBranch == true) {
         setBit(&data->booleanValues, 2, true);
         if (INS_IsIndirectControlFlow(*ins)) {
             setBit(&data->booleanValues, 3, true);
@@ -227,9 +228,8 @@ VOID x86ToStaticBuf(const INS* ins, DataINS *data) {
     copy(buf, used, readRegs, sizeof(*readRegs)*data->numReadRegs);
     // copy write regs
     copy(buf, used, writeRegs, sizeof(*writeRegs)*data->numWriteRegs);
-    
     // copy branch type
-    if (flag == true) {
+    if (isBranch == true) {
         copy(buf, used, &branchType, sizeof(branchType));
     }
     // copy mnemonic

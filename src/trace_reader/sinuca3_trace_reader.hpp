@@ -27,88 +27,13 @@
 #include <cstring>
 #include "trace_reader.hpp"
 
-#define MAX_REGISTERS 32
-#define MAX_MEM_OPERATIONS 16
-
-const int TRACE_LINE_SIZE = 512;
+inline void incReadPtr(size_t *read, size_t size) {
+    *read += size;
+}
 
 namespace sinuca {
 namespace traceReader {
 namespace sinuca3TraceReader {
-
-/** @brief Enumerates the INSTRUCTION (Opcode and Uop) operation type. */
-enum InstructionOperation {
-    // NOP
-    InstructionOperationNop,
-    // INTEGERS
-    InstructionOperationIntAlu,
-    InstructionOperationIntMul,
-    InstructionOperationIntDiv,
-    // FLOAT POINT
-    InstructionOperationFPAlu,
-    InstructionOperationFPMul,
-    InstructionOperationFPDiv,
-    // BRANCHES
-    InstructionOperationBranch,
-    // MEMORY OPERATIONS
-    InstructionOperationMemLoad,
-    InstructionOperationMemStore,
-    // NOT IDENTIFIED
-    InstructionOperationOther,
-    // SYNCHRONIZATION
-    InstructionOperationBarrier,
-    // HMC
-    InstructionOperationHMCROA,  // #12 READ+OP +Answer
-    InstructionOperationHMCROWA  // #13 READ+OP+WRITE +Answer
-};
-
-/** @brief Enumerates the types of branches. */
-enum Branch {
-    BranchSyscall,
-    BranchCall,
-    BranchReturn,
-    BranchUncond,
-    BranchCond
-};
-
-struct OpcodePackage {
-    char opcodeAssembly[TRACE_LINE_SIZE];
-    // instruction_operation_t opcode_operation; //
-    // uint32_t instruction_id; //
-    
-    long opcodeAddress;
-    unsigned char opcodeSize;
-    unsigned short int baseReg;
-    unsigned short int indexReg;
-
-    short readRegs[MAX_REGISTERS];
-    short writeRegs[MAX_REGISTERS];
-
-    long readsAddr[MAX_MEM_OPERATIONS];
-    long writesAddr[MAX_MEM_OPERATIONS];
-    int readsSize[MAX_MEM_OPERATIONS];
-    int writesSize[MAX_MEM_OPERATIONS];
-    short numReadings;
-    short numWritings;
-
-    Branch branchType;
-    bool isNonStdMemOp;
-    bool isControlFlow;
-    bool isIndirect;
-    bool isPredicated;
-    bool isPrefetch;
-    bool isHive;
-    int hive_read1 = -1;
-    int hive_read2 = -1;
-    int hive_write = -1;
-    bool isVima;
-
-    inline OpcodePackage() {
-        memset(this, 0, sizeof(*this));
-        memcpy(this->opcodeAssembly, "N/A", 4);
-        this->branchType = BranchUncond;
-    }
-};
 
 /** @brief  */
 class SinucaTraceReader : public TraceReader {
@@ -128,7 +53,7 @@ class SinucaTraceReader : public TraceReader {
     unsigned int binaryTotalBBLs;
     unsigned short *binaryBBLsSize;
     // Complete dictionary of BBLs and instructions.
-    OpcodePackage **binaryDict;
+    InstructionPacket **binaryDict;
 
     unsigned long fetchInstructions;
 
@@ -137,14 +62,14 @@ class SinucaTraceReader : public TraceReader {
     int GenerateBinaryDict();
 
     int TraceNextDynamic(unsigned int*);
-    int TraceNextMemory(long*, unsigned int*, bool*);
+    int TraceNextMemory(InstructionPacket*);
 
-    FetchResult TraceFetch(OpcodePackage**);
+    FetchResult TraceFetch(InstructionPacket**);
 
   public:
     virtual int OpenTrace(const char*);
     virtual void PrintStatistics();
-    virtual FetchResult Fetch(InstructionPacket*);
+    virtual FetchResult Fetch(InstructionPacket**);
 
     inline ~SinucaTraceReader() {
         fclose(this->StaticTraceFile);

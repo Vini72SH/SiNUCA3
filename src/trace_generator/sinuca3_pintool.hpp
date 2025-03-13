@@ -10,8 +10,8 @@ inline void copy(char* buf, size_t* used, void* src, size_t size) {
     (*used)+=size;
 }
 
-inline void setBit(unsigned char *byte, int position, bool flag) {
-    if (flag == true) {
+inline void setBit(unsigned char *byte, int position, bool value) {
+    if (value == true) {
         *byte |= (1 << position);
     } else {
         *byte &= 0xff - (1 << position);

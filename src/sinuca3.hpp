@@ -50,15 +50,6 @@ engine::Linkable* CreateDefaultComponentByClass(const char* name);
 engine::Linkable* CreateCustomComponentByClass(const char* name);
 
 /**
- * @brief Exchanged between the engine and components.
- */
-struct InstructionPacket {
-    const char* opcode;
-    unsigned long address;
-    unsigned char size;
-};
-
-/**
  * @brief The core shall respond this to inform the engine to stall the
  * fetching for the next cycle.
  */
