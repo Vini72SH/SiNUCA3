@@ -521,16 +521,25 @@ sinuca::traceReader::orcsTraceReader::OrCSTraceReader::TraceFetch(
     return FetchResultOk;
 }
 
+void sinuca::traceReader::orcsTraceReader::OrCSTraceReader::convertPackage(OpcodePackage *package){
+
+}
+
 sinuca::traceReader::FetchResult
 sinuca::traceReader::orcsTraceReader::OrCSTraceReader::Fetch(
-    sinuca::InstructionPacket *ret) {
+    const sinuca::InstructionPacket **ret) {
     OpcodePackage orcsOpcode;
     FetchResult result = this->TraceFetch(&orcsOpcode);
     if (result != FetchResultOk) return result;
 
-    ret->address = orcsOpcode.opcodeAddress;
-    ret->size = static_cast<unsigned char>(orcsOpcode.opcodeSize);
-    ret->opcode = NULL;
+    // TODO: convertPackage servirá para converter um pacote do Orcs para algo compátivel com o SiNUCA.
+    // Ainda não sei se é 100% convertível. Não li o código do Orcs ainda.
+
+    //this->currentFetchedInstruction;
+
+    //ret->address = orcsOpcode.opcodeAddress;
+    //ret->size = static_cast<unsigned char>(orcsOpcode.opcodeSize);
+    //ret->opcode = NULL;
 
     return FetchResultOk;
 }
