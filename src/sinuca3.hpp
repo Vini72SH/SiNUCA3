@@ -33,6 +33,10 @@
 
 namespace sinuca {
 
+#define MAX_REGISTERS 32
+#define MAX_MEM_OPERATIONS 16
+#define TRACE_LINE_SIZE 512
+
 #define COMPONENT(type) \
     if (!strcmp(name, #type)) return new type
 
@@ -49,11 +53,65 @@ engine::Linkable* CreateDefaultComponentByClass(const char* name);
 /** @brief Don't call, used by the SimulatorBuilder. */
 engine::Linkable* CreateCustomComponentByClass(const char* name);
 
+/** @brief Enumerates the types of branches. */
+enum Branch {
+  BranchSyscall,
+  BranchCall,
+  BranchReturn,
+  BranchUncond,
+  BranchCond
+};
+
+/**
+ * @brief Exchanged between the engine and components.
+ */
+ struct InstructionPacket {
+   char opcodeAssembly[TRACE_LINE_SIZE];
+   // instruction_operation_t opcode_operation;
+   // uint32_t instruction_id;
+
+   long opcodeAddress;
+   unsigned char opcodeSize;
+   unsigned short int baseReg;
+   unsigned short int indexReg;
+
+   unsigned short readRegs[MAX_REGISTERS];
+   unsigned char numReadRegs;
+   unsigned short writeRegs[MAX_REGISTERS];
+   unsigned char numWriteRegs;
+
+   long readsAddr[MAX_MEM_OPERATIONS];
+   long writesAddr[MAX_MEM_OPERATIONS];
+   int readsSize[MAX_MEM_OPERATIONS];
+   int writesSize[MAX_MEM_OPERATIONS];
+   short numReadings;
+   short numWritings;
+
+   Branch branchType;
+   bool isNonStdMemOp;
+   bool isControlFlow;
+   bool isIndirect;
+   bool isPredicated;
+   bool isPrefetch;
+   bool isHive;
+   bool isVima;
+   int hive_read1 = -1;
+   int hive_read2 = -1;
+   int hive_write = -1;
+
+   inline InstructionPacket() {
+       memset(this, 0, sizeof(*this));
+       memcpy(this->opcodeAssembly, "N/A", 4);
+       this->branchType = BranchUncond;
+   }
+ };
+
 /**
  * @brief The core shall respond this to inform the engine to stall the
  * fetching for the next cycle.
  */
-const InstructionPacket STALL_FETCHING = {NULL, 0, 0};
+// TODO: Deve ser atualizado para o formato mais completo do InstructionPacket
+//const InstructionPacket STALL_FETCHING = {NULL, 0, 0};
 
 /**
  * @brief Used by SimpleMemory.

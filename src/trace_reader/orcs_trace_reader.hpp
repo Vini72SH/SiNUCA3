@@ -30,8 +30,6 @@
 
 #include "trace_reader.hpp"
 
-const int TRACE_LINE_SIZE = 512;
-
 namespace sinuca {
 namespace traceReader {
 namespace orcsTraceReader {
@@ -131,6 +129,8 @@ class OrCSTraceReader : public TraceReader {
 
     uint64_t fetchInstructions;
 
+    InstructionPacket currentFetchedInstruction;
+
     // Generate the static dictionary.
     int GetTotalBBLs();
     int DefineBinaryBBLSize();
@@ -143,15 +143,25 @@ class OrCSTraceReader : public TraceReader {
 
     FetchResult TraceFetch(OpcodePackage *m);
 
+    void convertPackage(OpcodePackage *package);
+
   public:
     virtual int OpenTrace(const char *traceFileName);
+    virtual unsigned long GetTraceSize();
+    virtual unsigned long GetNumberOfFetchedInstructions();
     virtual void PrintStatistics();
-    virtual FetchResult Fetch(InstructionPacket *ret);
+    virtual FetchResult Fetch(const InstructionPacket **ret);
 
     inline ~OrCSTraceReader() {
         gzclose(this->gzStaticTraceFile);
         gzclose(this->gzDynamicTraceFile);
         gzclose(this->gzMemoryTraceFile);
+
+        for (uint32_t bbl = 1; bbl < this->binaryTotalBBLs; bbl++)
+            delete[] this->binaryDict[bbl];
+
+        delete[] this->binaryDict;
+        delete[] this->binaryBBLSize;
     }
 };
 

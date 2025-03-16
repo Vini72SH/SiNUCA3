@@ -67,9 +67,11 @@ class SinucaTraceReader : public TraceReader {
     FetchResult TraceFetch(InstructionPacket**);
 
   public:
-    virtual int OpenTrace(const char*);
+    virtual int OpenTrace(const char* traceFileName);
+    virtual unsigned long GetTraceSize();
+    virtual unsigned long GetNumberOfFetchedInstructions();
     virtual void PrintStatistics();
-    virtual FetchResult Fetch(InstructionPacket**);
+    virtual FetchResult Fetch(const InstructionPacket** ret);
 
     inline ~SinucaTraceReader() {
         fclose(this->StaticTraceFile);

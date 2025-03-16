@@ -88,6 +88,14 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     return 0;
 }
 
+unsigned long sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTraceSize(){
+    return this->binaryTotalBBLs;
+}
+
+unsigned long sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetNumberOfFetchedInstructions(){
+    return this->fetchInstructions;
+}
+
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs() {
     // Go to the Begin of the File
     rewind(this->StaticTraceFile);
@@ -118,7 +126,7 @@ int readBuffer(char *buf, size_t *offset, size_t bufSize, FILE *file) {
 }
 
 void readDataINSBytes(char *buf, size_t *offset,
-                      sinuca::traceReader::InstructionPacket *package) {
+                      sinuca::InstructionPacket *package) {
     DataINS *data;
 
     data = (DataINS*)(buf+*offset);
@@ -249,7 +257,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     //--------------------//
     static size_t bufSize = 0, offset = 0;
     static char buf[BUFFER_SIZE];
-    
+
     if (offset == bufSize) {
         if (readBufSizeFromFile(&bufSize, this->DynamicTraceFile)) {
             return 1;
@@ -363,10 +371,13 @@ sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceFetch(
 
 sinuca::traceReader::FetchResult
 sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::Fetch(
-    InstructionPacket **ret) {
+    const InstructionPacket **ret) {
     //----------------------//
-    FetchResult result = this->TraceFetch(ret);
+    InstructionPacket *ptr;
+    FetchResult result = this->TraceFetch(&ptr);
     if (result != FetchResultOk) return result;
+
+    *ret = const_cast<InstructionPacket*>(ptr);
 
     return FetchResultOk;
 }
@@ -385,7 +396,7 @@ int main() {
 
     Reader::TraceReader *reader = new (Sinuca3Reader::SinucaTraceReader);
 
-    sinuca::traceReader::InstructionPacket *package;
+    const sinuca::InstructionPacket* package;
     reader->OpenTrace("teste");
     while (reader->Fetch(&package) != sinuca::traceReader::FetchResultEnd) {
         SINUCA3_DEBUG_PRINTF("INS MNEMONIC => %s ", package->opcodeAssembly);
