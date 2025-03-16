@@ -1,4 +1,6 @@
+#include <types.h>
 #include "pin.H"
+#include "types_vmapi.PH"
 #include <cstddef>
 #include <cstdio>
 #include <cstring>
@@ -87,7 +89,6 @@ VOID appendToDynamicTrace(UINT32 bblId) {
     char* buf = dynamicBuffer->store;
     size_t* used = &dynamicBuffer->numUsedBytes;
 
-    SINUCA3_DEBUG_PRINTF("BBL ID => %d\n", bblId);
     copy(buf, used, &bblId, sizeof(bblId));
     if (dynamicBuffer->isBufFull() == true) {
         dynamicBuffer->loadBufToFile(dynamicTrace);   
@@ -115,18 +116,9 @@ VOID appendToMemTraceStd(ADDRINT addr, INT32 size) {
     size_t* used = &memoryBuffer->numUsedBytes;
     static DataMEM data;
 
-    memoryBuffer->setMinNecessary(sizeof(data));
-    if (memoryBuffer->isBufFull()) {
-        memoryBuffer->loadBufToFile(memoryTrace);
-    }
-
     data.addr = addr;
     data.size = size;
     copy(buf, used, &data, sizeof(data));
-
-    if (memoryBuffer->isBufFull()) {
-        memoryBuffer->loadBufToFile(memoryTrace);
-    }
 }
 
 VOID appendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* acessInfo) {
