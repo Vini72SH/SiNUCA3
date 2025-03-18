@@ -38,7 +38,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
 
     /* Open static trace */
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "../../trace/static_%s.trace",
+    snprintf(fileName, sizeof(fileName), "./trace/static_%s.trace",
              traceFileName);
     this->StaticTraceFile = fopen(fileName, "rb");
     if (this->StaticTraceFile == NULL) {
@@ -49,7 +49,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
 
     /* Open dynamic trace */
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "../../trace/dynamic_%s.trace",
+    snprintf(fileName, sizeof(fileName), "./trace/dynamic_%s.trace",
              traceFileName);
     this->DynamicTraceFile = fopen(fileName, "rb");
     if (this->DynamicTraceFile == NULL) {
@@ -61,7 +61,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
 
     /* Open memory trace */
     fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "../../trace/memory_%s.trace",
+    snprintf(fileName, sizeof(fileName), "./trace/memory_%s.trace",
              traceFileName);
     this->MemoryTraceFile = fopen(fileName, "rb");
     if (this->MemoryTraceFile == NULL) {
@@ -296,6 +296,8 @@ sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::Fetch(
 
     *ret = const_cast<InstructionPacket *>(ptr);
 
+    SINUCA3_DEBUG_PRINTF("Fetched: %s\n", (*ret)->opcodeAssembly);
+
     return FetchResultOk;
 }
 
@@ -306,17 +308,6 @@ void sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     SINUCA3_LOG_PRINTF("Sinuca3 Trace Reader\n");
     SINUCA3_LOG_PRINTF("Fetch Instructions:%lu\n", this->fetchInstructions);
     SINUCA3_LOG_PRINTF("###########################\n");
-}
-
-int main() {
-    namespace Sinuca3Reader = sinuca::traceReader::sinuca3TraceReader;
-    namespace Reader = sinuca::traceReader;
-
-    Reader::TraceReader *reader = new (Sinuca3Reader::SinucaTraceReader);
-
-    const sinuca::InstructionPacket *package;
-    reader->OpenTrace("test");
-    while (reader->Fetch(&package) != sinuca::traceReader::FetchResultEnd);
 }
 
 void readRegs(const char *buf, size_t *offset, unsigned short *vet,
