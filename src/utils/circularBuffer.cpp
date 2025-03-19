@@ -5,8 +5,6 @@
 
 #include "circularBuffer.hpp"
 
-#include <cstring>
-
 inline bool CircularBuffer::IsAllocated() const {
     return (this->buffer != NULL);
 };
