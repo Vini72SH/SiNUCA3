@@ -35,7 +35,7 @@ class CircularBuffer {
     int bufferSize;    /**<The maximum buffer capacity. */
     int messageSize;   /**<The message size supported by the buffer. */
     int startOfBuffer; /**<Sentinel to the start of the buffer. */
-    int endOfBuffer;   /*<Sentinel for the end of the buffer. */
+    int endOfBuffer;   /**<Sentinel for the end of the buffer. */
 
   public:
     CircularBuffer()
@@ -101,7 +101,7 @@ class CircularBuffer {
      */
     bool Dequeue(void* elementOutput);
 
-    ~CircularBuffer() { Deallocate(); };
+    ~CircularBuffer() { this->Deallocate(); };
 };
 
 #endif

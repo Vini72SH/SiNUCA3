@@ -43,6 +43,28 @@ namespace sinuca {
  */
 template <typename MessageType>
 class Component : public engine::Linkable {
+  protected:
+    /**
+     * @brief Sends a response to another component.
+     * @param component The component to send the response to.
+     * @param connectionID The connection ID.
+     * @param message The message to send.
+     * @return 1 if successful, 0 otherwise.
+     */
+    int SendResponseToConnection(int connectionID, MessageType* message) {
+        return this->SendResponseUnsafe(connectionID, message);
+    };
+
+    /**
+     * @brief Receives a request from another component.
+     * @param connectionID The connection ID.
+     * @param message The message to receive.
+     * @return 1 if successful, 0 otherwise.
+     */
+    int ReceiveRequestFromConnection(int connectionID, MessageType* message) {
+        return this->GetRequestUnsafe(connectionID, message);
+    };
+
   public:
     /**
      * @param messageSize The size of the message that will be used by the
@@ -56,9 +78,7 @@ class Component : public engine::Linkable {
      * @param bufferSize The size of the buffer to be used.
      * @return The connection ID.
      */
-    int ConnectTo(Linkable* component, int bufferSize) {
-        return component->Connect(bufferSize);
-    };
+    int Connect(int bufferSize) { return this->ConnectUnsafe(bufferSize); };
 
     /**
      * @brief Sends a request to another component.
@@ -67,8 +87,8 @@ class Component : public engine::Linkable {
      * @param message The message to send.
      * @return 1 if successful, 0 otherwise.
      */
-    int SendRequestTo(Linkable* component, int connectionID, void* message) {
-        return component->ReceiveRequest(connectionID, message);
+    int SendRequest(int connectionID, MessageType* message) {
+        return this->SendRequestUnsafe(connectionID, message);
     };
 
     /**
@@ -78,30 +98,8 @@ class Component : public engine::Linkable {
      * @param message The message to receive.
      * @return 1 if successful, 0 otherwise.
      */
-    int ReceiveResponseFrom(Linkable* component, int connectionID,
-                            void* message) {
-        return component->GetResponse(connectionID, message);
-    };
-    
-    /**
-     * @brief Sends a response to another component.
-     * @param component The component to send the response to.
-     * @param connectionID The connection ID.
-     * @param message The message to send.
-     * @return 1 if successful, 0 otherwise.
-     */
-    int SendResponseToConnection(int connectionID, void* message) {
-        return this->SendResponse(connectionID, message);
-    };
-
-    /**
-     * @brief Receives a request from another component.
-     * @param connectionID The connection ID.
-     * @param message The message to receive.
-     * @return 1 if successful, 0 otherwise.
-     */
-    int ReceiveRequestFromConnection(int connectionID, void* message) {
-        return this->GetRequest(connectionID, message);
+    int ReceiveResponse(int connectionID, MessageType* message) {
+        return this->GetResponseUnsafe(connectionID, message);
     };
 
     inline ~Component() {}

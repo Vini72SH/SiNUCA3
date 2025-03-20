@@ -28,10 +28,6 @@
 
 static const int SOURCE_ID = 0;
 static const int DEST_ID = 1;
-#include "../utils/circularBuffer.hpp"
-
-static const int SOURCE_ID = 0;
-static const int DEST_ID = 1;
 
 namespace sinuca {
 namespace engine {
@@ -40,9 +36,9 @@ struct Connection {
   private:
     int bufferSize;
     int messageSize;
-    CircularBuffer requestBuffers[2];  /**<Array of the request buffers, swapped
+    CircularBuffer* requestBuffers[2];  /**<Array of the request buffers, swapped
                                            each cycle.*/
-    CircularBuffer responseBuffers[2]; /**<Array of the response buffers,
+    CircularBuffer* responseBuffers[2]; /**<Array of the response buffers,
                                            swapped each cycle.*/
 
   public:
@@ -73,7 +69,7 @@ struct Connection {
     /**
      * @brief Swap the buffers of the connection.
      */
-    void swapBuffers();
+    void SwapBuffers();
 
     /**
      * @brief Insert a message into a requestBuffer.
@@ -145,8 +141,73 @@ class Linkable {
      */
     void AddConnection(Connection* newConnection);
 
+    /**
+     * @brief Connect to *this* component.
+     * @param bufferSize The size of the buffer used in the connection.
+     * @param messageSize The size of the message stored in the buffer.
+     * @details Method used by other components to connect to *this* component,
+     * establishing a connection where *this* component is the one that responds
+     * to received messages.
+     * @return Returns the id of connection on the receiving component
+     */
+     int ConnectUnsafe(int bufferSize);
+
+     /**
+      * @brief Receive a request from other component. (The other calls this
+      * method)
+      * @details This method is called to send a request message to *this*
+      * linkable. Referencing the method name, this linkable *receives* a request
+      * in its own connection request buffer.
+      * @param connectionID The id of the connection.
+      * @param messageInput A pointer to the message to send.
+      * @return 1 if successfuly, 0 otherwise.
+      */
+     int SendRequestUnsafe(int connectionID, void* messageInput);
+ 
+     /**
+      * @brief Gets a request message in the parameter.
+      * @details This method is called to get a request message from a request
+      * buffer, so to receive the message, *this* linkable calls this method, and
+      * the message sent is inserted into the memory region pointed to by the
+      * messageOutput parameter.
+      * @param connectionID The id of the connection.
+      * @param messageOutput A pointer to the message to receive.
+      * @return 1 if successfuly, 0 otherwise.
+      */
+     int GetRequestUnsafe(int connectionID, void* messageOutput);
+ 
+     /**
+      * @brief Sends a reply to the connection.
+      * @details This method is called to insert a reply message into the
+      * connection's reply buffer. Therefore, the linkable only inserts the
+      * response message into the buffer.
+      * @param connectionID The id of the connection.
+      * @param messageInput A pointer to the message to send.
+      * @return 1 if successfuly, 0 otherwise.
+      */
+     int SendResponseUnsafe(int connectionID, void* messageInput);
+ 
+     /**
+      * @brief Gets a response message in the parameter. (The other calls this
+      * method)
+      * @details This method is called to get a response message from a response
+      * buffer, so to receive the message, the component calls this method, and
+      * the message sent is inserted into the memory region pointed to by the
+      * messageOutput parameter.
+      * @param connectionID The id of the connection.
+      * @param messageOutput A pointer to the message to receive.
+      * @return 1 if successfuly, 0 otherwise.
+      */
+     int GetResponseUnsafe(int connectionID, void* messageOutput);
+
   public:
     Linkable(int messageSize);
+
+    /**
+     * @brief Self-explanatory
+     */
+    std::vector<Connection*> GetConnections() const;
+
     /**
      * @brief Don't call this method.
      * @details The engine calls this method before each clock cycle to swap the
@@ -169,66 +230,6 @@ class Linkable {
      * for printing a proper error message describing what happened.
      * @returns Non-zero on error, 0 otherwise.
      */
-
-    /**
-     * @brief Connect to *this* component.
-     * @param bufferSize The size of the buffer used in the connection.
-     * @param messageSize The size of the message stored in the buffer.
-     * @details Method used by other components to connect to *this* component,
-     * establishing a connection where *this* component is the one that responds
-     * to received messages.
-     * @return Returns the id of connection on the receiving component
-     */
-    int Connect(int bufferSize);
-
-    /**
-     * @brief Receive a request from other component. (The other calls this
-     * method)
-     * @details This method is called to send a request message to *this*
-     * linkable. Referencing the method name, this linkable *receives* a request
-     * in its own connection request buffer.
-     * @param connectionID The id of the connection.
-     * @param messageInput A pointer to the message to send.
-     * @return 1 if successfuly, 0 otherwise.
-     */
-    int ReceiveRequest(int connectionID, void* messageInput);
-
-    /**
-     * @brief Gets a request message in the parameter.
-     * @details This method is called to get a request message from a request
-     * buffer, so to receive the message, *this* linkable calls this method, and
-     * the message sent is inserted into the memory region pointed to by the
-     * messageOutput parameter.
-     * @param connectionID The id of the connection.
-     * @param messageOutput A pointer to the message to receive.
-     * @return 1 if successfuly, 0 otherwise.
-     */
-    int GetRequest(int connectionID, void* messageOutput);
-
-    /**
-     * @brief Sends a reply to the connection.
-     * @details This method is called to insert a reply message into the
-     * connection's reply buffer. Therefore, the linkable only inserts the
-     * response message into the buffer.
-     * @param connectionID The id of the connection.
-     * @param messageInput A pointer to the message to send.
-     * @return 1 if successfuly, 0 otherwise.
-     */
-    int SendResponse(int connectionID, void* messageInput);
-
-    /**
-     * @brief Gets a response message in the parameter. (The other calls this
-     * method)
-     * @details This method is called to get a response message from a response
-     * buffer, so to receive the message, the component calls this method, and
-     * the message sent is inserted into the memory region pointed to by the
-     * messageOutput parameter.
-     * @param connectionID The id of the connection.
-     * @param messageOutput A pointer to the message to receive.
-     * @return 1 if successfuly, 0 otherwise.
-     */
-    int GetResponse(int connectionID, void* messageOutput);
-
     virtual int FinishSetup() = 0;
     /**
      * @brief This method should be declared here so the simulator can send
