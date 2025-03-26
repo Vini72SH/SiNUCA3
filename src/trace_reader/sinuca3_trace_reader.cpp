@@ -122,7 +122,6 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     unsigned short bblSize;
     unsigned int totalIns;
     InstructionInfo *package, *pool, *poolPointer;
-    sinuca::traceGenerator::DataINS *data;
 
     unsigned int bblCounter = 0;
     unsigned short instCounter;
@@ -219,7 +218,6 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
     //-------------------------//
     static size_t offset = 0, bufSize = 0;
     static char buf[BUFFER_SIZE];
-    unsigned short numMemOps;
     sinuca::traceGenerator::DataMEM *data;
 
     if (offset == bufSize) {
@@ -248,12 +246,12 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
     }
 
     data = (sinuca::traceGenerator::DataMEM *)(buf + offset);
-    for (unsigned short readIt; readIt < ret->dynamicInfo.numReadings; readIt++) {
+    for (unsigned short readIt = 0; readIt < ret->dynamicInfo.numReadings; readIt++) {
         ret->dynamicInfo.readsAddr[readIt] = data->addr;
         ret->dynamicInfo.readsSize[readIt] = data->size;
         data++;
     }
-    for (unsigned short writeIt; writeIt < ret->dynamicInfo.numWritings; writeIt++) {
+    for (unsigned short writeIt = 0; writeIt < ret->dynamicInfo.numWritings; writeIt++) {
         ret->dynamicInfo.writesAddr[writeIt] = data->addr;
         ret->dynamicInfo.writesSize[writeIt] = data->size;
         data++;
