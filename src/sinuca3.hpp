@@ -95,14 +95,18 @@ struct StaticInstructionInfo{
     bool isPrefetch;
     bool isHive;
     bool isVima;
-    int hive_read1 = -1;
-    int hive_read2 = -1;
-    int hive_write = -1;
+    int hive_read1;
+    int hive_read2;
+    int hive_write;
 
     inline StaticInstructionInfo() {
         memset(this, 0, sizeof(*this));
         memcpy(this->opcodeAssembly, "N/A", 4);
         this->branchType = BranchUncond;
+
+        this->hive_read1 = -1;
+        this->hive_read2 = -1;
+        this->hive_write = -1;
     }
 };
 

@@ -25,7 +25,7 @@
 #include <cstddef>
 #include <cstdio>  // FILE*
 
-#include "../trace_generator/sinuca3_pintool.hpp"
+#include "../../trace_generator/sinuca3_pintool.hpp"
 #include "../utils/logging.hpp"
 #include "trace_reader.hpp"
 
