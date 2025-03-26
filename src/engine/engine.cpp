@@ -60,7 +60,7 @@ int sinuca::engine::Engine::AddCPUs(sinuca::engine::Linkable** cpus,
 
 int sinuca::engine::Engine::Simulate(
     sinuca::traceReader::TraceReader* traceReader) {
-    const InstructionPacket *packet;
+    InstructionPacket packet;
     traceReader::FetchResult result;
     const unsigned long traceSize = traceReader->GetTraceSize();
     // Start at 1 to avoid a heartbeat in the first cycle.

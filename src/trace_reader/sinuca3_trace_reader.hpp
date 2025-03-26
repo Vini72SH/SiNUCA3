@@ -47,7 +47,7 @@ class SinucaTraceReader : public TraceReader {
     /** @brief Vector to store instructions per basic block */
     unsigned short *binaryBBLsSize;
     /** @brief Array containing all instructions */
-    InstructionPacket **binaryDict;
+    StaticInstructionInfo **binaryDict;
 
     /** @brief Current number of fetched instructions */
     unsigned long fetchInstructions;
@@ -64,6 +64,10 @@ class SinucaTraceReader : public TraceReader {
      */
     int GenerateBinaryDict();
 
+    void readDataINSBytes(char *buf, size_t *offset, sinuca::StaticInstructionInfo *package);
+    int readMnemonic(char *str, char *buf, size_t *offset);
+    int readBufSizeFromFile(size_t *size, FILE *file);
+
     int TraceNextDynamic(unsigned int *);
     /**
      * @brief Get memory addresses accessed and number of bytes
@@ -71,19 +75,13 @@ class SinucaTraceReader : public TraceReader {
      * @param package Add to package its memory accesses
      */
     int TraceNextMemory(InstructionPacket *package);
-    /**
-     * @brief Identify next instruction to fetch considering size of
-     * current basic block
-     * @param ret Return instruction in pointer to InstructionPacket
-     */
-    FetchResult TraceFetch(InstructionPacket **ret);
 
   public:
     virtual int OpenTrace(const char *);
     virtual unsigned long GetTraceSize();
     virtual unsigned long GetNumberOfFetchedInstructions();
     virtual void PrintStatistics();
-    virtual FetchResult Fetch(const InstructionPacket **);
+    virtual FetchResult Fetch(InstructionPacket *);
 
     inline ~SinucaTraceReader() {
         fclose(this->StaticTraceFile);
