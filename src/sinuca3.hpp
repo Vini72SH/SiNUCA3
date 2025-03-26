@@ -65,9 +65,6 @@ enum Branch {
 /**
  * @brief Stores details of an instruction.
  * These details are static and cannot be changed during program execution.
- *
- * @note If staticInfo->isNonStdMemOp is true, then staticInfo->numReadings and staticInfo->numWritings will be 0.
- * In this case, you can acess these values in dynamicInfo->numReadings and dynamicInfo->numWritings.
  */
 struct StaticInstructionInfo{
     char opcodeAssembly[TRACE_LINE_SIZE];
@@ -83,9 +80,6 @@ struct StaticInstructionInfo{
     unsigned char numReadRegs;
     unsigned short writeRegs[MAX_REGISTERS];
     unsigned char numWriteRegs;
-
-    unsigned short numReadings;
-    unsigned short numWritings;
 
     Branch branchType;
     bool isNonStdMemOp;
@@ -115,9 +109,6 @@ struct StaticInstructionInfo{
  * These details are dynamic and will vary during program execution.
  *
  * An example of instructions that can change this value are non-standard memory instructions, such as vgather and vscatter.
- *
- * @note If staticInfo->isNonStdMemOp is true, then staticInfo->numReadings and staticInfo->numWritings will be 0.
- * In this case, you can acess these values in dynamicInfo->numReadings and dynamicInfo->numWritings.
  */
 struct DynamicInstructionInfo{
     long readsAddr[MAX_MEM_OPERATIONS];
@@ -140,9 +131,6 @@ struct DynamicInstructionInfo{
  *
  * @param DynamicInstructionInfo Stores details that are dynamic and will vary during program execution.
  * The idea is that it is allocated on the simulator stack to avoid malloc for each instruction.
- *
- * @note If staticInfo->isNonStdMemOp is true, then staticInfo->numReadings and staticInfo->numWritings will be 0.
- * In this case, you can acess these values in dynamicInfo->numReadings and dynamicInfo->numWritings.
  */
 struct InstructionPacket {
     const StaticInstructionInfo *staticInfo;
