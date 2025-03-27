@@ -3,36 +3,36 @@
 
 btb_entry::btb_entry() : validBit(false), simplePredictor(nullptr) {};
 
-void btb_entry::allocate() {
+void btb_entry::Allocate() {
     validBit = false;
     tag = 0;
     fetchTarget = 0;
     simplePredictor = new BimodalPredictor();
 };
 
-bool btb_entry::getValid() {
+bool btb_entry::GetValid() {
     return validBit;
 };
 
-uint32_t btb_entry::getTag() {
+uint32_t btb_entry::GetTag() {
     return tag;
 };
 
-uint32_t btb_entry::getTarget() {
+uint32_t btb_entry::GetTarget() {
     return fetchTarget;
 };
 
-bool btb_entry::getPrediction() {
+bool btb_entry::GetPrediction() {
     return simplePredictor->GetPrediction();
 };
 
-void btb_entry::setEntry(uint32_t tag, uint32_t fetchTarget) {
+void btb_entry::SetEntry(uint32_t tag, uint32_t fetchTarget) {
     this->validBit = true;
     this->tag = tag;
     this->fetchTarget = fetchTarget;
 };
 
-void btb_entry::updatePrediction(bool branchTaken) {
+void btb_entry::UpdatePrediction(bool branchTaken) {
     simplePredictor->UpdatePrediction(branchTaken);
 };
 
@@ -42,14 +42,14 @@ btb_entry::~btb_entry() {
 
 BranchTargetBuffer::BranchTargetBuffer() : Component<BTBMessage>(), instructionValidBits(nullptr), banks(nullptr) {};
 
-uint32_t BranchTargetBuffer::calculateTag(uint32_t fetchAddress) {
+uint32_t BranchTargetBuffer::CalculateTag(uint32_t fetchAddress) {
     uint32_t tag = fetchAddress;
     tag = tag >> numBanks;
 
     return tag;
 };
 
-uint32_t BranchTargetBuffer::calculateIndex(uint32_t fetchAddress) {
+uint32_t BranchTargetBuffer::CalculateIndex(uint32_t fetchAddress) {
     uint32_t index = fetchAddress;
     index = index >> numBanks;
     index = index & ((1 << numEntries) - 1);
@@ -57,7 +57,7 @@ uint32_t BranchTargetBuffer::calculateIndex(uint32_t fetchAddress) {
     return index;
 };
 
-void BranchTargetBuffer::allocate(uint32_t numBanks, uint32_t numEntries) {
+void BranchTargetBuffer::Allocate(uint32_t numBanks, uint32_t numEntries) {
     this->numBanks = numBanks;
     this->numEntries = numEntries;
     this->totalBranches = 0;
@@ -73,39 +73,39 @@ void BranchTargetBuffer::allocate(uint32_t numBanks, uint32_t numEntries) {
         this->banks[bank] = new btb_entry[totalEntries];
 
         for (int entries = 0; entries < totalEntries; ++entries) {
-            this->banks[bank][entries].allocate();
+            this->banks[bank][entries].Allocate();
         }
     }
 };
 
-uint32_t BranchTargetBuffer::getNextFetchBlock() {
+uint32_t BranchTargetBuffer::GetNextFetchBlock() {
     return nextFetchBlock;
 };
 
-bool* BranchTargetBuffer::getInstructionValidBits() {
+bool* BranchTargetBuffer::GetInstructionValidBits() {
     return instructionValidBits;
 };
 
-void BranchTargetBuffer::registerNewBlock(uint32_t fetchAddress, uint32_t* fetchTargets) {
-    uint32_t currentTag = calculateTag(fetchAddress);
-    uint32_t index = calculateIndex(fetchAddress);
+void BranchTargetBuffer::RegisterNewBlock(uint32_t fetchAddress, uint32_t* fetchTargets) {
+    uint32_t currentTag = CalculateTag(fetchAddress);
+    uint32_t index = CalculateIndex(fetchAddress);
 
     for (uint32_t bank = 0; bank < numBanks; ++bank) {
-        banks[bank][index].setEntry(currentTag, fetchTargets[bank]);
+        banks[bank][index].SetEntry(currentTag, fetchTargets[bank]);
     }
 };
 
-TypeBTBMessage BranchTargetBuffer::fetchBTBEntry(uint32_t fetchAddress) {
+TypeBTBMessage BranchTargetBuffer::FetchBTBEntry(uint32_t fetchAddress) {
     bool alocated = true;
     uint32_t nextBlock = 0;
-    uint32_t currentTag = calculateTag(fetchAddress);
-    uint32_t index = calculateIndex(fetchAddress);
+    uint32_t currentTag = CalculateTag(fetchAddress);
+    uint32_t index = CalculateIndex(fetchAddress);
 
     for (uint32_t i = 0; i < numBanks; ++i) {
-        if (banks[i][index].getValid()) {
-            if (banks[i][index].getTag() == currentTag) {
-                nextBlock = banks[i][index].getTarget();
-                instructionValidBits[i] = banks[i][index].getPrediction();
+        if (banks[i][index].GetValid()) {
+            if (banks[i][index].GetTag() == currentTag) {
+                nextBlock = banks[i][index].GetTarget();
+                instructionValidBits[i] = banks[i][index].GetPrediction();
             } else {
                 alocated = false;
                 instructionValidBits[i] = true;
@@ -129,14 +129,14 @@ TypeBTBMessage BranchTargetBuffer::fetchBTBEntry(uint32_t fetchAddress) {
     return UNALLOCATED_ENTRY;
 };
 
-void BranchTargetBuffer::updateBlock(uint32_t fetchAddress, bool* executedInstructions) {
-    uint32_t currentTag = calculateTag(fetchAddress);
-    uint32_t index = calculateIndex(fetchAddress);
+void BranchTargetBuffer::UpdateBlock(uint32_t fetchAddress, bool* executedInstructions) {
+    uint32_t currentTag = CalculateTag(fetchAddress);
+    uint32_t index = CalculateIndex(fetchAddress);
 
     for (uint32_t bank = 0; bank < numBanks; ++bank) {
-        if (banks[bank][index].getValid()) {
-            if (banks[bank][index].getTag() == currentTag) {
-                banks[bank][index].updatePrediction(executedInstructions[bank]);
+        if (banks[bank][index].GetValid()) {
+            if (banks[bank][index].GetTag() == currentTag) {
+                banks[bank][index].UpdatePrediction(executedInstructions[bank]);
             }
         }
     }

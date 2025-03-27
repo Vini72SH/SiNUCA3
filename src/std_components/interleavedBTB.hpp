@@ -43,37 +43,37 @@ struct btb_entry {
         /**
          * @brief Allocates the BTB entry
          */
-        void allocate();
+        void Allocate();
 
         /**
          * @brief Gets the valid bit of entry
          */
-        bool getValid();
+        bool GetValid();
 
         /** 
          * @brief Gets the tag of the entry
          */
-        uint32_t getTag();
+        uint32_t GetTag();
 
         /**
          * @brief Gets the fetch target
          */
-        uint32_t getTarget();
+        uint32_t GetTarget();
 
         /**
          * @brief Wrapper to TwoBitPredictor Method
          */
-        bool getPrediction();
+        bool GetPrediction();
 
         /**
          * @brief Defines the input fields
          */
-        void setEntry(uint32_t tag, uint32_t fetchTarget);
+        void SetEntry(uint32_t tag, uint32_t fetchTarget);
 
         /**
          * @brief Wrapper to TwoBitPredictor Method
          */
-        void updatePrediction(bool branchTaken);
+        void UpdatePrediction(bool branchTaken);
 
         ~btb_entry();
 };
@@ -92,7 +92,7 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
          * @param FetchAddress Address used to access BTB
          * @details This method aligns the address with the interleaving factor and returns the value
          */
-        uint32_t calculateTag(uint32_t fetchAddress);
+        uint32_t CalculateTag(uint32_t fetchAddress);
         /**
          * @brief Calculate the index to access the correct BTB entry
          * @param fetchAddress Address used to access BTB
@@ -100,7 +100,7 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
          * Aligning the fetch address with the interleaving factor and obtaining the index of the respective BTB entry for the fetch address.
          * @return The index to access BTB
          */
-        uint32_t calculateIndex(uint32_t fetchAddress);
+        uint32_t CalculateIndex(uint32_t fetchAddress);
     public:
         BranchTargetBuffer();
 
@@ -109,17 +109,17 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
          * @param numBanks Number of bits used to index the banks (2 bits = 4 banks)
          * @param numEntries Number of bits used to index the entries (8 bits = 256 entries)
          */
-        void allocate(uint32_t numBanks, uint32_t numEntries);
+        void Allocate(uint32_t numBanks, uint32_t numEntries);
 
         /**
          * @return The address of next instruction block
          */
-        uint32_t getNextFetchBlock();
+        uint32_t GetNextFetchBlock();
 
         /**
          * @return The instructions predicted as executable from the instruction block
          */
-        bool* getInstructionValidBits();
+        bool* GetInstructionValidBits();
 
         /**
          * @brief Register a new entry in BTB
@@ -127,7 +127,7 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
          * @param fetchTargets The array of targets for each instruction in the new block
          * @details This method registers a new block in the BTB, defining the tag and target addresses.
          */
-        void registerNewBlock(uint32_t fetchAddress, uint32_t* fetchTargets);
+        void RegisterNewBlock(uint32_t fetchAddress, uint32_t* fetchTargets);
 
         /**
          * @brief Make a query on BTB from an address
@@ -136,14 +136,14 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
          * If the entry is not yet allocated, it assumes that the next fetch block is sequential and that all instructions will be executed.
          * @return Returns a message to the procedure calling the method, indicating whether the BTB entry is allocated or not allocated, as these cases require different procedures later.
          */
-        TypeBTBMessage fetchBTBEntry(uint32_t fetchAddress);
+        TypeBTBMessage FetchBTBEntry(uint32_t fetchAddress);
 
         /**
          * @brief Updates the BTB block based on the instructions that were executed
          * @param fetchAddress The address used to fetch block
          * @param executedInstructions An array of booleans indicating which instructions were actually executed
          */
-        void updateBlock(uint32_t fetchAddress, bool* executedInstructions);
+        void UpdateBlock(uint32_t fetchAddress, bool* executedInstructions);
 
         ~BranchTargetBuffer();
 };
