@@ -238,12 +238,12 @@ VOID trace(TRACE trace, VOID *ptr) {
 
     if (isInstrumentationOn == false) {return;}
 
-    if (std::strstr(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop")) {
+    if (strstr(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop")) {
         return stopInstrumentation(bblCount, instCount);
     }
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        BBL_InsertCall(bbl, IPOINT_BEFORE, (AFUNPTR)appendToDynamicTrace,
+        BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)appendToDynamicTrace, 
                       IARG_UINT32, bblCount, IARG_END);
         bblCount++;
         numInstBbl = 0;
@@ -254,7 +254,7 @@ VOID trace(TRACE trace, VOID *ptr) {
             instCount++;
             x86ToStaticBuf(&ins, &data);
         }
-        std::memcpy(buf+bblInit, &numInstBbl, sizeof(numInstBbl));
+        memcpy(buf+bblInit, &numInstBbl, sizeof(numInstBbl));
     }
 
     return;
