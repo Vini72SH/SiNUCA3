@@ -20,6 +20,9 @@ static unsigned int numThreads = 0;
 
 sinuca::traceGenerator::TraceFileHandler tfHandler;
 
+static unsigned int bblCount = 0;
+static unsigned int instCount = 0;
+
 PIN_LOCK pinLock;
 
 KNOB<INT> KnobNumberIns(KNOB_MODE_WRITEONCE, "pintool", "number_max_inst",
@@ -105,6 +108,11 @@ void sinuca::traceGenerator::TraceFileHandler::closeTraceFile(sinuca::traceGener
     switch (type) {
         case sinuca::traceGenerator::TRACE_STATIC:
             tfHandler.staticBuffer->loadBufToFile(tfHandler.staticTraceFile);
+
+            rewind(tfHandler.staticTraceFile);
+            fwrite(&bblCount, 1, sizeof(bblCount), tfHandler.staticTraceFile);
+            fwrite(&instCount, 1, sizeof(instCount), tfHandler.staticTraceFile);
+
             fclose(tfHandler.staticTraceFile);
             delete tfHandler.staticBuffer;
             break;
@@ -148,21 +156,12 @@ VOID ThreadFini(THREADID threadid, const CONTEXT* ctxt, INT32 code, VOID* v){
 
 VOID initInstrumentation() {
     SINUCA3_LOG_PRINTF("Start of tool instrumentation\n");
-
     isInstrumentationOn = true;
 }
 
-VOID stopInstrumentation(unsigned int bblCount, unsigned int instCount) {
-    THREADID tid = PIN_ThreadId();
-
-    SINUCA3_LOG_PRINTF("Trace ended from thread %d\n", tid);
+VOID stopInstrumentation() {
     SINUCA3_LOG_PRINTF("End of tool instrumentation\n");
-    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", bblCount);
     isInstrumentationOn = false;
-
-    rewind(tfHandler.staticTraceFile); // TODO NEED FIX
-    fwrite(&bblCount, 1, sizeof(bblCount), tfHandler.staticTraceFile);
-    fwrite(&instCount, 1, sizeof(instCount), tfHandler.staticTraceFile);
 }
 
 VOID appendToDynamicTrace(UINT32 bblId) {
@@ -352,7 +351,6 @@ VOID trace(TRACE trace, VOID *ptr) {
 
     char* buf = tfHandler.staticBuffer->store;
     size_t *usedStatic=&tfHandler.staticBuffer->numUsedBytes, bblInit;
-    static unsigned int bblCount = 0, instCount = 0;
     unsigned short numInstBbl;
 
     if (isInstrumentationOn == false) {return;}
@@ -360,7 +358,7 @@ VOID trace(TRACE trace, VOID *ptr) {
     PIN_GetLock(&pinLock, tid);
 
     if (strstr(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop")) {
-        stopInstrumentation(bblCount, instCount);
+        stopInstrumentation();
         PIN_ReleaseLock(&pinLock);
         return;
     }
@@ -415,6 +413,7 @@ VOID imageLoad(IMG img, VOID* ptr) {
 
 VOID fini(INT32 code, VOID* ptr) {
     SINUCA3_LOG_PRINTF("End of tool execution\n");
+    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", bblCount);
 
     tfHandler.closeTraceFile(sinuca::traceGenerator::TRACE_STATIC, 0);
 }
