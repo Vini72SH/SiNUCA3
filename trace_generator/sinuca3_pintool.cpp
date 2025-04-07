@@ -15,6 +15,11 @@ extern "C" {
 #include "sinuca3_pintool.hpp"
 #include "../src/sinuca3.hpp"
 
+// Set this to 1 to print all rotines
+// that name begins with "gomp", case insensitive
+// (Statically linking GOMP is recommended)
+#define DEBUG_PRINT_GOMP_RNT 1
+
 // When this is enabled, every thread will be instrumented;
 static bool isGlobalInstrumentating;
 // And this enable instrumentation per thread.
@@ -48,6 +53,20 @@ inline void setBit(unsigned char* byte, int position, bool value) {
     } else {
         *byte &= 0xff - (1 << position);
     }
+}
+
+bool strStartsWithGomp(const char* s) {
+    const char* prefix = "GOMP";
+    for (size_t i = 0; prefix[i] != '\0'; ++i) {
+        if (std::tolower(s[i]) != std::tolower(prefix[i])) {
+            return false;
+        }
+    }
+    return true;
+}
+
+void printRtnName(const char* s){
+    SINUCA3_DEBUG_PRINTF("RNT called: %s\n", s);
 }
 
 void sinuca::traceGenerator::TraceFileHandler::openNewTraceFile(sinuca::traceGenerator::TraceType type, unsigned int tid){
@@ -433,6 +452,12 @@ VOID imageLoad(IMG img, VOID* ptr) {
             if (strcmp(name, "trace_start_thread") == 0) {
                 RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentationInThread, IARG_THREAD_ID, IARG_END);
             }
+
+            #if DEBUG_PRINT_GOMP_RNT == 1
+            if(strStartsWithGomp(name)){
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)printRtnName, IARG_PTR, name, IARG_END);
+            }
+            #endif
 
             RTN_Close(rtn);
         }
