@@ -15,7 +15,10 @@ extern "C" {
 #include "sinuca3_pintool.hpp"
 #include "../src/sinuca3.hpp"
 
-static bool isInstrumentationOn;
+// When this is enabled, every thread will be instrumented;
+static bool isGlobalInstrumentating;
+// And this enable instrumentation per thread.
+static std::vector<bool> isThreadInstrumentating;
 static unsigned int numThreads = 0;
 
 sinuca::traceGenerator::TraceFileHandler tfHandler;
@@ -47,7 +50,7 @@ inline void setBit(unsigned char* byte, int position, bool value) {
     }
 }
 
-void sinuca::traceGenerator::TraceFileHandler::openNewTraceFile(sinuca::traceGenerator::TraceType type, unsigned int threadID){
+void sinuca::traceGenerator::TraceFileHandler::openNewTraceFile(sinuca::traceGenerator::TraceType type, unsigned int tid){
     char fileName[96];
     char filePath[256];
 
@@ -75,36 +78,34 @@ void sinuca::traceGenerator::TraceFileHandler::openNewTraceFile(sinuca::traceGen
 
         case sinuca::traceGenerator::TRACE_DYNAMIC:
             SINUCA3_DEBUG_PRINTF("TRACE_DYNAMIC %s\n", tfHandler.imgName);
-            snprintf(fileName, sizeof(fileName), "dynamic_%s_tid%d.trace", tfHandler.imgName, threadID);
+            snprintf(fileName, sizeof(fileName), "dynamic_%s_tid%d.trace", tfHandler.imgName, tid);
 
-            // push_back is problematic if threadIDs are not sequential
-            if(tfHandler.dynamicTraceFiles.size() <= threadID){
-                tfHandler.dynamicTraceFiles.resize(threadID);
-                tfHandler.dynamicBuffers.resize(threadID);
+            if(tfHandler.dynamicTraceFiles.size() <= tid){
+                tfHandler.dynamicTraceFiles.resize(tid * 2 + 1);
+                tfHandler.dynamicBuffers.resize(tid * 2 + 1);
             }
 
-            tfHandler.dynamicTraceFiles[threadID] = fopen(strcat(filePath, fileName), "wb");
-            tfHandler.dynamicBuffers[threadID] = new Buffer;
-            tfHandler.dynamicBuffers[threadID]->minSpacePerOperation = sizeof(unsigned short);
+            tfHandler.dynamicTraceFiles[tid] = fopen(strcat(filePath, fileName), "wb");
+            tfHandler.dynamicBuffers[tid] = new Buffer;
+            tfHandler.dynamicBuffers[tid]->minSpacePerOperation = sizeof(unsigned short);
             break;
 
         case sinuca::traceGenerator::TRACE_MEMORY:
-            snprintf(fileName, sizeof(fileName), "memory_%s_tid%d.trace", tfHandler.imgName, threadID);
+            snprintf(fileName, sizeof(fileName), "memory_%s_tid%d.trace", tfHandler.imgName, tid);
 
-            // push_back is problematic if threadIDs are not sequential
-            if(tfHandler.memoryTraceFiles.size() <= threadID){
-                tfHandler.memoryTraceFiles.resize(threadID);
-                tfHandler.memoryBuffers.resize(threadID);
+            if(tfHandler.memoryTraceFiles.size() <= tid){
+                tfHandler.memoryTraceFiles.resize(tid * 2 + 1);
+                tfHandler.memoryBuffers.resize(tid * 2 + 1);
             }
 
-            tfHandler.memoryTraceFiles[threadID] = fopen(strcat(filePath, fileName), "wb");
-            tfHandler.memoryBuffers[threadID] = new Buffer;
-            tfHandler.memoryBuffers[threadID]->minSpacePerOperation = sizeof(ADDRINT) + sizeof(INT32);
+            tfHandler.memoryTraceFiles[tid] = fopen(strcat(filePath, fileName), "wb");
+            tfHandler.memoryBuffers[tid] = new Buffer;
+            tfHandler.memoryBuffers[tid]->minSpacePerOperation = sizeof(ADDRINT) + sizeof(INT32);
             break;
     }
 }
 
-void sinuca::traceGenerator::TraceFileHandler::closeTraceFile(sinuca::traceGenerator::TraceType type, unsigned int threadID){
+void sinuca::traceGenerator::TraceFileHandler::closeTraceFile(sinuca::traceGenerator::TraceType type, unsigned int tid){
     switch (type) {
         case sinuca::traceGenerator::TRACE_STATIC:
             tfHandler.staticBuffer->loadBufToFile(tfHandler.staticTraceFile);
@@ -117,51 +118,68 @@ void sinuca::traceGenerator::TraceFileHandler::closeTraceFile(sinuca::traceGener
             delete tfHandler.staticBuffer;
             break;
         case sinuca::traceGenerator::TRACE_DYNAMIC:
-            tfHandler.dynamicBuffers[threadID]->loadBufToFile(tfHandler.dynamicTraceFiles[threadID]);
-            fclose(tfHandler.dynamicTraceFiles[threadID]);
-            delete tfHandler.dynamicBuffers[threadID];
+            tfHandler.dynamicBuffers[tid]->loadBufToFile(tfHandler.dynamicTraceFiles[tid]);
+            fclose(tfHandler.dynamicTraceFiles[tid]);
+            delete tfHandler.dynamicBuffers[tid];
             break;
         case sinuca::traceGenerator::TRACE_MEMORY:
-            tfHandler.memoryBuffers[threadID]->loadBufToFile(tfHandler.memoryTraceFiles[threadID]);
-            fclose(tfHandler.memoryTraceFiles[threadID]);
-            delete tfHandler.memoryBuffers[threadID];
+            tfHandler.memoryBuffers[tid]->loadBufToFile(tfHandler.memoryTraceFiles[tid]);
+            fclose(tfHandler.memoryTraceFiles[tid]);
+            delete tfHandler.memoryBuffers[tid];
             break;
     }
 }
 
-VOID ThreadStart(THREADID threadid, CONTEXT* ctxt, INT32 flags, VOID* v){
-    PIN_GetLock(&pinLock, threadid);
+VOID ThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v){
+    PIN_GetLock(&pinLock, tid);
 
-    SINUCA3_DEBUG_PRINTF("New thread created! N => %d\n", threadid);
+    SINUCA3_DEBUG_PRINTF("New thread created! N => %d\n", tid);
     numThreads++;
 
-    tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_DYNAMIC, threadid);
-    tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_MEMORY, threadid);
+    if(isThreadInstrumentating.size() <= tid){
+        isThreadInstrumentating.resize(tid * 2 + 1);
+    }
+    isThreadInstrumentating[tid] = isGlobalInstrumentating;
+
+    tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_DYNAMIC, tid);
+    tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_MEMORY, tid);
 
     PIN_ReleaseLock(&pinLock);
 }
 
-VOID ThreadFini(THREADID threadid, const CONTEXT* ctxt, INT32 code, VOID* v){
-    PIN_GetLock(&pinLock, threadid);
+VOID ThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v){
+    PIN_GetLock(&pinLock, tid);
 
-    SINUCA3_DEBUG_PRINTF("A thread has finalized! N => %d\n", threadid);
+    SINUCA3_DEBUG_PRINTF("A thread has finalized! N => %d\n", tid);
 
-    tfHandler.closeTraceFile(sinuca::traceGenerator::TRACE_DYNAMIC, threadid);
-    tfHandler.closeTraceFile(sinuca::traceGenerator::TRACE_MEMORY , threadid);
+    tfHandler.closeTraceFile(sinuca::traceGenerator::TRACE_DYNAMIC, tid);
+    tfHandler.closeTraceFile(sinuca::traceGenerator::TRACE_MEMORY , tid);
 
     numThreads--;
 
     PIN_ReleaseLock(&pinLock);
 }
 
-VOID initInstrumentation() {
-    SINUCA3_LOG_PRINTF("Start of tool instrumentation\n");
-    isInstrumentationOn = true;
+VOID initInstrumentationGlobally() {
+    SINUCA3_LOG_PRINTF("Start of tool instrumentation globally.\n");
+    isGlobalInstrumentating = true;
+    std::fill(isThreadInstrumentating.begin(), isThreadInstrumentating.end(), true);
 }
 
-VOID stopInstrumentation() {
-    SINUCA3_LOG_PRINTF("End of tool instrumentation\n");
-    isInstrumentationOn = false;
+VOID stopInstrumentationGlobally() {
+    SINUCA3_LOG_PRINTF("End of tool instrumentation globally.\n");
+    isGlobalInstrumentating = false;
+    std::fill(isThreadInstrumentating.begin(), isThreadInstrumentating.end(), false);
+}
+
+VOID initInstrumentationInThread(THREADID tid) {
+    SINUCA3_LOG_PRINTF("Start of tool instrumentation in thread %d.\n", tid);
+    isThreadInstrumentating[tid] = true;
+}
+
+VOID stopInstrumentationInThread(THREADID tid) {
+    SINUCA3_LOG_PRINTF("End of tool instrumentation in thread %d.\n", tid);
+    isThreadInstrumentating[tid] = false;
 }
 
 VOID appendToDynamicTrace(UINT32 bblId) {
@@ -353,15 +371,20 @@ VOID trace(TRACE trace, VOID *ptr) {
     size_t *usedStatic=&tfHandler.staticBuffer->numUsedBytes, bblInit;
     unsigned short numInstBbl;
 
-    if (isInstrumentationOn == false) {return;}
+    if ( !isGlobalInstrumentating && !isThreadInstrumentating[tid] )
+        return;
 
-    PIN_GetLock(&pinLock, tid);
-
-    if (strstr(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop")) {
-        stopInstrumentation();
-        PIN_ReleaseLock(&pinLock);
+    if (strcmp(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop_global") == 0) {
+        stopInstrumentationGlobally();
         return;
     }
+
+    if (strcmp(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop_thread") == 0) {
+        stopInstrumentationInThread(tid);
+        return;
+    }
+
+    PIN_GetLock(&pinLock, tid);
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)appendToDynamicTrace,
@@ -402,9 +425,15 @@ VOID imageLoad(IMG img, VOID* ptr) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
             RTN_Open(rtn);
             const char* name = RTN_Name(rtn).c_str();
-            if (strstr(name, "trace_start")) {
-                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentation, IARG_END);
+
+            if (strcmp(name, "trace_start_global") == 0) {
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentationGlobally, IARG_END);
             }
+
+            if (strcmp(name, "trace_start_thread") == 0) {
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentationInThread, IARG_THREAD_ID, IARG_END);
+            }
+
             RTN_Close(rtn);
         }
     }
@@ -426,7 +455,7 @@ int main(int argc, char* argv[]) {
 
     PIN_InitLock(&pinLock);
 
-    isInstrumentationOn = false;
+    isGlobalInstrumentating = false;
 
     IMG_AddInstrumentFunction(imageLoad, NULL);
     TRACE_AddInstrumentFunction(trace, NULL);
