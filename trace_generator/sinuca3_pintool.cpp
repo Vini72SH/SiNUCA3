@@ -96,7 +96,6 @@ void sinuca::traceGenerator::TraceFileHandler::openNewTraceFile(sinuca::traceGen
             break;
 
         case sinuca::traceGenerator::TRACE_DYNAMIC:
-            SINUCA3_DEBUG_PRINTF("TRACE_DYNAMIC %s\n", tfHandler.imgName);
             snprintf(fileName, sizeof(fileName), "dynamic_%s_tid%d.trace", tfHandler.imgName, tid);
 
             if(tfHandler.dynamicTraceFiles.size() <= tid){
@@ -431,8 +430,6 @@ VOID imageLoad(IMG img, VOID* ptr) {
     std::string completeImgPath = IMG_Name(img);
     size_t it = completeImgPath.find_last_of('/')+1;
     const char* imgName = &completeImgPath.c_str()[it];
-
-    SINUCA3_DEBUG_PRINTF("IMAGE LOADED!\n");
 
     unsigned int fileNameSize = strlen(imgName);
     assert(fileNameSize < MAX_IMAGE_NAME_SIZE && "Trace file name is too long. Max of 64 chars");
