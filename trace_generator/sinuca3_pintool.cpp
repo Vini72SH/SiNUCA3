@@ -33,6 +33,8 @@ static unsigned int instCount = 0;
 
 PIN_LOCK pinLock;
 
+std::vector<const char*> OMP_ignore;
+
 KNOB<INT> KnobNumberIns(KNOB_MODE_WRITEONCE, "pintool", "number_max_inst",
                         "-1", "Maximum number of instructions to be traced");
 
@@ -388,18 +390,29 @@ VOID trace(TRACE trace, VOID *ptr) {
     char* buf = tfHandler.staticBuffer->store;
     size_t *usedStatic=&tfHandler.staticBuffer->numUsedBytes, bblInit;
     unsigned short numInstBbl;
+    const char *traceRtnName = RTN_Name(TRACE_Rtn(trace)).c_str();
 
     if ( !isGlobalInstrumentating && !isThreadInstrumentating[tid] )
         return;
 
-    if (strcmp(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop_global") == 0) {
+    if (strcmp(traceRtnName, "trace_stop_global") == 0) {
         stopInstrumentationGlobally();
         return;
     }
 
-    if (strcmp(RTN_Name(TRACE_Rtn(trace)).c_str(), "trace_stop_thread") == 0) {
+    if (strcmp(traceRtnName, "trace_stop_thread") == 0) {
         stopInstrumentationInThread(tid);
         return;
+    }
+
+    // This will make every function call from libgomp that have a
+    // PAUSE instruction to be ignored.
+    // I still not sure if this is fully corret.
+    for(size_t i=0; i<OMP_ignore.size(); ++i){
+        if (strcmp(traceRtnName, OMP_ignore[i]) == 0) {
+            // has SPIN_LOCK
+            return;
+        }
     }
 
     PIN_GetLock(&pinLock, tid);
@@ -478,6 +491,16 @@ int main(int argc, char* argv[]) {
     PIN_InitLock(&pinLock);
 
     isGlobalInstrumentating = false;
+
+    // All these functions have a PAUSE instruction (Spin-lock hint)
+    OMP_ignore.push_back("gomp_barrier_wait_end");
+    OMP_ignore.push_back("gomp_team_barrier_wait_end");
+    OMP_ignore.push_back("gomp_team_barrier_wait_cancel_end");
+    OMP_ignore.push_back("gomp_mutex_lock_slow");
+    OMP_ignore.push_back("GOMP_doacross_wait");
+    OMP_ignore.push_back("GOMP_doacross_ull_wait");
+    OMP_ignore.push_back("gomp_ptrlock_get_slow");
+    OMP_ignore.push_back("gomp_sem_wait_slow");
 
     IMG_AddInstrumentFunction(imageLoad, NULL);
     TRACE_AddInstrumentFunction(trace, NULL);
