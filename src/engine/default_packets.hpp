@@ -30,7 +30,7 @@ namespace sinuca {
 
 #define MAX_REGISTERS 32
 #define MAX_MEM_OPERATIONS 16
-#define TRACE_LINE_SIZE 512
+#define TRACE_LINE_SIZE 256
 
 /** @brief Enumerates the types of branches. */
 enum Branch {
@@ -47,8 +47,6 @@ enum Branch {
  */
 struct StaticInstructionInfo {
     char opcodeAssembly[TRACE_LINE_SIZE];
-    // instruction_operation_t opcode_operation;
-    // uint32_t instruction_id;
 
     long opcodeAddress;
     unsigned char opcodeSize;
@@ -66,20 +64,11 @@ struct StaticInstructionInfo {
     bool isIndirect;
     bool isPredicated;
     bool isPrefetch;
-    bool isHive;
-    bool isVima;
-    int hive_read1;
-    int hive_read2;
-    int hive_write;
 
     inline StaticInstructionInfo() {
         memset(this, 0, sizeof(*this));
         memcpy(this->opcodeAssembly, "N/A", 4);
         this->branchType = BranchUncond;
-
-        this->hive_read1 = -1;
-        this->hive_read2 = -1;
-        this->hive_write = -1;
     }
 };
 
