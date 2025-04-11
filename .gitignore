@@ -2,6 +2,7 @@ build/
 .cache/
 sinuca3
 sinuca3-debug
+sinuca3_trace_reader
 compile_commands.json
 trace/
 docs/
