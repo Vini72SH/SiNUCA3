@@ -28,7 +28,7 @@
 #include "../../trace_generator/sinuca3_pintool.hpp"
 #include "../utils/logging.hpp"
 #include "trace_reader.hpp"
-#include "buffer.h"
+#include "buffer.hpp"
 
 extern "C" {
 #include <sys/mman.h>
