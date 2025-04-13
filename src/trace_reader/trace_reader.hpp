@@ -30,6 +30,12 @@
 namespace sinuca {
 namespace traceReader {
 
+enum FileType {
+  StaticFile,
+  DynamicFile,
+  MemoryFile
+};
+
 enum FetchResult {
     FetchResultOk,
     FetchResultEnd,

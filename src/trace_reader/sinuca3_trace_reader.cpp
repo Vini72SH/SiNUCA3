@@ -27,8 +27,8 @@
 
 #include "../../trace_generator/sinuca3_pintool.hpp"
 #include "../utils/logging.hpp"
-#include "trace_reader.hpp"
 #include "buffer.hpp"
+#include "trace_reader.hpp"
 
 extern "C" {
 #include <sys/mman.h>
@@ -37,69 +37,66 @@ extern "C" {
 
 inline void IncreaseOffset(size_t *offset, size_t size) { *offset += size; }
 
+int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTraceFile(
+    FileType ft, const char *name) {
+    //----------------------------//
+    int numThreads;
+    std::vector<FILE *> *vec;
+    char fileName[256], fileType[32];
+
+    fileName[0] = '\0';
+    numThreads = 1;
+    switch (ft) {
+        case StaticFile:
+            snprintf(fileName, sizeof(fileName), "../../trace/static_%s.trace",
+                     name);
+            this->StaticTraceFile = fopen(fileName, "rb");
+            if (this->StaticTraceFile == NULL) {
+                SINUCA3_ERROR_PRINTF("Could not open the static file.\n%s\n",
+                                     fileName);
+                return 1;
+            }
+            return 0;
+        case DynamicFile:
+            vec = &this->ThreadsDynFiles;
+            snprintf(fileType, sizeof(fileType), "dynamic");
+            break;
+        case MemoryFile:
+            vec = &this->ThreadsMemFiles;
+            snprintf(fileType, sizeof(fileType), "memory");
+            break;
+    }
+
+    for (int i = 0; i < numThreads; i++) {
+        snprintf(fileName, sizeof(fileName), "../../trace/%s_%s_tid%d.trace",
+                 fileType, name, i);
+        (*vec).push_back(fopen(fileName, "rb"));
+        if ((*vec).back() == NULL) {
+            SINUCA3_ERROR_PRINTF("Could not open the %s\n", fileName);
+            return 1;
+        }
+        fileName[0] = '\0';
+    }
+
+    return 0;
+}
+
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     const char *traceFileName) {
     //------------------------//
     char fileName[256];
-    int fd;
 
-    /* Open static trace */
-    fileName[0] = '\0';
-    snprintf(fileName, sizeof(fileName), "../../trace/static_%s.trace",
-             traceFileName);
-    this->StaticTraceFile = fopen(fileName, "rb");
-    if (this->StaticTraceFile == NULL) {
-        SINUCA3_ERROR_PRINTF("Could not open the static file.\n%s\n", fileName);
-        return 1;
-    }
-    SINUCA3_DEBUG_PRINTF("Static File = %s => READY !\n", fileName);
-
-    /* Map static trace file to process virtual memory */
-    fd = fileno(this->StaticTraceFile);
-    this->mmapSize = lseek(fd, 0, SEEK_END);
-    SINUCA3_DEBUG_PRINTF("MMAP SIZE => %lu\n", this->mmapSize);
-    this->mmapPtr = (char*)mmap(NULL, mmapSize, PROT_READ, MAP_PRIVATE, fd, 0);
-    SINUCA3_DEBUG_PRINTF("MMAP PTR => %p\n", mmapPtr);
-    /* Get total number of threads */
-    // ==> TODO <==
-    this->mmapPtr += sizeof(unsigned int);
-
-    /* Open dynamic traces */
-    for (int i = 0; i < 1; i++) {
-        fileName[0] = '\0';
-        snprintf(fileName, sizeof(fileName), "../../trace/dynamic_%s_tid%d.trace",
-                 traceFileName, i);
-        this->ThreadsDynFiles.push_back(fopen(fileName, "rb"));
-        if (this->ThreadsDynFiles.back() == NULL) {
-            SINUCA3_ERROR_PRINTF("Could not open the dynamic file.\n%s\n",
-                                 fileName);
-            return 1;
-        }
-        SINUCA3_DEBUG_PRINTF("Dynamic File = %s => READY !\n", fileName);
-    }
-
-    /* Open memory traces */
-    for (int i = 0; i < 1; i++) {
-        fileName[0] = '\0';
-        snprintf(fileName, sizeof(fileName), "../../trace/memory_%s_tid%d.trace",
-                 traceFileName, i);
-        this->ThreadsMemFiles.push_back(fopen(fileName, "rb"));
-        if (this->ThreadsMemFiles.back() == NULL) {
-            SINUCA3_ERROR_PRINTF("Could not open the memory file.\n%s\n", fileName);
-            return 1;
-        }
-        SINUCA3_DEBUG_PRINTF("Memory File = %s => READY !\n", fileName);
-    }
-    
+    /* Open Trace Files */
+    OpenTraceFile(StaticFile, traceFileName);
+    OpenTraceFile(DynamicFile, traceFileName);
+    OpenTraceFile(MemoryFile, traceFileName);
 
     this->isInsideBBL = false;
     this->currentBBL = 0;
     this->binaryTotalBBLs = 0;
 
-    if (this->GetTotalBBLs()) return 1;
-    this->binaryBBLsSize = new unsigned short[this->binaryTotalBBLs];
-    this->binaryDict = new InstructionInfo *[this->binaryTotalBBLs];
     if (this->GenerateBinaryDict()) return 1;
+    fclose(this->StaticTraceFile);
 
     return 0;
 }
@@ -115,17 +112,20 @@ unsigned long sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     return this->fetchInstructions;
 }
 
-int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs() {
+int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs(
+    char *mmapPtr, size_t *mmapOff) {
+    //-----------------------------//
     /* The pintool writes to the beginning of the static
      * trace the total number of basic blocks */
-    rewind(this->StaticTraceFile);
     unsigned int *num = &this->binaryTotalBBLs;
-    size_t read = fread(num, 1, sizeof(*num), StaticTraceFile);
-    if (read <= 0) {
+
+    if (mmapPtr == NULL) {
         return 1;
     }
+    *num = *(unsigned int *)(mmapPtr + *mmapOff);
+    IncreaseOffset(mmapOff, sizeof(this->binaryTotalBBLs));
+    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", this->binaryTotalBBLs);
 
-    SINUCA3_DEBUG_PRINTF("NUMBER OF BBLs => %u\n", this->binaryTotalBBLs);
     return 0;
 }
 
@@ -138,23 +138,36 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     GenerateBinaryDict() {
     //------------------//
     traceGenerator::DataINS *data;
-    size_t mmapOffset = 0, bytes;
+    size_t mmapOffset = 0, mmapSize, bytes;
     unsigned short bblSize, instCounter;
     unsigned int totalIns, bblCounter = 0;
-    InstructionInfo *package, *pool, *poolPointer;
+    InstructionInfo *package, *poolPointer;
     StaticInstructionInfo *info;
+    char *mmapPtr;
+    int fd;
 
-    IncreaseOffset(&mmapOffset, sizeof(this->binaryTotalBBLs));
-    totalIns = *(unsigned int*)(this->mmapPtr+mmapOffset);
+    /* Map static trace file to process virtual memory */
+    fd = fileno(this->StaticTraceFile);
+    mmapSize = lseek(fd, 0, SEEK_END);
+    mmapPtr = (char *)mmap(NULL, mmapSize, PROT_READ, MAP_PRIVATE, fd, 0);
+    /* Ignoring number of threads in static file for now <== */
+    IncreaseOffset(&mmapOffset, sizeof(unsigned int));
+
+    if (GetTotalBBLs(mmapPtr, &mmapOffset)) return 1;
+    this->binaryBBLsSize = new unsigned short[this->binaryTotalBBLs];
+    this->binaryDict = new InstructionInfo *[this->binaryTotalBBLs];
+
+    totalIns = *(unsigned int *)(mmapPtr + mmapOffset);
+    SINUCA3_DEBUG_PRINTF("Total Ins => %u\n", totalIns);
     IncreaseOffset(&mmapOffset, sizeof(totalIns));
-    pool = new InstructionInfo[totalIns];
-    poolPointer = pool;
+    this->pool = new InstructionInfo[totalIns];
+    poolPointer = this->pool;
 
     while (bblCounter < this->binaryTotalBBLs) {
         /* Total of instructions of current basic block */
-        bblSize = *(unsigned short *)(this->mmapPtr + mmapOffset);
+        bblSize = *(unsigned short *)(mmapPtr + mmapOffset);
         IncreaseOffset(&mmapOffset, sizeof(bblSize));
-        SINUCA3_DEBUG_PRINTF("BBL SIZE => %d\n", bblSize);
+        SINUCA3_DEBUG_PRINTF("Bbl Size => %d\n", bblSize);
 
         this->binaryBBLsSize[bblCounter] = bblSize;
         this->binaryDict[bblCounter] = poolPointer;
@@ -164,8 +177,8 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
         while (instCounter < bblSize) {
             package = &this->binaryDict[bblCounter][instCounter];
             info = &package->staticInfo;
-            data = (traceGenerator::DataINS*)(mmapPtr + mmapOffset);
-            
+            data = (traceGenerator::DataINS *)(mmapPtr + mmapOffset);
+
             info->opcodeAddress = data->addr;
             info->opcodeSize = data->size;
             info->baseReg = data->baseReg;
@@ -193,13 +206,13 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
 
             IncreaseOffset(&mmapOffset, sizeof(*data));
 
-            bytes = info->numReadRegs*sizeof(*info->readRegs);
+            bytes = info->numReadRegs * sizeof(*info->readRegs);
             memcpy(info->readRegs, mmapPtr + mmapOffset, bytes);
             IncreaseOffset(&mmapOffset, bytes);
-            bytes = info->numWriteRegs*sizeof(*info->writeRegs);
+            bytes = info->numWriteRegs * sizeof(*info->writeRegs);
             memcpy(info->writeRegs, mmapPtr + mmapOffset, bytes);
             IncreaseOffset(&mmapOffset, bytes);
-            bytes = strlen(mmapPtr + mmapOffset)+1;
+            bytes = strlen(mmapPtr + mmapOffset) + 1;
             memcpy(info->opcodeAssembly, mmapPtr + mmapOffset, bytes);
             IncreaseOffset(&mmapOffset, bytes);
 
@@ -220,7 +233,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     TraceNextDynamic(unsigned int *nextBbl) {
     //-------------------------------------//
     static Buffer buf;
-    
+
     // ==> TODO <==
     if (buf.offset == buf.bufSize) {
         if (buf.readBufSizeFromFile(this->ThreadsDynFiles[0])) {
@@ -241,7 +254,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
     //---------------------------------------------------//
     static Buffer buf;
     traceGenerator::DataMEM *data;
-    
+
     // ==> TODO <==
     if (buf.offset == buf.bufSize) {
         if (buf.readBufSizeFromFile(this->ThreadsMemFiles[0])) {
@@ -259,9 +272,11 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
      * Otherwise, it was written in the static trace file.
      */
     if (ret->staticInfo->isNonStdMemOp) {
-        ret->dynamicInfo.numReadings = *(unsigned short *)(buf.store + buf.offset);
+        ret->dynamicInfo.numReadings =
+            *(unsigned short *)(buf.store + buf.offset);
         IncreaseOffset(&buf.offset, sizeof(unsigned short));
-        ret->dynamicInfo.numWritings = *(unsigned short *)(buf.store + buf.offset);
+        ret->dynamicInfo.numWritings =
+            *(unsigned short *)(buf.store + buf.offset);
         IncreaseOffset(&buf.offset, sizeof(unsigned short));
     } else {
         ret->dynamicInfo.numReadings = packageInfo->staticNumReadings;
@@ -281,7 +296,8 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
         ret->dynamicInfo.writesSize[writeIt] = data->size;
         data++;
     }
-    IncreaseOffset(&buf.offset, (size_t)((char *)data - buf.store) - buf.offset);
+    IncreaseOffset(&buf.offset,
+                   (size_t)((char *)data - buf.store) - buf.offset);
 
     return 0;
 }
@@ -327,7 +343,9 @@ void sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
 
 #ifdef TEST_MAIN
 int main() {
-    sinuca::traceReader::TraceReader* tracer = new sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader();
+    sinuca::traceReader::TraceReader *tracer =
+        new sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader();
     tracer->OpenTrace("test");
+    delete tracer;
 }
 #endif

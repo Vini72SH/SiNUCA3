@@ -29,8 +29,6 @@
 
 #include "trace_reader.hpp"
 
-#define BUFFER_SIZE 1 << 20
-
 namespace sinuca {
 namespace traceReader {
 namespace sinuca3TraceReader {
@@ -39,19 +37,16 @@ struct InstructionInfo {
 
     sinuca::StaticInstructionInfo staticInfo;
 
-    // Fields reserved for trace_reader internal use.
+    /** @brief Fields reserved for reader internal use */
     unsigned short staticNumReadings;
     unsigned short staticNumWritings;
 };
 
 class SinucaTraceReader : public TraceReader {
   private:
-    FILE *StaticTraceFile;
+    FILE* StaticTraceFile;
     std::vector<FILE*> ThreadsDynFiles;
     std::vector<FILE*> ThreadsMemFiles;
-
-    char* mmapPtr;
-    size_t mmapSize;
 
     bool isInsideBBL;
     unsigned int currentBBL;
@@ -63,11 +58,13 @@ class SinucaTraceReader : public TraceReader {
     unsigned short *binaryBBLsSize;
     /** @brief Array containing all instructions */
     InstructionInfo **binaryDict;
+    /** @brief InstructionInfo pool */
+    InstructionInfo *pool;
 
     /** @brief Current number of fetched instructions */
     unsigned long fetchInstructions;
 
-    int GetTotalBBLs();
+    int GetTotalBBLs(char *, size_t *);
     /**
      * @brief Fill instructions dictionary
      * @details Info per instruction:
@@ -87,6 +84,8 @@ class SinucaTraceReader : public TraceReader {
      */
     int TraceNextMemory(InstructionPacket *ret, InstructionInfo *packageInfo);
 
+    int OpenTraceFile(FileType, const char*);
+
   public:
     virtual int OpenTrace(const char *);
     virtual unsigned long GetTraceSize();
@@ -95,17 +94,20 @@ class SinucaTraceReader : public TraceReader {
     virtual FetchResult Fetch(InstructionPacket *);
 
     inline ~SinucaTraceReader() {
-        fclose(this->StaticTraceFile);
-        // ==> TODO <==
         for (int i = 0; i < 1; i++) {
           fclose(this->ThreadsDynFiles[i]);
           fclose(this->ThreadsMemFiles[i]);
         }
+
+        delete[] binaryBBLsSize;
+        delete[] pool;
+        delete[] binaryDict;  
     }
+
 };
 
 }  // namespace sinuca3TraceReader
-}  // namespace traceReader
+}  // namesoace traceReader
 }  // namespace sinuca
 
 #endif  // SINUCA3_TRACE_READER_HPP
