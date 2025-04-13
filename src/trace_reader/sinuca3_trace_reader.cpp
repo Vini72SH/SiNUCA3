@@ -211,6 +211,8 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
         bblCounter++;
     }
 
+    munmap(mmapPtr, mmapSize);
+
     return 0;
 }
 
