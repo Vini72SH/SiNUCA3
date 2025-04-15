@@ -29,6 +29,11 @@
 
 #include "trace_reader.hpp"
 
+enum TraceFileType {
+  DynamicFile,
+  MemoryFile
+};
+
 namespace sinuca {
 namespace traceReader {
 namespace sinuca3TraceReader {
@@ -44,7 +49,6 @@ struct InstructionInfo {
 
 class SinucaTraceReader : public TraceReader {
   private:
-    FILE* StaticTraceFile;
     std::vector<FILE*> ThreadsDynFiles;
     std::vector<FILE*> ThreadsMemFiles;
 
@@ -74,7 +78,7 @@ class SinucaTraceReader : public TraceReader {
      * Num. Read Regs | Read Regs   | Write Regs  | Ins. Mnemonic   |
      * Branch Type
      */
-    int GenerateBinaryDict();
+    int GenerateBinaryDict(char *);
 
     int TraceNextDynamic(unsigned int *);
     /**
@@ -84,7 +88,7 @@ class SinucaTraceReader : public TraceReader {
      */
     int TraceNextMemory(InstructionPacket *ret, InstructionInfo *packageInfo);
 
-    int OpenTraceFile(FileType, const char*);
+    int OpenTraceFile(TraceFileType, const char*);
 
   public:
     virtual int OpenTrace(const char *);
@@ -98,7 +102,6 @@ class SinucaTraceReader : public TraceReader {
           fclose(this->ThreadsDynFiles[i]);
           fclose(this->ThreadsMemFiles[i]);
         }
-        fclose(this->StaticTraceFile);
 
         delete[] binaryBBLsSize;
         delete[] pool;
