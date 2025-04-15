@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -31,9 +31,9 @@
 #include "trace_reader.hpp"
 
 extern "C" {
-#include <sys/mman.h> // mmap
-#include <fcntl.h> // open
-#include <unistd.h> // lseek
+#include <fcntl.h>     // open
+#include <sys/mman.h>  // mmap
+#include <unistd.h>    // lseek
 }
 
 inline void IncreaseOffset(size_t *offset, size_t size) { *offset += size; }
@@ -79,15 +79,15 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     char staticFileName[256];
 
     /* Open Trace Files */
-    OpenTraceFile(DynamicFile, executableName);
-    OpenTraceFile(MemoryFile, executableName);
+    if (OpenTraceFile(DynamicFile, executableName)) return 1;
+    if (OpenTraceFile(MemoryFile, executableName)) return 1;
 
     this->isInsideBBL = false;
     this->currentBBL = 0;
     this->binaryTotalBBLs = 0;
 
-    snprintf(staticFileName, sizeof(staticFileName), "../../trace/static_%s.trace",
-            executableName);
+    snprintf(staticFileName, sizeof(staticFileName),
+             "../../trace/static_%s.trace", executableName);
     if (this->GenerateBinaryDict(staticFileName)) return 1;
 
     return 0;
@@ -111,7 +111,9 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs(
      * trace the total number of basic blocks */
     unsigned int *num = &this->binaryTotalBBLs;
 
-    if (mmapPtr == NULL) {return 1;}
+    if (mmapPtr == NULL) {
+        return 1;
+    }
     *num = *(unsigned int *)(mmapPtr + *mmapOff);
     IncreaseOffset(mmapOff, sizeof(this->binaryTotalBBLs));
     SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", this->binaryTotalBBLs);
@@ -135,13 +137,13 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     StaticInstructionInfo *info;
     char *mmapPtr, killMsg[] = "Could not open => ";
 
-    /* Map static trace file to process virtual memory */
     int fd = open(staticFileName, O_RDONLY);
     if (fd == -1) {
-        SINUCA3_ERROR_PRINTF("%s%s\n", killMsg, staticFileName);
-        return 1;
+      SINUCA3_ERROR_PRINTF("%s%s\n", killMsg, staticFileName);
+      return 1;
     }
-
+    
+    /* Map static trace file to process virtual memory */
     mmapSize = lseek(fd, 0, SEEK_END);
     mmapPtr = (char *)mmap(NULL, mmapSize, PROT_READ, MAP_PRIVATE, fd, 0);
     /* Ignoring number of threads in static file for now <== */

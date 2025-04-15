@@ -2,7 +2,7 @@
 #define SINUCA3_TRACE_READER_HPP
 
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -29,17 +29,13 @@
 
 #include "trace_reader.hpp"
 
-enum TraceFileType {
-  DynamicFile,
-  MemoryFile
-};
+enum TraceFileType { DynamicFile, MemoryFile };
 
 namespace sinuca {
 namespace traceReader {
 namespace sinuca3TraceReader {
 
-struct InstructionInfo {
-
+struct InstructionInfo {  
     sinuca::StaticInstructionInfo staticInfo;
 
     /** @brief Fields reserved for reader internal use */
@@ -49,8 +45,8 @@ struct InstructionInfo {
 
 class SinucaTraceReader : public TraceReader {
   private:
-    std::vector<FILE*> ThreadsDynFiles;
-    std::vector<FILE*> ThreadsMemFiles;
+    std::vector<FILE *> ThreadsDynFiles;
+    std::vector<FILE *> ThreadsMemFiles;
 
     bool isInsideBBL;
     unsigned int currentBBL;
@@ -88,7 +84,7 @@ class SinucaTraceReader : public TraceReader {
      */
     int TraceNextMemory(InstructionPacket *ret, InstructionInfo *packageInfo);
 
-    int OpenTraceFile(TraceFileType, const char*);
+    int OpenTraceFile(TraceFileType, const char *);
 
   public:
     virtual int OpenTrace(const char *);
@@ -99,19 +95,18 @@ class SinucaTraceReader : public TraceReader {
 
     inline ~SinucaTraceReader() {
         for (int i = 0; i < 1; i++) {
-          fclose(this->ThreadsDynFiles[i]);
-          fclose(this->ThreadsMemFiles[i]);
+            fclose(this->ThreadsDynFiles[i]);
+            fclose(this->ThreadsMemFiles[i]);
         }
 
         delete[] binaryBBLsSize;
         delete[] pool;
-        delete[] binaryDict;  
+        delete[] binaryDict;
     }
-
 };
 
 }  // namespace sinuca3TraceReader
-}  // namesoace traceReader
+}  // namespace traceReader
 }  // namespace sinuca
 
 #endif  // SINUCA3_TRACE_READER_HPP

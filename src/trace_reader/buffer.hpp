@@ -6,8 +6,7 @@
 
 #define BUFFER_SIZE 1 << 20
 
-class Buffer {
-  public:
+struct Buffer {
     int readBuffer(FILE *file) {
         if (this->bufSize > BUFFER_SIZE) {
             return 1;
