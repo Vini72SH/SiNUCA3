@@ -21,9 +21,9 @@ extern "C" {
 #define DEBUG_PRINT_GOMP_RNT 1
 
 // When this is enabled, every thread will be instrumented;
-static bool isGlobalInstrumentating;
+static bool isInstrumentating;
 // And this enable instrumentation per thread.
-static std::vector<bool> isThreadInstrumentating;
+static std::vector<bool> isThreadInstrumentatingEnabled;
 static unsigned int numThreads = 0;
 
 sinuca::traceGenerator::TraceFileHandler tfHandler;
@@ -156,10 +156,10 @@ VOID ThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v){
     SINUCA3_DEBUG_PRINTF("New thread created! N => %d\n", tid);
     numThreads++;
 
-    if(isThreadInstrumentating.size() <= tid){
-        isThreadInstrumentating.resize(tid * 2 + 1);
+    if(isThreadInstrumentatingEnabled.size() <= tid){
+        isThreadInstrumentatingEnabled.resize(tid * 2 + 1);
     }
-    isThreadInstrumentating[tid] = isGlobalInstrumentating;
+    isThreadInstrumentatingEnabled[tid] = false;
 
     tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_DYNAMIC, tid);
     tfHandler.openNewTraceFile(sinuca::traceGenerator::TRACE_MEMORY, tid);
@@ -180,30 +180,36 @@ VOID ThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v){
     PIN_ReleaseLock(&pinLock);
 }
 
-VOID initInstrumentationGlobally() {
-    SINUCA3_LOG_PRINTF("Start of tool instrumentation globally.\n");
-    isGlobalInstrumentating = true;
-    std::fill(isThreadInstrumentating.begin(), isThreadInstrumentating.end(), true);
+VOID initInstrumentation() {
+    if(isInstrumentating) return;
+    SINUCA3_LOG_PRINTF("Start of tool instrumentation block.\n");
+    isInstrumentating = true;
 }
 
-VOID stopInstrumentationGlobally() {
-    SINUCA3_LOG_PRINTF("End of tool instrumentation globally.\n");
-    isGlobalInstrumentating = false;
-    std::fill(isThreadInstrumentating.begin(), isThreadInstrumentating.end(), false);
+VOID stopInstrumentation() {
+    if(!isInstrumentating) return;
+    SINUCA3_LOG_PRINTF("End of tool instrumentation block.\n");
+    isInstrumentating = false;
 }
 
-VOID initInstrumentationInThread(THREADID tid) {
-    SINUCA3_LOG_PRINTF("Start of tool instrumentation in thread %d.\n", tid);
-    isThreadInstrumentating[tid] = true;
+VOID enableInstrumentationInThread(THREADID tid) {
+    if(isThreadInstrumentatingEnabled[tid]) return;
+    SINUCA3_LOG_PRINTF("Enabling tool instrumentation in thread %d.\n", tid);
+    isThreadInstrumentatingEnabled[tid] = true;
 }
 
-VOID stopInstrumentationInThread(THREADID tid) {
-    SINUCA3_LOG_PRINTF("End of tool instrumentation in thread %d.\n", tid);
-    isThreadInstrumentating[tid] = false;
+VOID disableInstrumentationInThread(THREADID tid) {
+    if(!isThreadInstrumentatingEnabled[tid]) return;
+    SINUCA3_LOG_PRINTF("Disabling tool instrumentation in thread %d.\n", tid);
+    isThreadInstrumentatingEnabled[tid] = false;
 }
 
 VOID appendToDynamicTrace(UINT32 bblId) {
     THREADID tid = PIN_ThreadId();
+
+    if (!isThreadInstrumentatingEnabled[tid])
+        return;
+
     char* buf = tfHandler.dynamicBuffers[tid]->store;
     size_t* used = &tfHandler.dynamicBuffers[tid]->numUsedBytes;
 
@@ -231,6 +237,10 @@ UINT16 fillRegs(const INS *ins, unsigned short int *regs,
 
 VOID appendToMemTraceStd(ADDRINT addr, INT32 size) {
     THREADID tid = PIN_ThreadId();
+
+    if (!isThreadInstrumentatingEnabled[tid])
+        return;
+
     char* buf = tfHandler.memoryBuffers[tid]->store;
     size_t* used = &tfHandler.memoryBuffers[tid]->numUsedBytes;
     static sinuca::traceGenerator::DataMEM data;
@@ -242,6 +252,10 @@ VOID appendToMemTraceStd(ADDRINT addr, INT32 size) {
 
 VOID appendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* acessInfo) {
     THREADID tid = PIN_ThreadId();
+
+    if (!isThreadInstrumentatingEnabled[tid])
+        return;
+
     char* buf = tfHandler.memoryBuffers[tid]->store;
     size_t* used = &tfHandler.memoryBuffers[tid]->numUsedBytes;
     unsigned short numMemOps, numReadings, numWritings;
@@ -277,6 +291,10 @@ VOID appendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* acessInfo) {
 
 VOID setMinStdMemOp() {
     THREADID tid = PIN_ThreadId();
+
+    if (!isThreadInstrumentatingEnabled[tid])
+        return;
+
     tfHandler.memoryBuffers[tid]->minSpacePerOperation = (sizeof(sinuca::traceGenerator::DataMEM)*3);
     if (tfHandler.memoryBuffers[tid]->isBufFull()) {
         tfHandler.memoryBuffers[tid]->loadBufToFile(tfHandler.memoryTraceFiles[tid]);
@@ -392,21 +410,11 @@ VOID trace(TRACE trace, VOID *ptr) {
     unsigned short numInstBbl;
     RTN traceRtn = TRACE_Rtn(trace);
 
-    if ( !isGlobalInstrumentating && !isThreadInstrumentating[tid] )
+    if (!isInstrumentating)
         return;
 
     if(RTN_Valid(traceRtn)){
         const char *traceRtnName = RTN_Name(traceRtn).c_str();
-        if (strcmp(traceRtnName, "trace_stop_global") == 0) {
-            stopInstrumentationGlobally();
-            return;
-        }
-
-        if (strcmp(traceRtnName, "trace_stop_thread") == 0) {
-            stopInstrumentationInThread(tid);
-            return;
-        }
-
         // This will make every function call from libgomp that have a
         // PAUSE instruction to be ignored.
         // I still not sure if this is fully corret.
@@ -458,12 +466,21 @@ VOID imageLoad(IMG img, VOID* ptr) {
             RTN_Open(rtn);
             const char* name = RTN_Name(rtn).c_str();
 
-            if (strcmp(name, "trace_start_global") == 0) {
-                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentationGlobally, IARG_END);
+
+            if (strcmp(name, "BeginInstrumentationBlock") == 0) {
+                RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)initInstrumentation, IARG_END);
             }
 
-            if (strcmp(name, "trace_start_thread") == 0) {
-                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)initInstrumentationInThread, IARG_THREAD_ID, IARG_END);
+            if (strcmp(name, "EndInstrumentationBlock") == 0) {
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)stopInstrumentation, IARG_END);
+            }
+
+            if (strcmp(name, "EnableThreadInstrumentation") == 0) {
+                RTN_InsertCall(rtn, IPOINT_AFTER, (AFUNPTR)enableInstrumentationInThread, IARG_THREAD_ID, IARG_END);
+            }
+
+            if (strcmp(name, "DisableThreadInstrumentation") == 0) {
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)disableInstrumentationInThread, IARG_THREAD_ID, IARG_END);
             }
 
             #if DEBUG_PRINT_GOMP_RNT == 1
@@ -493,7 +510,7 @@ int main(int argc, char* argv[]) {
 
     PIN_InitLock(&pinLock);
 
-    isGlobalInstrumentating = false;
+    isInstrumentating = false;
 
     // All these functions have a PAUSE instruction (Spin-lock hint)
     OMP_ignore.push_back("gomp_barrier_wait_end");
