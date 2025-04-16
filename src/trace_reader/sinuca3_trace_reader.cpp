@@ -112,12 +112,12 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::GetTotalBBLs(
     char *mmapPtr, size_t *mmapOff) {
     /* The pintool writes to the beginning of the static
      * trace the total number of basic blocks */
-    unsigned int *num = &this->binaryTotalBBLs;
+    unsigned int *bbls = &this->binaryTotalBBLs;
 
     if (mmapPtr == NULL) {
         return 1;
     }
-    *num = *(unsigned int *)(mmapPtr + *mmapOff);
+    *bbls = *(unsigned int *)(mmapPtr + *mmapOff);
     IncreaseOffset(mmapOff, sizeof(this->binaryTotalBBLs));
     SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", this->binaryTotalBBLs);
 
