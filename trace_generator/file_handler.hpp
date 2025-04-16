@@ -67,7 +67,6 @@ struct TraceFileHandler {
     std::vector<Buffer *> memoryBuffers;
 
     TraceFileHandler(){
-        SINUCA3_DEBUG_PRINTF("TraceFileHandler created\n");
         this->imgName[0] = '\0';
 
         //32 is an arbitrary value, just to avoid reallocation
