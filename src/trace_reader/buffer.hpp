@@ -1,13 +1,12 @@
-#ifndef __BUFFER__
-#define __BUFFER__
+#ifndef SINUCA3_TRACE_READER_BUFFER_HPP_
+#define SINUCA3_TRACE_READER_BUFFER_HPP_
 
 #include <cstddef>
 #include <cstdio>
 
-#define BUFFER_SIZE 1 << 20
+const unsigned long BUFFER_SIZE = 1 << 20;
 
-class Buffer {
-  public:
+struct Buffer {
     int readBuffer(FILE *file) {
         if (this->bufSize > BUFFER_SIZE) {
             return 1;
@@ -22,7 +21,7 @@ class Buffer {
         if (read <= 0) {
             return 1;
         }
-    
+
         return 0;
     }
 
