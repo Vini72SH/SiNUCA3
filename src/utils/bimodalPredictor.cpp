@@ -1,10 +1,10 @@
 #include "bimodalPredictor.hpp"
 
-BimodalPredictor::BimodalPredictor() : prediction(2) {};
+BimodalPredictor::BimodalPredictor() : prediction(2) {}
 
 bool BimodalPredictor::GetPrediction() {
     return (this->prediction >> 1);
-};
+}
 
 void BimodalPredictor::UpdatePrediction(bool branchTaken) {
     if ((branchTaken) && (this->prediction < 3)) {
@@ -18,6 +18,6 @@ void BimodalPredictor::UpdatePrediction(bool branchTaken) {
 
         return;
     }
-};
+}
 
-BimodalPredictor::~BimodalPredictor() {};
+BimodalPredictor::~BimodalPredictor() {}
