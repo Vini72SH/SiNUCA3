@@ -177,17 +177,6 @@ int sinuca::BranchTargetBuffer::FinishSetup() {
     return 0;
 }
 
-sinuca::BranchTargetBuffer::~BranchTargetBuffer() {
-    if (!(this->btb)) return;
-
-    for (unsigned int i = 0; i < this->numEntries; ++i) {
-        if (this->btb[i]) {
-            delete this->btb[i];
-        }
-    }
-
-    delete[] this->btb;
-}
 
 unsigned int sinuca::BranchTargetBuffer::CalculateBank(unsigned long address) {
     unsigned long bank = address;
@@ -206,7 +195,7 @@ unsigned long sinuca::BranchTargetBuffer::CalculateTag(unsigned long address) {
 unsigned long sinuca::BranchTargetBuffer::CalculateIndex(
     unsigned long address) {
     unsigned long index = address;
-
+    
     index = index >> this->interleavingBits;
     index = index & ((1 << this->entriesBits) - 1);
 
@@ -229,4 +218,22 @@ int sinuca::BranchTargetBuffer::UpdateBranch(unsigned long address,
     unsigned int bank = CalculateBank(address);
 
     return this->btb[index]->UpdateEntry(bank, branchState);
+}
+
+void sinuca::BranchTargetBuffer::Clock() {
+    
+}
+
+void sinuca::BranchTargetBuffer::Flush() {};
+
+sinuca::BranchTargetBuffer::~BranchTargetBuffer() {
+    if (!(this->btb)) return;
+
+    for (unsigned int i = 0; i < this->numEntries; ++i) {
+        if (this->btb[i]) {
+            delete this->btb[i];
+        }
+    }
+
+    delete[] this->btb;
 }
