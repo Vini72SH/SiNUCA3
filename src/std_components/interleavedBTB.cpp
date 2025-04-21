@@ -61,21 +61,21 @@ int sinuca::btb_entry::UpdateEntry(unsigned long bank, bool branchState) {
     return 0;
 }
 
-long sinuca::btb_entry::GetTag() { return this->entryTag; }
+inline long sinuca::btb_entry::GetTag() { return this->entryTag; }
 
-long sinuca::btb_entry::GetTargetAddress(unsigned int bank) {
+inline long sinuca::btb_entry::GetTargetAddress(unsigned int bank) {
     if (bank < this->numBanks) return this->targetArray[bank];
 
     return 0;
 }
 
-sinuca::branchType sinuca::btb_entry::GetBranchType(unsigned int bank) {
+inline sinuca::branchType sinuca::btb_entry::GetBranchType(unsigned int bank) {
     if (bank < this->numBanks) return this->branchTypes[bank];
 
     return NONE;
 }
 
-bool sinuca::btb_entry::GetPrediction(unsigned int bank) {
+inline bool sinuca::btb_entry::GetPrediction(unsigned int bank) {
     if (bank < this->numBanks) {
         return predictorsArray[bank].GetPrediction();
     }
@@ -125,7 +125,12 @@ int sinuca::BranchTargetBuffer::SetConfigParameter(
                 "BTB parameter interleavingFactor must be > 0.\n");
             return 1;
         }
-        this->interleavingFactor = iFactor;
+
+        if (iFactor > MAX_INTERLEAVING_FACTOR) {
+            this->interleavingFactor = MAX_INTERLEAVING_FACTOR;
+        } else {
+            this->interleavingFactor = iFactor;
+        }
     }
 
     if (strcmp(parameter, "numberOfEntries") == 0) {
@@ -177,7 +182,6 @@ int sinuca::BranchTargetBuffer::FinishSetup() {
     return 0;
 }
 
-
 unsigned int sinuca::BranchTargetBuffer::CalculateBank(unsigned long address) {
     unsigned long bank = address;
     bank = bank & ((1 << this->interleavingBits) - 1);
@@ -195,7 +199,7 @@ unsigned long sinuca::BranchTargetBuffer::CalculateTag(unsigned long address) {
 unsigned long sinuca::BranchTargetBuffer::CalculateIndex(
     unsigned long address) {
     unsigned long index = address;
-    
+
     index = index >> this->interleavingBits;
     index = index & ((1 << this->entriesBits) - 1);
 
@@ -220,8 +224,100 @@ int sinuca::BranchTargetBuffer::UpdateBranch(unsigned long address,
     return this->btb[index]->UpdateEntry(bank, branchState);
 }
 
+inline void sinuca::BranchTargetBuffer::RequestQuery(unsigned long address,
+                                                     int connectionID) {
+    unsigned long index = CalculateIndex(address);
+    unsigned long tag = CalculateTag(address);
+    sinuca::BTBPacket response;
+
+    btb_entry* currentEntry = btb[index];
+    if (currentEntry->GetTag() == tag) {
+        // BTB Hit
+        /*
+         * In a BTB hit, searches for a taken branch instruction and fills in
+         * the target address if it finds one. Marks all instructions before the
+         * taken branch as valid.
+         */
+        bool branchTaken = false;
+        response.data.responseQuery.address = address;
+        response.data.responseQuery.targetAddress =
+            address + this->interleavingFactor;
+        response.data.responseQuery.numberOfBits = this->interleavingFactor;
+
+        for (int i = 0; i < this->interleavingFactor; ++i) {
+            if (!(branchTaken)) {
+                if ((currentEntry->GetBranchType(i) == UNCONDITIONAL_BRANCH) ||
+                    (currentEntry->GetPrediction(i) == TAKEN)) {
+                    response.data.responseQuery.targetAddress =
+                        currentEntry->GetTargetAddress(i);
+                    branchTaken = true;
+                }
+                response.data.responseQuery.validBits[i] = true;
+            } else {
+                response.data.responseQuery.validBits[i] = false;
+            }
+        }
+        response.type = ResponseBTBHit;
+    } else {
+        // BTB Miss
+        /*
+         * In a BTB Miss, it assumes that all instructions are valid and that
+         * the next fetch block is sequential.
+         */
+        response.data.responseQuery.address = address;
+        response.data.responseQuery.targetAddress =
+            address + this->interleavingFactor;
+        response.data.responseQuery.numberOfBits = this->interleavingFactor;
+        for (int i = 0; i < this->interleavingFactor; ++i) {
+            response.data.responseQuery.validBits[i] = true;
+        }
+        response.type = ResponseBTBMiss;
+    }
+
+    this->SendResponseToConnection(connectionID, &response);
+}
+
+inline int sinuca::BranchTargetBuffer::RequestAddEntry(
+    unsigned long address, unsigned long targetAddress, branchType type) {
+    return this->RegisterNewBranch(address, targetAddress, type);
+}
+
+inline int sinuca::BranchTargetBuffer::RequestUpdate(unsigned long address,
+                                                     bool branchState) {
+    return this->UpdateBranch(address, branchState);
+}
+
 void sinuca::BranchTargetBuffer::Clock() {
-    
+    long numberOfConnections = this->GetNumberOfConnections();
+    sinuca::BTBPacket packet;
+    for (long i = 0; i < numberOfConnections; ++i) {
+        if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
+            switch (packet.type) {
+                case sinuca::RequestQuery:
+                    this->RequestQuery(packet.data.requestQuery.address, i);
+                    break;
+                case sinuca::RequestAddEntry:
+                    this->RequestAddEntry(
+                        packet.data.requestAddEntry.address,
+                        packet.data.requestAddEntry.targetAddress,
+                        packet.data.requestAddEntry.typeOfBranch);
+                    break;
+                case sinuca::RequestUpdate:
+                    this->RequestUpdate(packet.data.updateQuery.address,
+                                        packet.data.updateQuery.branchState);
+                    break;
+                case sinuca::ResponseBTBHit:
+                case sinuca::ResponseBTBMiss:
+                    SINUCA3_WARNING_PRINTF(
+                        "Connection %ld send a response type message to BTB.\n",
+                        i);
+                    break;
+                default:
+                    SINUCA3_WARNING_PRINTF(
+                        "Connection %ld send a invalid message to BTB.\n", i);
+            }
+        }
+    }
 }
 
 void sinuca::BranchTargetBuffer::Flush() {};

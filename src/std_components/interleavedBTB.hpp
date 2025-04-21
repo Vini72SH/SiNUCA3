@@ -15,35 +15,66 @@
  * running time. When defining the parameters, the BTB itself internally defines
  * the parameters as multiples of 2, choosing the log2 floor of the parameter
  * passed in and using it to self-generate.
+ * To avoid dynamic allocations in messages and a possible memory overload, the
+ * BTB has a maximum interleaving factor set allowing a static vector to be used
+ * in response messages. If you want a higher interleaving factor than the one
+ * defined, simply change the value of the MAX_INTERLEAVING_FACTOR constant,
+ * adjust the parameters in the configuration YAML and recompile with “make -B”.
  */
 
 #include "../engine/component.hpp"
 #include "../utils/bimodalPredictor.hpp"
 
+const char MAX_INTERLEAVING_FACTOR = 16;
+
 namespace sinuca {
 
 enum branchType { NONE, CONDITIONAL_BRANCH, UNCONDITIONAL_BRANCH };
 
-enum TypeBTBMessage {
-    BTB_REQUEST,
-    UNALLOCATED_ENTRY,
-    ALLOCATED_ENTRY,
-    BTB_ALLOCATION_REQUEST,
-    BTB_UPDATE_REQUEST
+enum BTBPacketType {
+    RequestQuery,
+    RequestAddEntry,
+    RequestUpdate,
+    ResponseBTBHit,
+    ResponseBTBMiss
 };
 
-struct BTBMessage {
-    int channelID;
-    unsigned int fetchAddress;
-    unsigned int nextBlock;
-    unsigned int* fetchTargets;
-    bool* validBits;
-    bool* executedInstructions;
-    TypeBTBMessage messageType;
-};
+typedef struct BTBPacket {
+    union {
+        struct {
+            unsigned long address; /**<The fetch address as BTB input. */
+        } requestQuery;
+
+        struct {
+            unsigned long address; /**<The fetch address as BTB input. */
+            bool branchState; /**<The result of the branch, whether it was taken
+                                 or not. */
+        } updateQuery;
+
+        struct {
+            unsigned long address;       /**<The fetch address as BTB input. */
+            unsigned long targetAddress; /**<The branch's jump address. */
+            branchType typeOfBranch;     /**<The type of branch (Conditional /
+                                            Unconditional). */
+        } requestAddEntry;
+
+        struct {
+            unsigned int numberOfBits;   /**<Size of valid bits array. */
+            unsigned long address;       /**<The fetch address as BTB */
+            unsigned long targetAddress; /**<The target address for the next
+                                            fetch block. */
+            bool validBits[MAX_INTERLEAVING_FACTOR]; /**<The vector of valid
+                                                        bits indicates which
+                                                        instructions in the
+                                                        block are expected to be
+                                                        executed. */
+        } responseQuery;
+
+    } data;
+    BTBPacketType type;
+} BTBPacket;
 
 struct btb_entry {
-  private:
     unsigned int numBanks;             /**<The number of banks. */
     unsigned long entryTag;            /**<The entry tag. */
     unsigned long* targetArray;        /**<The target address array. */
@@ -83,36 +114,36 @@ struct btb_entry {
     /**
      * @brief Gets the tag of the entry
      */
-    long GetTag();
+    inline long GetTag();
 
     /**
      * @brief Gets the branch target address.
      * @param bank The bank containing the branch.
      */
-    long GetTargetAddress(unsigned int bank);
+    inline long GetTargetAddress(unsigned int bank);
 
     /**
      * @brief Gets the branch type.
      * @param bank The bank containing the branch.
      */
-    branchType GetBranchType(unsigned int bank);
+    inline branchType GetBranchType(unsigned int bank);
 
     /**
      * @brief Gets the branch prediction.
      * @param bank The bank containing the branch.
      */
-    bool GetPrediction(unsigned int bank);
+    inline bool GetPrediction(unsigned int bank);
 
     ~btb_entry();
 };
 
-class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
+class BranchTargetBuffer : public sinuca::Component<BTBPacket> {
   private:
     btb_entry** btb; /**<The pointer to BTB struct. */
     unsigned int
-        interleavingFactor /**<The interleaving factor, defining the number of
+        interleavingFactor; /**<The interleaving factor, defining the number of
                               banks in which the BTB is interleaved. */
-        ;
+
     unsigned int numEntries;       /**<The number of BTB entries. */
     unsigned int interleavingBits; /**< InterleavingFactor in bits. */
     unsigned int entriesBits;      /**<Number of entries in bits. */
@@ -151,20 +182,58 @@ class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
     /**
      * @brief Update a BTB entry.
      * @param address The branch address.
-     * @param branchState The Information on whether the branch has been taken or not.
-     * @return 0 if successfuly, 1 otherwise. 
+     * @param branchState The Information on whether the branch has been taken.
+     * or not.
+     * @return 0 if successfuly, 1 otherwise.
      */
     int UpdateBranch(unsigned long address, bool branchState);
+
+    /**
+     * @brief Method for Request Query.
+     * @param address The fetch address received by a request message.
+     * @param connectionID The ID of the connection that received the request.
+     * @details When it receives a request, the BTB checks that the address
+     * received is valid (if there is an entry in the BTB for it). Then, if it
+     * is valid, it checks the corresponding entry and sends a reply message
+     * containing the address of the next fetch block and a limited vector
+     * containing the prediction bits of the instructions in the current block.
+     * If it is invalid, it sends a reply message containing the address of the
+     * next sequential block (current address + interleaving factor) and a
+     * limited vector with all bits set to 1, assuming that all instructions in
+     * the block are predicted to execute.
+     */
+    inline void RequestQuery(unsigned long address, int connectionID);
+
+    /**
+     * @brief Method for RequestAddEntry.
+     * @param address The address of a branch instruction.
+     * @param targetAddress The target address of the branch instruction.
+     * @param type The type of branch instruction.
+     * @details A wrapper for the method of registering a new entry in the BTB.
+     */
+    inline int RequestAddEntry(unsigned long address,
+                               unsigned long targetAddress, branchType type);
+
+    /**
+     * @brief Method for RequestUpdate.
+     * @param address The address of a branch instruction.
+     * @param branchState The Information on whether the branch has been taken.
+     * @details A wrapper for the method of updating an entry in the BTB.
+     */
+    inline int RequestUpdate(unsigned long address, bool branchState);
 
   public:
     BranchTargetBuffer();
 
     virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);
+
     virtual int FinishSetup();
 
     virtual void Clock();
+
     virtual void Flush();
+
     ~BranchTargetBuffer();
 };
 
