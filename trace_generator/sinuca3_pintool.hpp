@@ -6,8 +6,22 @@
 #define MEMWRITE_SIZE IARG_MEMORYWRITE_SIZE
 #define MEMREAD2_EA IARG_MEMORYREAD2_EA
 
-namespace sinuca {
+#include "../src/engine/default_packets.hpp"
+
 namespace traceGenerator {
+
+static inline void CopyToBuf(char* buf, size_t* used, void* src, size_t size) {
+    memcpy(buf + *used, src, size);
+    (*used) += size;
+}
+
+static inline void SetBit(unsigned char* byte, int position, bool value) {
+    if (value == true) {
+        *byte |= (1 << position);
+    } else {
+        *byte &= 0xff - (1 << position);
+    }
+}
 
 struct DataINS {
     long addr;
@@ -17,6 +31,7 @@ struct DataINS {
     unsigned char booleanValues;
     unsigned char numReadRegs;
     unsigned char numWriteRegs;
+    sinuca::Branch branchType;
 } __attribute__((packed));  // no padding
 
 struct DataMEM {
@@ -25,7 +40,6 @@ struct DataMEM {
 } __attribute__((packed));  // no padding
 
 }  // namespace traceGenerator
-}  // namespace sinuca
 
 #define PINTOOL_HPP_
 #endif

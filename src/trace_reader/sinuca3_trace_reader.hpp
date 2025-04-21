@@ -1,8 +1,8 @@
-#ifndef SINUCA3_TRACE_READER_HPP
-#define SINUCA3_TRACE_READER_HPP
+#ifndef SINUCA3_TRACE_READER_TRACE_READER_HPP_
+#define SINUCA3_TRACE_READER_TRACE_READER_HPP_
 
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -25,29 +25,28 @@
 
 #include <cstdio>
 #include <cstring>
+#include <vector>
 
 #include "trace_reader.hpp"
 
-#define BUFFER_SIZE 1 << 20
+enum TraceFileType { DynamicFile, MemoryFile };
 
 namespace sinuca {
 namespace traceReader {
 namespace sinuca3TraceReader {
 
 struct InstructionInfo {
-
     sinuca::StaticInstructionInfo staticInfo;
 
-    // Fields reserved for trace_reader internal use.
+    /** @brief Fields reserved for reader internal use */
     unsigned short staticNumReadings;
     unsigned short staticNumWritings;
 };
 
 class SinucaTraceReader : public TraceReader {
   private:
-    FILE *StaticTraceFile;
-    FILE *DynamicTraceFile;
-    FILE *MemoryTraceFile;
+    std::vector<FILE *> ThreadsDynFiles;
+    std::vector<FILE *> ThreadsMemFiles;
 
     bool isInsideBBL;
     unsigned int currentBBL;
@@ -59,11 +58,13 @@ class SinucaTraceReader : public TraceReader {
     unsigned short *binaryBBLsSize;
     /** @brief Array containing all instructions */
     InstructionInfo **binaryDict;
+    /** @brief InstructionInfo pool */
+    InstructionInfo *pool;
 
     /** @brief Current number of fetched instructions */
     unsigned long fetchInstructions;
 
-    int GetTotalBBLs();
+    int GetTotalBBLs(char *, size_t *);
     /**
      * @brief Fill instructions dictionary
      * @details Info per instruction:
@@ -73,11 +74,7 @@ class SinucaTraceReader : public TraceReader {
      * Num. Read Regs | Read Regs   | Write Regs  | Ins. Mnemonic   |
      * Branch Type
      */
-    int GenerateBinaryDict();
-
-    void readDataINSBytes(char *buf, size_t *offset, InstructionInfo *package);
-    int readMnemonic(char *str, char *buf, size_t *offset);
-    int readBufSizeFromFile(size_t *size, FILE *file);
+    int GenerateBinaryDict(char *);
 
     int TraceNextDynamic(unsigned int *);
     /**
@@ -87,6 +84,8 @@ class SinucaTraceReader : public TraceReader {
      */
     int TraceNextMemory(InstructionPacket *ret, InstructionInfo *packageInfo);
 
+    int OpenTraceFile(TraceFileType, const char *);
+
   public:
     virtual int OpenTrace(const char *);
     virtual unsigned long GetTraceSize();
@@ -95,9 +94,14 @@ class SinucaTraceReader : public TraceReader {
     virtual FetchResult Fetch(InstructionPacket *);
 
     inline ~SinucaTraceReader() {
-        fclose(this->StaticTraceFile);
-        fclose(this->DynamicTraceFile);
-        fclose(this->MemoryTraceFile);
+        for (int i = 0; i < 1; i++) {
+            fclose(this->ThreadsDynFiles[i]);
+            fclose(this->ThreadsMemFiles[i]);
+        }
+
+        delete[] binaryBBLsSize;
+        delete[] pool;
+        delete[] binaryDict;
     }
 };
 
@@ -105,4 +109,4 @@ class SinucaTraceReader : public TraceReader {
 }  // namespace traceReader
 }  // namespace sinuca
 
-#endif  // SINUCA3_TRACE_READER_HPP
+#endif  // SINUCA3_TRACE_READER_TRACE_READER_HPP_
