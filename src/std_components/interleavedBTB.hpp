@@ -3,7 +3,18 @@
 
 /**
  * @file interleavedBTB.hpp
- * @brief Implementation of Interleaved Branch Target Buffer
+ * @brief Implementation of Interleaved Branch Target Buffer.
+ * @details The Interleaved BTB is a structure that stores branches and has a
+ * certain interleaving factor that allows multiple queries in a single cycle.
+ * In this implementation, it is mapped directly and each entry has a tag for
+ * recognizing the block of instructions and vectors assimilated to the block,
+ * where each element of the vector corresponds to information from one of the
+ * instructions in the block. Although the parameters are configurable, for
+ * optimization reasons, the BTB is limited to using parameters that are
+ * multiples of 2, allowing bitwise operations to optimize the BTB's overall
+ * running time. When defining the parameters, the BTB itself internally defines
+ * the parameters as multiples of 2, choosing the log2 floor of the parameter
+ * passed in and using it to self-generate.
  */
 
 #include "../engine/component.hpp"
@@ -97,17 +108,52 @@ struct btb_entry {
 
 class BranchTargetBuffer : public sinuca::Component<BTBMessage> {
   private:
-    btb_entry** btb;
-    unsigned int interleavingFactor;
-    unsigned int numEntries;
-    unsigned int interleavingBits;
-    unsigned int entriesBits;
+    btb_entry** btb; /**<The pointer to BTB struct. */
+    unsigned int
+        interleavingFactor /**<The interleaving factor, defining the number of
+                              banks in which the BTB is interleaved. */
+        ;
+    unsigned int numEntries;       /**<The number of BTB entries. */
+    unsigned int interleavingBits; /**< InterleavingFactor in bits. */
+    unsigned int entriesBits;      /**<Number of entries in bits. */
 
+    /**
+     * @brief Calculate the bank based on address.
+     * @param address The address that will be used to calculate the bank.
+     * @return Which bank the instruction is in.
+     */
     unsigned int CalculateBank(unsigned long address);
+
+    /**
+     * @brief Calculate the tag based on address.
+     * @param address The address that will be used to calculate the tag.
+     * @return The tag of instruction block.
+     */
     unsigned long CalculateTag(unsigned long address);
+
+    /**
+     * @brief Calculate the index based on address.
+     * @param address The address that will be used to calculate the index.
+     * @return The index of branch, In which BTB entry is the branch located.
+     */
     unsigned long CalculateIndex(unsigned long address);
+
+    /**
+     * @brief Register a new branch in BTB.
+     * @param address The branch address.
+     * @param targetAddress The target of the branch.
+     * @param type The type of branch.
+     * @return 0 if successfuly, 1 otherwise.
+     */
     int RegisterNewBranch(unsigned long address, unsigned long targetAddress,
                           branchType type);
+
+    /**
+     * @brief Update a BTB entry.
+     * @param address The branch address.
+     * @param branchState The Information on whether the branch has been taken or not.
+     * @return 0 if successfuly, 1 otherwise. 
+     */
     int UpdateBranch(unsigned long address, bool branchState);
 
   public:

@@ -161,7 +161,9 @@ int sinuca::BranchTargetBuffer::FinishSetup() {
 
     this->interleavingBits = floor(log(this->interleavingFactor));
     this->entriesBits = floor(log(this->numEntries));
-    this->btb = new btb_entry*[numEntries];
+    this->interleavingFactor = (1 << this->interleavingBits);
+    this->numEntries = (1 << this->entriesBits);
+    this->btb = new btb_entry*[this->numEntries];
     if (!(this->btb)) {
         SINUCA3_ERROR_PRINTF("BTB could not be allocated.\n");
         return 1;
