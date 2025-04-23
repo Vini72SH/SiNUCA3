@@ -1,16 +1,16 @@
 #include "file_handler.hpp"
 #include "sinuca3_pintool.hpp"
 
-const char* formatThreadSufix(traceGenerator::THREADID tid) {
+const char* FormatThreadSuffix(traceGenerator::THREADID tid) {
     static char sufixBuffer[32]; // Buffer estático para garantir que a string permaneça válida
-    std::snprintf(sufixBuffer, sizeof(sufixBuffer), "_%d", tid);
+    std::snprintf(sufixBuffer, sizeof(sufixBuffer), "_tid%d", tid);
     return sufixBuffer;
 }
 
 traceGenerator::StaticTraceFile::StaticTraceFile(const char* imageName)
 : TraceFile("static_", imageName, "" )
 {
-    this->numUsedBytes = 0;
+    this->offset = 0;
     this->numThreads = 0;
     this->bblCount = 0;
     this->instCount = 0;
@@ -24,12 +24,12 @@ traceGenerator::StaticTraceFile::StaticTraceFile(const char* imageName)
 
 traceGenerator::StaticTraceFile::~StaticTraceFile(){
     rewind(this->file);
-    fwrite(&this->numThreads, 1, sizeof(numThreads), this->file);
-    fwrite(&this->bblCount, 1, sizeof(bblCount), this->file);
-    fwrite(&this->instCount, 1, sizeof(instCount), this->file);
+    fwrite(&this->numThreads, sizeof(numThreads), 1, this->file);
+    fwrite(&this->bblCount, sizeof(bblCount), 1, this->file);
+    fwrite(&this->instCount, sizeof(instCount), 1, this->file);
 }
 
-void traceGenerator::StaticTraceFile::NewBBL(UINT32 numIns){
+void traceGenerator::StaticTraceFile::NewBBL(unsigned int numIns){
     this->WriteToBuffer((void*) &numIns, sizeof(numIns));
     this->bblCount++;
 }
@@ -40,7 +40,7 @@ void traceGenerator::StaticTraceFile::Write(const struct DataINS *data){
 }
 
 traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* imageName, THREADID tid)
-: TraceFile("dynamic_", imageName, formatThreadSufix(tid))
+: TraceFile("dynamic_", imageName, FormatThreadSuffix(tid))
 {}
 
 void traceGenerator::DynamicTraceFile::Write(const UINT32 bblId){
@@ -48,7 +48,7 @@ void traceGenerator::DynamicTraceFile::Write(const UINT32 bblId){
 }
 
 traceGenerator::MemoryTraceFile::MemoryTraceFile(const char* imageName, THREADID tid)
-: TraceFile("memory_", imageName, formatThreadSufix(tid))
+: TraceFile("memory_", imageName, FormatThreadSuffix(tid))
 {}
 
 void traceGenerator::MemoryTraceFile::WriteStd(const struct DataMEM *data){

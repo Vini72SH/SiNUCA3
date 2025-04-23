@@ -10,7 +10,7 @@
 
 namespace traceGenerator {
 
-constexpr int MAX_INSTRUCTION_NAME_LENGTH = 32;
+const int MAX_INSTRUCTION_NAME_LENGTH = 32;
 
 static inline void SetBit(unsigned char* byte, int position, bool value) {
     if (value == true) {

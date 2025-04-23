@@ -21,17 +21,17 @@ namespace traceGenerator {
 const std::string traceFolderPath("../trace/");
 
 typedef unsigned int THREADID;
-typedef unsigned long UINT32;
+typedef unsigned int UINT32;
 
 class TraceFile {
     protected:
         unsigned char *buf;
         FILE *file;
-        size_t numUsedBytes;
+        size_t offset; // in bytes
 
         TraceFile(const char* prefix, const char* imageName, const char* sufix){
             this->buf = new unsigned char[BUFFER_SIZE];
-            this->numUsedBytes = 0;
+            this->offset = 0;
             std::string filePath = traceFolderPath + prefix + imageName + sufix + ".trace";
             this->file = fopen(filePath.c_str(), "wb");
         }
@@ -43,17 +43,19 @@ class TraceFile {
         }
 
         void WriteToBuffer(void *src, size_t size){
-            if(this->numUsedBytes + size >= BUFFER_SIZE)
+            if(this->offset + size >= BUFFER_SIZE)
                 this->FlushBuffer();
 
-            memcpy(this->buf + this->numUsedBytes, src, size);
-            this->numUsedBytes += size;
+            memcpy(this->buf + this->offset, src, size);
+            this->offset += size;
         }
 
         void FlushBuffer() {
-            size_t written = fwrite(this->buf, 1, this->numUsedBytes, this->file);
-            assert(written == this->numUsedBytes && "fwrite returned something wrong");
-            this->numUsedBytes = 0;
+            //size_t written = fwrite(&this->offset, 1, sizeof(this->offset), this->file);
+            //assert(written == sizeof(this->offset) && "fwrite returned something wrong");
+            size_t written = fwrite(this->buf, 1, this->offset, this->file);
+            assert(written == this->offset && "fwrite returned something wrong");
+            this->offset = 0;
         }
 };
 
@@ -65,7 +67,7 @@ class StaticTraceFile : TraceFile {
 
         StaticTraceFile(const char* imageName);
         ~StaticTraceFile();
-        void NewBBL(UINT32 numIns);
+        void NewBBL(unsigned int numIns);
         void Write(const struct DataINS *data);
 };
 

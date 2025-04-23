@@ -18,7 +18,7 @@ extern "C" {
 // Set this to 1 to print all rotines
 // that name begins with "gomp", case insensitive
 // (Statically linking GOMP is recommended)
-#define DEBUG_PRINT_GOMP_RNT 1
+#define DEBUG_PRINT_GOMP_RNT 0
 
 // When this is enabled, every thread will be instrumented;
 static bool isInstrumentating;
@@ -44,9 +44,9 @@ int Usage() {
 }
 
 bool StrStartsWithGomp(const char* s) {
-    const char* prefix = "GOMP";
+    const char* prefix = "gomp";
     for (size_t i = 0; prefix[i] != '\0'; ++i) {
-        if (std::tolower(s[i]) != std::tolower(prefix[i])) {
+        if (std::tolower(s[i]) != prefix[i]) {
             return false;
         }
     }
@@ -157,11 +157,11 @@ VOID InstrumentMemoryOperations(const INS* ins) {
     bool hasRead2 = INS_HasMemoryRead2(*ins);
     bool isWrite = INS_IsMemoryWrite(*ins);
 
-    if ( !(isWrite || isRead || hasRead2))
-        return;
 
-    // Todo: Estou assumindo que um acesso não standard ainda precisa ter um dos 3 ativos.
-    if (!INS_IsStandardMemop(*ins)) {
+    // INS_IsStandardMemop() returns false if this instruction has a memory operand which has unconventional meaning;
+    // Returns true otherwise.
+    bool isNonStandard = !INS_IsStandardMemop(*ins);
+    if (isNonStandard) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTraceNonStd,
                         IARG_MULTI_MEMORYACCESS_EA, IARG_END);
         return;
@@ -184,7 +184,7 @@ VOID InstrumentMemoryOperations(const INS* ins) {
 void createDataINS(const INS* ins, struct traceGenerator::DataINS *data) {
     std::string name = INS_Mnemonic(*ins);
     assert(name.length() + sizeof('\0') <= traceGenerator::MAX_INSTRUCTION_NAME_LENGTH && "This is unexpected. You should increase MAX_INSTRUCTION_NAME_LENGTH value.");
-    strcpy(data->name, name.c_str());
+    strncpy(data->name, name.c_str(), traceGenerator::MAX_INSTRUCTION_NAME_LENGTH);
 
     data->addr = INS_Address(*ins);
     data->size = INS_Size(*ins);
@@ -218,7 +218,10 @@ void createDataINS(const INS* ins, struct traceGenerator::DataINS *data) {
         traceGenerator::SetBit(&data->booleanValues, traceGenerator::IS_INDIRECT_CONTROL_FLOW, INS_IsIndirectControlFlow(*ins));
     }
 
-    bool isNonStandard = (INS_IsMemoryRead(*ins)||INS_HasMemoryRead2(*ins)||INS_IsMemoryWrite(*ins)) && !INS_IsStandardMemop(*ins);
+    // INS_IsStandardMemop() returns false if this instruction has a memory operand which has unconventional meaning;
+    // Returns true otherwise.
+    bool isNonStandard = !INS_IsStandardMemop(*ins);
+
     traceGenerator::SetBit(&data->booleanValues, traceGenerator::IS_NON_STANDARD_MEM_OP, isNonStandard);
     traceGenerator::SetBit(&data->booleanValues, traceGenerator::IS_READ, INS_IsMemoryRead(*ins));
     traceGenerator::SetBit(&data->booleanValues, traceGenerator::IS_READ2, INS_HasMemoryRead2(*ins));
@@ -274,24 +277,16 @@ VOID Trace(TRACE trace, VOID* ptr) {
                        IARG_UINT32, staticTrace->bblCount, IARG_END);
 
         staticTrace->NewBBL(BBL_NumIns(bbl));
-        unsigned long debug_count = 0;
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             struct traceGenerator::DataINS data;
             createDataINS(&ins, &data);
             staticTrace->Write(&data);
             InstrumentMemoryOperations(&ins);
             staticTrace->instCount++;
-            debug_count++;
         }
-
-        staticTrace->bblCount++;
-
-        // debugging: Se estiver vendo isso, esqueci de tirar
-        assert(BBL_NumIns(bbl) == debug_count);
     }
 
     PIN_ReleaseLock(&pinLock);
-
     return;
 }
 
