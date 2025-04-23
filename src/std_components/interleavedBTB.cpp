@@ -4,47 +4,46 @@
 
 #include "../utils/logging.hpp"
 
-sinuca::btb_entry::btb_entry()
+BTBEntry::BTBEntry()
     : numBanks(0),
       entryTag(0),
       targetArray(NULL),
       branchTypes(NULL),
       predictorsArray(NULL) {}
 
-int sinuca::btb_entry::Allocate(unsigned int numBanks) {
+int BTBEntry::Allocate(unsigned int numBanks) {
     this->numBanks = numBanks;
-    targetArray = new unsigned long[numBanks];
-    if (!(targetArray)) {
+    this->targetArray = new unsigned long[numBanks];
+    if (!(this->targetArray)) {
         SINUCA3_ERROR_PRINTF("BTB entry could not be allocated");
         return 1;
     }
 
-    branchTypes = new branchType[numBanks];
-    if (!(branchTypes)) {
-        delete[] targetArray;
+    this->branchTypes = new BranchType[numBanks];
+    if (!(this->branchTypes)) {
+        delete[] this->targetArray;
         SINUCA3_ERROR_PRINTF("BTB entry could not be allocated");
         return 1;
     }
 
-    predictorsArray = new BimodalPredictor[numBanks];
-    if (!(predictorsArray)) {
-        delete[] targetArray;
-        delete[] branchTypes;
+    this->predictorsArray = new BimodalPredictor[numBanks];
+    if (!(this->predictorsArray)) {
+        delete[] this->targetArray;
+        delete[] this->branchTypes;
         SINUCA3_ERROR_PRINTF("BTB entry could not be allocated");
         return 1;
     }
 
-    for (unsigned int i = 0; i < numBanks; ++i) {
-        targetArray[i] = 0;
-        branchTypes[i] = NONE;
+    for (unsigned int i = 0; i < this->numBanks; ++i) {
+        this->targetArray[i] = 0;
+        this->branchTypes[i] = BranchTypeNone;
     }
 
     return 0;
 }
 
-int sinuca::btb_entry::NewEntry(unsigned long tag, unsigned int bank,
-                                unsigned long targetAddress,
-                                sinuca::branchType type) {
+int BTBEntry::NewEntry(unsigned long tag, unsigned int bank,
+                       unsigned long targetAddress, BranchType type) {
     if (bank >= this->numBanks) return 1;
 
     this->entryTag = tag;
@@ -54,66 +53,46 @@ int sinuca::btb_entry::NewEntry(unsigned long tag, unsigned int bank,
     return 0;
 }
 
-int sinuca::btb_entry::UpdateEntry(unsigned long bank, bool branchState) {
+int BTBEntry::UpdateEntry(unsigned long bank, bool branchState) {
     if ((bank >= this->numBanks) || this->entryTag == 0) return 1;
 
     this->predictorsArray[bank].UpdatePrediction(branchState);
     return 0;
 }
 
-inline long sinuca::btb_entry::GetTag() { return this->entryTag; }
-
-inline long sinuca::btb_entry::GetTargetAddress(unsigned int bank) {
-    if (bank < this->numBanks) return this->targetArray[bank];
-
-    return 0;
-}
-
-inline sinuca::branchType sinuca::btb_entry::GetBranchType(unsigned int bank) {
-    if (bank < this->numBanks) return this->branchTypes[bank];
-
-    return NONE;
-}
-
-inline bool sinuca::btb_entry::GetPrediction(unsigned int bank) {
-    if (bank < this->numBanks) {
-        return predictorsArray[bank].GetPrediction();
+BTBEntry::~BTBEntry() {
+    if (this->targetArray) {
+        delete[] this->targetArray;
     }
 
-    return false;
-}
-
-sinuca::btb_entry::~btb_entry() {
-    if (targetArray) {
-        delete[] targetArray;
+    if (this->branchTypes) {
+        delete[] this->branchTypes;
     }
 
-    if (branchTypes) {
-        delete[] branchTypes;
-    }
-
-    if (predictorsArray) {
-        delete[] predictorsArray;
+    if (this->predictorsArray) {
+        delete[] this->predictorsArray;
     }
 }
 
-sinuca::BranchTargetBuffer::BranchTargetBuffer()
+BranchTargetBuffer::BranchTargetBuffer()
     : btb(NULL),
       interleavingFactor(0),
       numEntries(0),
       interleavingBits(0),
       entriesBits(0){};
 
-int sinuca::BranchTargetBuffer::SetConfigParameter(
-    const char* parameter, sinuca::config::ConfigValue value) {
-    if ((strcmp(parameter, "interleavingFactor") != 0) ||
-        (strcmp(parameter, "numberOfEntries") != 0)) {
+int BranchTargetBuffer::SetConfigParameter(const char* parameter,
+                                           sinuca::config::ConfigValue value) {
+    bool isInterleavingFactor = (strcmp(parameter, "interleavingFactor") == 0);
+    bool isNumberOfEntries = (strcmp(parameter, "numberOfEntries") == 0);
+
+    if (!(isInterleavingFactor) || !(isNumberOfEntries)) {
         SINUCA3_WARNING_PRINTF("BTB received an unknown parameter: %s.\n",
                                parameter);
         return 1;
     }
 
-    if (strcmp(parameter, "interleavingFactor") == 0) {
+    if (isInterleavingFactor) {
         if (value.type != sinuca::config::ConfigValueTypeInteger) {
             SINUCA3_ERROR_PRINTF(
                 "BTB parameter interleavingFactor is not an integer.\n");
@@ -133,7 +112,7 @@ int sinuca::BranchTargetBuffer::SetConfigParameter(
         }
     }
 
-    if (strcmp(parameter, "numberOfEntries") == 0) {
+    if (isNumberOfEntries) {
         if (value.type != sinuca::config::ConfigValueTypeInteger) {
             SINUCA3_ERROR_PRINTF(
                 "BTB parameter numberOfEntries is not an integer.\n");
@@ -151,7 +130,7 @@ int sinuca::BranchTargetBuffer::SetConfigParameter(
     return 0;
 }
 
-int sinuca::BranchTargetBuffer::FinishSetup() {
+int BranchTargetBuffer::FinishSetup() {
     if (this->interleavingFactor == 0) {
         SINUCA3_ERROR_PRINTF(
             "BTB did not receive the interleaving factor parameter.\n");
@@ -168,36 +147,35 @@ int sinuca::BranchTargetBuffer::FinishSetup() {
     this->entriesBits = floor(log(this->numEntries));
     this->interleavingFactor = (1 << this->interleavingBits);
     this->numEntries = (1 << this->entriesBits);
-    this->btb = new btb_entry*[this->numEntries];
+    this->btb = new BTBEntry*[this->numEntries];
     if (!(this->btb)) {
         SINUCA3_ERROR_PRINTF("BTB could not be allocated.\n");
         return 1;
     }
 
     for (unsigned int i = 0; i < this->numEntries; ++i) {
-        this->btb[i] = new btb_entry;
-        this->btb[i]->Allocate(interleavingFactor);
+        this->btb[i] = new BTBEntry;
+        this->btb[i]->Allocate(this->interleavingFactor);
     }
 
     return 0;
 }
 
-unsigned int sinuca::BranchTargetBuffer::CalculateBank(unsigned long address) {
+unsigned int BranchTargetBuffer::CalculateBank(unsigned long address) {
     unsigned long bank = address;
     bank = bank & ((1 << this->interleavingBits) - 1);
 
     return bank;
 }
 
-unsigned long sinuca::BranchTargetBuffer::CalculateTag(unsigned long address) {
+unsigned long BranchTargetBuffer::CalculateTag(unsigned long address) {
     unsigned long tag = address;
     tag = tag >> this->interleavingBits;
 
     return tag;
 }
 
-unsigned long sinuca::BranchTargetBuffer::CalculateIndex(
-    unsigned long address) {
+unsigned long BranchTargetBuffer::CalculateIndex(unsigned long address) {
     unsigned long index = address;
 
     index = index >> this->interleavingBits;
@@ -206,31 +184,30 @@ unsigned long sinuca::BranchTargetBuffer::CalculateIndex(
     return index;
 }
 
-int sinuca::BranchTargetBuffer::RegisterNewBranch(unsigned long address,
-                                                  unsigned long targetAddress,
-                                                  branchType type) {
-    unsigned long index = CalculateIndex(address);
-    unsigned long tag = CalculateTag(address);
-    unsigned int bank = CalculateBank(address);
+int BranchTargetBuffer::RegisterNewBranch(unsigned long address,
+                                          unsigned long targetAddress,
+                                          BranchType type) {
+    unsigned long index = this->CalculateIndex(address);
+    unsigned long tag = this->CalculateTag(address);
+    unsigned int bank = this->CalculateBank(address);
 
     return this->btb[index]->NewEntry(tag, bank, targetAddress, type);
 }
 
-int sinuca::BranchTargetBuffer::UpdateBranch(unsigned long address,
-                                             bool branchState) {
-    unsigned long index = CalculateIndex(address);
-    unsigned int bank = CalculateBank(address);
+int BranchTargetBuffer::UpdateBranch(unsigned long address, bool branchState) {
+    unsigned long index = this->CalculateIndex(address);
+    unsigned int bank = this->CalculateBank(address);
 
     return this->btb[index]->UpdateEntry(bank, branchState);
 }
 
-inline void sinuca::BranchTargetBuffer::RequestQuery(unsigned long address,
-                                                     int connectionID) {
-    unsigned long index = CalculateIndex(address);
-    unsigned long tag = CalculateTag(address);
-    sinuca::BTBPacket response;
+inline void BranchTargetBuffer::RequestQuery(unsigned long address,
+                                             int connectionID) {
+    unsigned long index = this->CalculateIndex(address);
+    unsigned long tag = this->CalculateTag(address);
+    BTBPacket response;
 
-    btb_entry* currentEntry = btb[index];
+    BTBEntry* currentEntry = btb[index];
     if (currentEntry->GetTag() == tag) {
         // BTB Hit
         /*
@@ -246,7 +223,8 @@ inline void sinuca::BranchTargetBuffer::RequestQuery(unsigned long address,
 
         for (int i = 0; i < this->interleavingFactor; ++i) {
             if (!(branchTaken)) {
-                if ((currentEntry->GetBranchType(i) == UNCONDITIONAL_BRANCH) ||
+                if ((currentEntry->GetBranchType(i) ==
+                     BranchTypeUnconditionalBranch) ||
                     (currentEntry->GetPrediction(i) == TAKEN)) {
                     response.data.responseQuery.targetAddress =
                         currentEntry->GetTargetAddress(i);
@@ -277,37 +255,38 @@ inline void sinuca::BranchTargetBuffer::RequestQuery(unsigned long address,
     this->SendResponseToConnection(connectionID, &response);
 }
 
-inline int sinuca::BranchTargetBuffer::RequestAddEntry(
-    unsigned long address, unsigned long targetAddress, branchType type) {
+inline int BranchTargetBuffer::RequestAddEntry(unsigned long address,
+                                               unsigned long targetAddress,
+                                               BranchType type) {
     return this->RegisterNewBranch(address, targetAddress, type);
 }
 
-inline int sinuca::BranchTargetBuffer::RequestUpdate(unsigned long address,
-                                                     bool branchState) {
+inline int BranchTargetBuffer::RequestUpdate(unsigned long address,
+                                             bool branchState) {
     return this->UpdateBranch(address, branchState);
 }
 
-void sinuca::BranchTargetBuffer::Clock() {
+void BranchTargetBuffer::Clock() {
     long numberOfConnections = this->GetNumberOfConnections();
-    sinuca::BTBPacket packet;
+    BTBPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             switch (packet.type) {
-                case sinuca::RequestQuery:
+                case BTBPacketType::RequestQuery:
                     this->RequestQuery(packet.data.requestQuery.address, i);
                     break;
-                case sinuca::RequestAddEntry:
+                case BTBPacketType::RequestAddEntry:
                     this->RequestAddEntry(
                         packet.data.requestAddEntry.address,
                         packet.data.requestAddEntry.targetAddress,
                         packet.data.requestAddEntry.typeOfBranch);
                     break;
-                case sinuca::RequestUpdate:
+                case BTBPacketType::RequestUpdate:
                     this->RequestUpdate(packet.data.updateQuery.address,
                                         packet.data.updateQuery.branchState);
                     break;
-                case sinuca::ResponseBTBHit:
-                case sinuca::ResponseBTBMiss:
+                case BTBPacketType::ResponseBTBHit:
+                case BTBPacketType::ResponseBTBMiss:
                     SINUCA3_WARNING_PRINTF(
                         "Connection %ld send a response type message to BTB.\n",
                         i);
@@ -320,9 +299,9 @@ void sinuca::BranchTargetBuffer::Clock() {
     }
 }
 
-void sinuca::BranchTargetBuffer::Flush() {};
+void BranchTargetBuffer::Flush() {};
 
-sinuca::BranchTargetBuffer::~BranchTargetBuffer() {
+BranchTargetBuffer::~BranchTargetBuffer() {
     if (!(this->btb)) return;
 
     for (unsigned int i = 0; i < this->numEntries; ++i) {

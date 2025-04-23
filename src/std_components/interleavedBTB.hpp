@@ -25,11 +25,13 @@
 #include "../engine/component.hpp"
 #include "../utils/bimodalPredictor.hpp"
 
-const char MAX_INTERLEAVING_FACTOR = 16;
+const int MAX_INTERLEAVING_FACTOR = 16;
 
-namespace sinuca {
-
-enum branchType { NONE, CONDITIONAL_BRANCH, UNCONDITIONAL_BRANCH };
+enum BranchType {
+    BranchTypeNone,
+    BranchTypeConditionalBranch,
+    BranchTypeUnconditionalBranch
+};
 
 enum BTBPacketType {
     RequestQuery,
@@ -39,7 +41,7 @@ enum BTBPacketType {
     ResponseBTBMiss
 };
 
-typedef struct BTBPacket {
+struct BTBPacket {
     union {
         struct {
             unsigned long address; /**<The fetch address as BTB input. */
@@ -54,7 +56,7 @@ typedef struct BTBPacket {
         struct {
             unsigned long address;       /**<The fetch address as BTB input. */
             unsigned long targetAddress; /**<The branch's jump address. */
-            branchType typeOfBranch;     /**<The type of branch (Conditional /
+            BranchType typeOfBranch;     /**<The type of branch (Conditional /
                                             Unconditional). */
         } requestAddEntry;
 
@@ -72,17 +74,17 @@ typedef struct BTBPacket {
 
     } data;
     BTBPacketType type;
-} BTBPacket;
+};
 
-struct btb_entry {
+struct BTBEntry {
     unsigned int numBanks;             /**<The number of banks. */
     unsigned long entryTag;            /**<The entry tag. */
     unsigned long* targetArray;        /**<The target address array. */
-    branchType* branchTypes;           /**<The branch types array. */
+    BranchType* branchTypes;           /**<The branch types array. */
     BimodalPredictor* predictorsArray; /**<The array of predictors. */
 
   public:
-    btb_entry();
+    BTBEntry();
 
     /**
      * @brief Allocates the BTB entry.
@@ -100,7 +102,7 @@ struct btb_entry {
      * @return 0 if successfuly, 1 otherwise.
      */
     int NewEntry(unsigned long tag, unsigned int bank,
-                 unsigned long targetAddress, branchType type);
+                 unsigned long targetAddress, BranchType type);
 
     /**
      * @brief Update the BTB entry.
@@ -114,32 +116,46 @@ struct btb_entry {
     /**
      * @brief Gets the tag of the entry
      */
-    inline long GetTag();
+    inline long GetTag() { return this->entryTag; };
 
     /**
      * @brief Gets the branch target address.
      * @param bank The bank containing the branch.
      */
-    inline long GetTargetAddress(unsigned int bank);
+    inline long GetTargetAddress(unsigned int bank) {
+        if (bank < this->numBanks) return this->targetArray[bank];
+
+        return 0;
+    };
 
     /**
      * @brief Gets the branch type.
      * @param bank The bank containing the branch.
      */
-    inline branchType GetBranchType(unsigned int bank);
+    inline BranchType GetBranchType(unsigned int bank) {
+        if (bank < this->numBanks) return this->branchTypes[bank];
+
+        return BranchTypeNone;
+    };
 
     /**
      * @brief Gets the branch prediction.
      * @param bank The bank containing the branch.
      */
-    inline bool GetPrediction(unsigned int bank);
+    inline bool GetPrediction(unsigned int bank) {
+        if (bank < this->numBanks) {
+            return this->predictorsArray[bank].GetPrediction();
+        }
 
-    ~btb_entry();
+        return false;
+    };
+
+    ~BTBEntry();
 };
 
-class BranchTargetBuffer : public sinuca::Component<BTBPacket> {
+class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
   private:
-    btb_entry** btb; /**<The pointer to BTB struct. */
+    BTBEntry** btb; /**<The pointer to BTB struct. */
     unsigned int
         interleavingFactor; /**<The interleaving factor, defining the number of
                               banks in which the BTB is interleaved. */
@@ -177,7 +193,7 @@ class BranchTargetBuffer : public sinuca::Component<BTBPacket> {
      * @return 0 if successfuly, 1 otherwise.
      */
     int RegisterNewBranch(unsigned long address, unsigned long targetAddress,
-                          branchType type);
+                          BranchType type);
 
     /**
      * @brief Update a BTB entry.
@@ -212,7 +228,7 @@ class BranchTargetBuffer : public sinuca::Component<BTBPacket> {
      * @details A wrapper for the method of registering a new entry in the BTB.
      */
     inline int RequestAddEntry(unsigned long address,
-                               unsigned long targetAddress, branchType type);
+                               unsigned long targetAddress, BranchType type);
 
     /**
      * @brief Method for RequestUpdate.
@@ -236,7 +252,5 @@ class BranchTargetBuffer : public sinuca::Component<BTBPacket> {
 
     ~BranchTargetBuffer();
 };
-
-}  // namespace sinuca
 
 #endif
