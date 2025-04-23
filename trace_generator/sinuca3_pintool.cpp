@@ -198,12 +198,12 @@ void createDataINS(const INS* ins, struct traceGenerator::DataINS *data) {
     if (INS_IsPrefetch(*ins))
         traceGenerator::SetBit(&data->booleanValues, traceGenerator::IS_PREFETCH, true);
 
-
-    bool isControlFlow = INS_IsControlFlow(*ins) || INS_IsSyscall(*ins);
+    bool isSyscall = INS_IsSyscall(*ins);
+    bool isControlFlow = INS_IsControlFlow(*ins) || isSyscall;
 
     if(isControlFlow){
 
-        if(INS_IsSyscall(*ins))
+        if(isSyscall)
             data->branchType = sinuca::BranchSyscall;
         else if(INS_IsCall(*ins))
             data->branchType = sinuca::BranchCall;
