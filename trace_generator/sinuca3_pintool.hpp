@@ -46,8 +46,8 @@ struct DataINS {
 } __attribute__((packed));  // no padding
 
 struct DataMEM {
-    long addr;
-    int size;
+    unsigned long addr;
+    unsigned int size;
 } __attribute__((packed));  // no padding
 
 }  // namespace traceGenerator

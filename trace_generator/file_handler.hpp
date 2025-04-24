@@ -5,7 +5,6 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
-#include <vector>
 
 #include "../src/utils/logging.hpp"
 
@@ -51,9 +50,6 @@ class TraceFile {
     }
 
     void FlushBuffer() {
-        // size_t written = fwrite(&this->offset, 1, sizeof(this->offset),
-        // this->file); assert(written == sizeof(this->offset) && "fwrite
-        // returned something wrong");
         size_t written = fwrite(this->buf, 1, this->offset, this->file);
         assert(written == this->offset && "fwrite returned something wrong");
         this->offset = 0;

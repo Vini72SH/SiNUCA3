@@ -232,7 +232,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     TraceNextDynamic(unsigned int *nextBbl) {
     static Buffer buf;
-    buf.bufSize = BUFFER_SIZE / sizeof(unsigned int);  // sizeof(bllId);
+    buf.bufSize = (BUFFER_SIZE / sizeof(unsigned int)) * sizeof(unsigned int);  // sizeof(bllId);
 
     if (buf.eofLocation > 0 && buf.offset == buf.eofLocation) return 1;
 
@@ -250,7 +250,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::TraceNextMemory(
     InstructionPacket *ret, InstructionInfo *packageInfo) {
     static Buffer buf;
-    buf.bufSize = BUFFER_SIZE / sizeof(struct traceGenerator::DataMEM);
+    buf.bufSize = (BUFFER_SIZE / sizeof(struct traceGenerator::DataMEM)) * sizeof(struct traceGenerator::DataMEM);
     traceGenerator::DataMEM *data;
 
     if (buf.eofLocation > 0 && buf.offset == buf.eofLocation) return 1;

@@ -119,7 +119,7 @@ VOID AppendToDynamicTrace(UINT32 bblId) {
     dynamicTraces[tid]->Write(bblId);
 }
 
-VOID AppendToMemTraceStd(ADDRINT addr, INT32 size) {
+VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
     static traceGenerator::DataMEM data;
