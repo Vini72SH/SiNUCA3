@@ -9,6 +9,10 @@ const char* FormatThreadSuffix(traceGenerator::THREADID tid) {
     return sufixBuffer;
 }
 
+/* ============================================= */
+/* StaticTraceFile */
+/* ============================================= */
+
 traceGenerator::StaticTraceFile::StaticTraceFile(const char* imageName)
     : TraceFile("static_", imageName, "") {
     this->offset = 0;
@@ -40,18 +44,33 @@ void traceGenerator::StaticTraceFile::Write(const struct DataINS* data) {
     this->instCount++;
 }
 
+/* ============================================= */
+/* DynamicTraceFile */
+/* ============================================= */
+
 traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* imageName,
                                                    THREADID tid)
     : TraceFile("dynamic_", imageName, FormatThreadSuffix(tid)) {}
+
+traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
+    this->FlushBuffer();
+}
 
 void traceGenerator::DynamicTraceFile::Write(const UINT32 bblId) {
     this->WriteToBuffer((void*)&bblId, sizeof(bblId));
 }
 
+/* ============================================= */
+/* MemoryTraceFile */
+/* ============================================= */
+
 traceGenerator::MemoryTraceFile::MemoryTraceFile(const char* imageName,
                                                  THREADID tid)
     : TraceFile("memory_", imageName, FormatThreadSuffix(tid)) {}
 
+traceGenerator::MemoryTraceFile::~MemoryTraceFile() {
+    this->FlushBuffer();
+}
 
 void traceGenerator::MemoryTraceFile::FlushBuffer() {
     // MemoryTraceFile stores how much someone can read before each buffer.

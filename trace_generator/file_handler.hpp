@@ -73,18 +73,14 @@ class StaticTraceFile : public TraceFile {
 class DynamicTraceFile : public TraceFile {
   public:
     DynamicTraceFile(const char *imageName, THREADID tid);
-    ~DynamicTraceFile(){
-        this->FlushBuffer();
-    }
+    ~DynamicTraceFile();
     void Write(const UINT32 bblId);
 };
 
 class MemoryTraceFile : public TraceFile {
   public:
     MemoryTraceFile(const char *imageName, THREADID tid);
-    ~MemoryTraceFile(){
-        this->FlushBuffer();
-    }
+    ~MemoryTraceFile();
     virtual void FlushBuffer() override;
     void WriteStd(const struct DataMEM *data);
     void WriteNonStd(const struct DataMEM *readings, unsigned short numReadings,
