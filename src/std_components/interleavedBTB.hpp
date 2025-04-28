@@ -1,6 +1,23 @@
 #ifndef SINUCA3_INTERLEAVED_BTB_HPP
 #define SINUCA3_INTERLEAVED_BTB_HPP
 
+//
+// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
 /**
  * @file interleavedBTB.hpp
  * @brief Implementation of Interleaved Branch Target Buffer.
@@ -116,13 +133,13 @@ struct BTBEntry {
     /**
      * @brief Gets the tag of the entry
      */
-    inline long GetTag() { return this->entryTag; };
+    inline unsigned long GetTag() { return this->entryTag; };
 
     /**
      * @brief Gets the branch target address.
      * @param bank The bank containing the branch.
      */
-    inline long GetTargetAddress(unsigned int bank) {
+    inline unsigned long GetTargetAddress(unsigned int bank) {
         if (bank < this->numBanks) return this->targetArray[bank];
 
         return 0;
@@ -218,7 +235,7 @@ class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
      * limited vector with all bits set to 1, assuming that all instructions in
      * the block are predicted to execute.
      */
-    inline void RequestQuery(unsigned long address, int connectionID);
+    inline void Query(unsigned long address, int connectionID);
 
     /**
      * @brief Method for RequestAddEntry.
@@ -227,8 +244,8 @@ class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
      * @param type The type of branch instruction.
      * @details A wrapper for the method of registering a new entry in the BTB.
      */
-    inline int RequestAddEntry(unsigned long address,
-                               unsigned long targetAddress, BranchType type);
+    inline int AddEntry(unsigned long address, unsigned long targetAddress,
+                        BranchType type);
 
     /**
      * @brief Method for RequestUpdate.
@@ -236,7 +253,7 @@ class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
      * @param branchState The Information on whether the branch has been taken.
      * @details A wrapper for the method of updating an entry in the BTB.
      */
-    inline int RequestUpdate(unsigned long address, bool branchState);
+    inline int Update(unsigned long address, bool branchState);
 
   public:
     BranchTargetBuffer();

@@ -1,3 +1,20 @@
+//
+// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
+
 #include "interleavedBTB.hpp"
 
 #include <cmath>
@@ -201,8 +218,7 @@ int BranchTargetBuffer::UpdateBranch(unsigned long address, bool branchState) {
     return this->btb[index]->UpdateEntry(bank, branchState);
 }
 
-inline void BranchTargetBuffer::RequestQuery(unsigned long address,
-                                             int connectionID) {
+inline void BranchTargetBuffer::Query(unsigned long address, int connectionID) {
     unsigned long index = this->CalculateIndex(address);
     unsigned long tag = this->CalculateTag(address);
     BTBPacket response;
@@ -221,7 +237,7 @@ inline void BranchTargetBuffer::RequestQuery(unsigned long address,
             address + this->interleavingFactor;
         response.data.responseQuery.numberOfBits = this->interleavingFactor;
 
-        for (int i = 0; i < this->interleavingFactor; ++i) {
+        for (unsigned int i = 0; i < this->interleavingFactor; ++i) {
             if (!(branchTaken)) {
                 if ((currentEntry->GetBranchType(i) ==
                      BranchTypeUnconditionalBranch) ||
@@ -246,7 +262,7 @@ inline void BranchTargetBuffer::RequestQuery(unsigned long address,
         response.data.responseQuery.targetAddress =
             address + this->interleavingFactor;
         response.data.responseQuery.numberOfBits = this->interleavingFactor;
-        for (int i = 0; i < this->interleavingFactor; ++i) {
+        for (unsigned int i = 0; i < this->interleavingFactor; ++i) {
             response.data.responseQuery.validBits[i] = true;
         }
         response.type = ResponseBTBMiss;
@@ -255,14 +271,13 @@ inline void BranchTargetBuffer::RequestQuery(unsigned long address,
     this->SendResponseToConnection(connectionID, &response);
 }
 
-inline int BranchTargetBuffer::RequestAddEntry(unsigned long address,
-                                               unsigned long targetAddress,
-                                               BranchType type) {
+inline int BranchTargetBuffer::AddEntry(unsigned long address,
+                                        unsigned long targetAddress,
+                                        BranchType type) {
     return this->RegisterNewBranch(address, targetAddress, type);
 }
 
-inline int BranchTargetBuffer::RequestUpdate(unsigned long address,
-                                             bool branchState) {
+inline int BranchTargetBuffer::Update(unsigned long address, bool branchState) {
     return this->UpdateBranch(address, branchState);
 }
 
@@ -272,21 +287,20 @@ void BranchTargetBuffer::Clock() {
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             switch (packet.type) {
-                case BTBPacketType::RequestQuery:
-                    this->RequestQuery(packet.data.requestQuery.address, i);
+                case RequestQuery:
+                    this->Query(packet.data.requestQuery.address, i);
                     break;
-                case BTBPacketType::RequestAddEntry:
-                    this->RequestAddEntry(
-                        packet.data.requestAddEntry.address,
-                        packet.data.requestAddEntry.targetAddress,
-                        packet.data.requestAddEntry.typeOfBranch);
+                case RequestAddEntry:
+                    this->AddEntry(packet.data.requestAddEntry.address,
+                                   packet.data.requestAddEntry.targetAddress,
+                                   packet.data.requestAddEntry.typeOfBranch);
                     break;
-                case BTBPacketType::RequestUpdate:
-                    this->RequestUpdate(packet.data.updateQuery.address,
-                                        packet.data.updateQuery.branchState);
+                case RequestUpdate:
+                    this->Update(packet.data.updateQuery.address,
+                                 packet.data.updateQuery.branchState);
                     break;
-                case BTBPacketType::ResponseBTBHit:
-                case BTBPacketType::ResponseBTBMiss:
+                case ResponseBTBHit:
+                case ResponseBTBMiss:
                     SINUCA3_WARNING_PRINTF(
                         "Connection %ld send a response type message to BTB.\n",
                         i);
