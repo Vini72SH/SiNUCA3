@@ -4,8 +4,7 @@
 #include "sinuca3_pintool.hpp"
 
 const char* FormatThreadSuffix(traceGenerator::THREADID tid) {
-    static char sufixBuffer[32];  // Buffer estático para garantir que a string
-                                  // permaneça válida
+    static char sufixBuffer[32];
     std::snprintf(sufixBuffer, sizeof(sufixBuffer), "_tid%d", tid);
     return sufixBuffer;
 }
@@ -16,7 +15,7 @@ const char* FormatThreadSuffix(traceGenerator::THREADID tid) {
 
 traceGenerator::StaticTraceFile::StaticTraceFile(const char* imageName,
                                                  const char* folderPath)
-    : TraceGenerator("static_", imageName, "", folderPath) {
+    : TraceFileGenerator("static_", imageName, "", folderPath) {
     this->offset = 0;
     this->numThreads = 0;
     this->bblCount = 0;
@@ -53,7 +52,7 @@ void traceGenerator::StaticTraceFile::Write(const struct DataINS* data) {
 traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* imageName,
                                                    THREADID tid,
                                                    const char* folderPath)
-    : TraceGenerator("dynamic_", imageName, FormatThreadSuffix(tid),
+    : TraceFileGenerator("dynamic_", imageName, FormatThreadSuffix(tid),
                      folderPath) {}
 
 traceGenerator::DynamicTraceFile::~DynamicTraceFile() { this->FlushBuffer(); }
@@ -69,7 +68,7 @@ void traceGenerator::DynamicTraceFile::Write(const UINT32 bblId) {
 traceGenerator::MemoryTraceFile::MemoryTraceFile(const char* imageName,
                                                  THREADID tid,
                                                  const char* folderPath)
-    : TraceGenerator("memory_", imageName, FormatThreadSuffix(tid),
+    : TraceFileGenerator("memory_", imageName, FormatThreadSuffix(tid),
                      folderPath) {}
 
 traceGenerator::MemoryTraceFile::~MemoryTraceFile() { this->FlushBuffer(); }
@@ -79,7 +78,7 @@ void traceGenerator::MemoryTraceFile::FlushBuffer() {
     size_t written = fwrite(&this->offset, 1, sizeof(this->offset), this->file);
     assert(written == sizeof(this->offset) &&
            "fwrite returned something wrong");
-    TraceGenerator::FlushBuffer();
+    TraceFileGenerator::FlushBuffer();
 }
 
 void traceGenerator::MemoryTraceFile::WriteStd(const struct DataMEM* data) {

@@ -14,7 +14,7 @@ namespace traceGenerator {
 typedef unsigned int THREADID;
 typedef unsigned int UINT32;
 
-class StaticTraceFile : public TraceGenerator {
+class StaticTraceFile : public TraceFileGenerator {
   public:
     unsigned int numThreads;
     unsigned int bblCount;
@@ -26,14 +26,14 @@ class StaticTraceFile : public TraceGenerator {
     void Write(const struct DataINS *);
 };
 
-class DynamicTraceFile : public TraceGenerator {
+class DynamicTraceFile : public TraceFileGenerator {
   public:
     DynamicTraceFile(const char *, THREADID, const char *);
     ~DynamicTraceFile();
     void Write(const UINT32 bblId);
 };
 
-class MemoryTraceFile : public TraceGenerator {
+class MemoryTraceFile : public TraceFileGenerator {
   public:
     MemoryTraceFile(const char *, THREADID, const char *);
     ~MemoryTraceFile();

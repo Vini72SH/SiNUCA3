@@ -7,15 +7,15 @@ using namespace trace;
 
 namespace traceReader {
 
-  class StaticTraceFile : public TraceReader {
+  class StaticTraceFile : public TraceFileReader {
 
   };
 
-  class DynamicTraceFile : public TraceReader {
+  class DynamicTraceFile : public TraceFileReader {
 
   };
 
-  class MemoryTraceFile : public TraceReader {
+  class MemoryTraceFile : public TraceFileReader {
 
   };
 

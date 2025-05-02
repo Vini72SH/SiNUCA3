@@ -36,18 +36,18 @@ class TraceFile {
     }
 };
 
-class TraceReader : public TraceFile {
+class TraceFileReader : public TraceFile {
   protected:
-    TraceReader(const char *prefix, const char *imageName, const char *sufix,
+    TraceFileReader(const char *prefix, const char *imageName, const char *sufix,
                 const char *traceFolderPath)
         : TraceFile(prefix, imageName, sufix, std::string(traceFolderPath)) {
         this->file = fopen(this->filePath.c_str(), "rb");
     }
 };
 
-class TraceGenerator : public TraceFile {
+class TraceFileGenerator : public TraceFile {
   protected:
-    TraceGenerator(const char *prefix, const char *imageName, const char *sufix,
+    TraceFileGenerator(const char *prefix, const char *imageName, const char *sufix,
                 const char *traceFolderPath)
         : TraceFile(prefix, imageName, sufix, std::string(traceFolderPath)) {
         this->file = fopen(this->filePath.c_str(), "wb");
@@ -64,7 +64,7 @@ class TraceGenerator : public TraceFile {
         size_t written = fwrite(this->buf, 1, this->offset, this->file);
         assert(written == this->offset && "fwrite returned something wrong");
         this->offset = 0;
-  }
+    }
 };
 
 }  // namespace trace
