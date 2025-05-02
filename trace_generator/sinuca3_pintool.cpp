@@ -12,7 +12,7 @@ extern "C" {
 
 #include "../src/sinuca3.hpp"
 #include "../src/utils/logging.hpp"
-#include "./file_handler.hpp"
+#include "generator_file_handler.hpp"
 #include "sinuca3_pintool.hpp"
 
 // Set this to 1 to print all rotines
@@ -26,6 +26,7 @@ static bool isInstrumentating;
 static std::vector<bool> isThreadInstrumentatingEnabled;
 
 const char* imageName;
+const char* folderPath;
 
 traceGenerator::StaticTraceFile* staticTrace;
 std::vector<traceGenerator::DynamicTraceFile*> dynamicTraces;
@@ -36,6 +37,8 @@ std::vector<const char*> OMP_ignore;
 
 KNOB<INT> KnobNumberIns(KNOB_MODE_WRITEONCE, "pintool", "number_max_inst", "-1",
                         "Maximum number of instructions to be traced");
+KNOB<std::string> KnobFolder(KNOB_MODE_WRITEONCE, "pintool", "store_path", "./",
+                             "Path to store trace");
 
 int Usage() {
     SINUCA3_LOG_PRINTF("Tool knob summary: %s\n",
@@ -65,8 +68,9 @@ VOID ThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
     staticTrace->numThreads++;
     isThreadInstrumentatingEnabled.push_back(false);
     dynamicTraces.push_back(
-        new traceGenerator::DynamicTraceFile(imageName, tid));
-    memoryTraces.push_back(new traceGenerator::MemoryTraceFile(imageName, tid));
+        new traceGenerator::DynamicTraceFile(imageName, tid, folderPath));
+    memoryTraces.push_back(
+        new traceGenerator::MemoryTraceFile(imageName, tid, folderPath));
     PIN_ReleaseLock(&pinLock);
 }
 
@@ -318,7 +322,7 @@ VOID ImageLoad(IMG img, VOID* ptr) {
     assert(fileNameSize < MAX_IMAGE_NAME_SIZE &&
            "Trace file name is too long. Max of 64 chars");
 
-    staticTrace = new traceGenerator::StaticTraceFile(imageName);
+    staticTrace = new traceGenerator::StaticTraceFile(imageName, folderPath);
 
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
@@ -359,17 +363,20 @@ VOID Fini(INT32 code, VOID* ptr) {
     // Close static trace file
     delete staticTrace;
     free((void*)imageName);
+    free((void*)folderPath);
 }
 
 int main(int argc, char* argv[]) {
     PIN_InitSymbols();
+
     if (PIN_Init(argc, argv)) {
         return Usage();
     }
 
-    if (access(traceGenerator::traceFolderPath.c_str(), F_OK) != 0) {
-        mkdir(traceGenerator::traceFolderPath.c_str(),
-              S_IRWXU | S_IRWXG | S_IROTH);
+    folderPath = strdup(KnobFolder.Value().c_str());
+
+    if (access(folderPath, F_OK) != 0) {
+        mkdir(folderPath, S_IRWXU | S_IRWXG | S_IROTH);
     }
 
     PIN_InitLock(&pinLock);
