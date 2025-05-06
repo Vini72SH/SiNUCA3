@@ -88,34 +88,29 @@ unsigned long sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
 
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::
     GenerateBinaryDict(StaticTraceFile *stFile) {
-    DataINS *data;
     unsigned int bblSize;
     unsigned short instCounter;
-    unsigned int bblCounter = 0;
+    unsigned int bblCounter;
     InstructionInfo *package;
-    InstructionInfo *poolPointer;
+    size_t pool_offset;
 
     this->binaryBBLsSize = new unsigned short[this->binaryTotalBBLs];
     this->binaryDict = new InstructionInfo *[this->binaryTotalBBLs];
     this->pool = new InstructionInfo[stFile->GetTotalIns()];
-    poolPointer = this->pool;
+    pool_offset = 0;
 
-    while (bblCounter < this->binaryTotalBBLs) {
+    for (bblCounter = 0; bblCounter < this->binaryTotalBBLs; bblCounter++) {
         bblSize = stFile->GetNewBBlSize();
         SINUCA3_DEBUG_PRINTF("Bbl %u Size => %u\n", bblCounter + 1, bblSize);
 
         this->binaryBBLsSize[bblCounter] = bblSize;
-        this->binaryDict[bblCounter] = poolPointer;
-        poolPointer += bblSize;
+        this->binaryDict[bblCounter] = &this->pool[pool_offset];
+        pool_offset += bblSize;
 
-        instCounter = 0;
-        while (instCounter < bblSize) {
+        for (instCounter = 0; instCounter < bblSize; instCounter++) {
             package = &this->binaryDict[bblCounter][instCounter];
             stFile->ReadNextPackage(package);
-            instCounter++;
         }
-
-        bblCounter++;
     }
 
     return 0;
