@@ -2,42 +2,54 @@
 #define X86GENERATORFILEHANDLER_HPP_
 
 #include <cassert>
+#include <cstddef>
 #include <string>
 
 #include "../src/utils/file_handler.hpp"
+#include "pin.H"
 
 namespace trace {
 namespace traceGenerator {
 
+const int FILL_READ_REGS = 2;
+const int FILL_WRITE_REGS = 3;
+
 class StaticTraceFile : public TraceFileWriter {
   public:
-    StaticTraceFile(std::string);
+    StaticTraceFile(std::string, std::string);
     ~StaticTraceFile();
-    virtual void PrepareData(void *, int) override;
+    void PrepareData(struct DataINS *, const INS *);
+    void StAppendToBuffer(void *, size_t);
+    inline void IncBBlCount() { this->bblCount++; }
+    inline void IncInstCount() { this->instCount++; }
+    inline void IncThreadCount() { this->threadCount++; }
+    inline unsigned int GetBBlCount() { return this->bblCount; }
   private:
     unsigned int threadCount;
     unsigned int bblCount;
     unsigned int instCount;
 
-    void NewBBL(unsigned int);
-    void CreateDataINS();
+    void SetInsName(struct DataINS *, const INS *);
+    void ResetFlags(struct DataINS *);
+    void SetFlags(struct DataINS *, const INS *);
+    void SetBranchFields(struct DataINS *, const INS *);
+    void FillRegs(struct DataINS *, const INS *, int);
 };
 
 class DynamicTraceFile : public TraceFileWriter {
   public:
-    DynamicTraceFile(std::string);
+    DynamicTraceFile(std::string, std::string, THREADID);
     ~DynamicTraceFile();
-    virtual void PrepareData(void *, int) override;
+    void DynAppendToBuffer(void *, size_t);
 };
 
 class MemoryTraceFile : public TraceFileWriter {
   public:
-    MemoryTraceFile(std::string);
+    MemoryTraceFile(std::string, std::string, THREADID);
     ~MemoryTraceFile();
-    virtual void PrepareData(void *, int) override;
-  private:
-    void WriteStd();
-    void WriteNonStd();
+    void PrepareData(unsigned short, struct DataMEM[], unsigned short,
+                     struct DataMEM[], PIN_MULTI_MEM_ACCESS_INFO *);
+    void MemAppendToBuffer(void *, size_t);
 };
 
 }  // namespace traceGenerator

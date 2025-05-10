@@ -12,8 +12,8 @@ extern "C" {
 
 #include "../src/sinuca3.hpp"
 #include "../src/utils/logging.hpp"
-#include "x86_generator_file_handler.hpp"
 #include "sinuca3_pintool.hpp"
+#include "x86_generator_file_handler.hpp"
 
 // Set this to 1 to print all rotines
 // that name begins with "gomp", case insensitive
@@ -25,12 +25,12 @@ static bool isInstrumentating;
 // And this enable instrumentation per thread.
 static std::vector<bool> isThreadInstrumentatingEnabled;
 
-const char* imageName;
-const char* folderPath;
+std::string imageName;
+std::string folderPath;
 
-traceGenerator::StaticTraceFile* staticTrace;
-std::vector<traceGenerator::DynamicTraceFile*> dynamicTraces;
-std::vector<traceGenerator::MemoryTraceFile*> memoryTraces;
+trace::traceGenerator::StaticTraceFile* staticTrace;
+std::vector<trace::traceGenerator::DynamicTraceFile*> dynamicTraces;
+std::vector<trace::traceGenerator::MemoryTraceFile*> memoryTraces;
 
 PIN_LOCK pinLock;
 std::vector<const char*> OMP_ignore;
@@ -64,13 +64,13 @@ void PrintRtnName(const char* s, THREADID tid) {
 
 VOID ThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
     PIN_GetLock(&pinLock, tid);
-    SINUCA3_DEBUG_PRINTF("New thread created! N => %d (%s)\n", tid, imageName);
-    staticTrace->numThreads++;
+    SINUCA3_DEBUG_PRINTF("New thread created! N => %d (%s)\n", tid, imageName.c_str());
+    staticTrace->IncThreadCount();
     isThreadInstrumentatingEnabled.push_back(false);
     dynamicTraces.push_back(
-        new traceGenerator::DynamicTraceFile(imageName, tid, folderPath));
+        new trace::traceGenerator::DynamicTraceFile(folderPath, imageName, tid));
     memoryTraces.push_back(
-        new traceGenerator::MemoryTraceFile(imageName, tid, folderPath));
+        new trace::traceGenerator::MemoryTraceFile(folderPath, imageName, tid));
     PIN_ReleaseLock(&pinLock);
 }
 
@@ -120,7 +120,7 @@ VOID DisableInstrumentationInThread(THREADID tid) {
 VOID AppendToDynamicTrace(UINT32 bblId) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-    dynamicTraces[tid]->Write(bblId);
+    dynamicTraces[tid]->DynAppendToBuffer(&bblId, sizeof(trace::BBLID));
 }
 
 VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
@@ -129,35 +129,21 @@ VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
     static trace::DataMEM data;
     data.addr = addr;
     data.size = size;
-    memoryTraces[tid]->WriteStd(&data);
+    memoryTraces[tid]->MemAppendToBuffer(&data, sizeof(data));
 }
 
-VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* acessInfo) {
+VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-
-    unsigned short numReadings;
-    unsigned short numWritings;
-
-    static DataMEM readings[MAX_MEM_OPERATIONS];
-    static DataMEM writings[MAX_MEM_OPERATIONS];
-
-    numReadings = numWritings = 0;
-    for (unsigned short it = 0; it < acessInfo->numberOfMemops; it++) {
-        PIN_MEM_ACCESS_INFO* memOp = &acessInfo->memop[it];
-        if (memOp->memopType == PIN_MEMOP_LOAD) {
-            readings[numReadings].addr = memOp->memoryAddress;
-            readings[numReadings].size = memOp->bytesAccessed;
-            numReadings++;
-        } else {
-            writings[numWritings].addr = memOp->memoryAddress;
-            writings[numWritings].size = memOp->bytesAccessed;
-            numWritings++;
-        }
-    }
-
-    memoryTraces[tid]->WriteNonStd(readings, numReadings, writings,
-                                   numWritings);
+    static trace::DataMEM readings[64];
+    static trace::DataMEM writings[64];
+    static unsigned short numR;
+    static unsigned short numW;
+    memoryTraces[tid]->PrepareData(numR, readings, numW, writings, accessInfo);
+    memoryTraces[tid]->MemAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
+    memoryTraces[tid]->MemAppendToBuffer(readings, numR * sizeof(*readings));
+    memoryTraces[tid]->MemAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
+    memoryTraces[tid]->MemAppendToBuffer(writings, numW * sizeof(*writings));
 }
 
 VOID InstrumentMemoryOperations(const INS* ins) {
@@ -165,8 +151,10 @@ VOID InstrumentMemoryOperations(const INS* ins) {
     bool hasRead2 = INS_HasMemoryRead2(*ins);
     bool isWrite = INS_IsMemoryWrite(*ins);
 
-    // INS_IsStandardMemop() returns false if this instruction has a memory
-    // operand which has unconventional meaning; Returns true otherwise.
+    /*
+     * INS_IsStandardMemop() returns false if this instruction has a memory
+     * operand which has unconventional meaning; returns true otherwise
+     */
     bool isNonStandard = !INS_IsStandardMemop(*ins);
     if (isNonStandard) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTraceNonStd,
@@ -188,72 +176,6 @@ VOID InstrumentMemoryOperations(const INS* ins) {
     }
 }
 
-void createDataINS(const INS* ins, struct DataINS* data) {
-    std::string name = INS_Mnemonic(*ins);
-    strncpy(data->name, name.c_str(),
-            MAX_INSTRUCTION_NAME_LENGTH);
-
-    data->addr = INS_Address(*ins);
-    data->size = INS_Size(*ins);
-    data->baseReg = INS_MemoryBaseReg(*ins);
-    data->indexReg = INS_MemoryIndexReg(*ins);
-    data->booleanValues = 0;
-
-    if (INS_IsPredicated(*ins)) {data->isPredicated = 1;}
-    if (INS_IsPrefetch(*ins)) {data->isPrefetch = 1;}
-
-    bool isSyscall = INS_IsSyscall(*ins);
-    bool isControlFlow = INS_IsControlFlow(*ins) || isSyscall;
-
-    if (isControlFlow) {
-        if (isSyscall)
-            data->branchType = sinuca::BranchSyscall;
-        else if (INS_IsCall(*ins))
-            data->branchType = sinuca::BranchCall;
-        else if (INS_IsRet(*ins))
-            data->branchType = sinuca::BranchReturn;
-        else if (INS_HasFallThrough(*ins))
-            data->branchType = sinuca::BranchCond;
-        else
-            data->branchType = sinuca::BranchUncond;
-
-        data->isControlFlow = 1;
-        data->isIndirectControlFlow = 1;
-    }
-
-    /*
-    * INS_IsStandardMemop() returns false if this instruction has a memory
-    * operand which has unconventional meaning; returns true otherwise
-    */
-    if (!INS_IsStandardMemop(*ins)) {
-        data->isNonStandardMemOp = 1;
-    } else {
-        if (INS_IsMemoryRead(*ins)) {
-            data->isRead = 1;
-        }
-        if (INS_HasMemoryRead2(*ins)) {
-            data->isRead2 = 1;
-        }
-        if (INS_IsMemoryWrite(*ins)) {
-            data->isWrite = 1;
-        }
-    }
-
-    for (unsigned long int i = 0; i < INS_MaxNumRRegs(*ins); ++i) {
-        REG regValue = INS_RegR(*ins, i);
-        if (regValue != REG_INVALID()) {
-            data->readRegs[data->numReadRegs++] = regValue;
-        }
-    }
-
-    for (unsigned long int i = 0; i < INS_MaxNumWRegs(*ins); ++i) {
-        REG regValue = INS_RegW(*ins, i);
-        if (regValue != REG_INVALID()) {
-            data->writeRegs[data->numWriteRegs++] = regValue;
-        }
-    }
-}
-
 VOID Trace(TRACE trace, VOID* ptr) {
     if (!isInstrumentating) return;
 
@@ -270,9 +192,11 @@ VOID Trace(TRACE trace, VOID* ptr) {
         }
 #endif
 
-        // This will make every function call from libgomp that have a
-        // PAUSE instruction to be ignored.
-        // I still not sure if this is fully corret.
+        /*
+         * This will make every function call from libgomp that have a
+         * PAUSE instruction to be ignored
+         * Still not sure if this is fully correct
+         */
         for (size_t i = 0; i < OMP_ignore.size(); ++i) {
             if (strcmp(traceRtnName, OMP_ignore[i]) == 0) {
                 // has SPIN_LOCK
@@ -285,15 +209,17 @@ VOID Trace(TRACE trace, VOID* ptr) {
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)AppendToDynamicTrace,
-                       IARG_UINT32, staticTrace->bblCount, IARG_END);
+                       IARG_UINT32, staticTrace->GetBBlCount(), IARG_END);
 
-        staticTrace->NewBBL(BBL_NumIns(bbl));
+        staticTrace->IncBBlCount();
+        UINT32 numIns = BBL_NumIns(bbl);
+        staticTrace->StAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-            struct DataINS data;
-            createDataINS(&ins, &data);
-            staticTrace->Write(&data);
+            static struct trace::DataINS data;
+            staticTrace->PrepareData(&data, &ins);
+            staticTrace->StAppendToBuffer(&data, sizeof(data));
             InstrumentMemoryOperations(&ins);
-            staticTrace->instCount++;
+            staticTrace->IncInstCount();
         }
     }
 
@@ -306,15 +232,9 @@ VOID ImageLoad(IMG img, VOID* ptr) {
 
     std::string completeImgPath = IMG_Name(img);
     size_t it = completeImgPath.find_last_of('/') + 1;
+    imageName = &completeImgPath[it];
 
-    // freed in Fini();
-    imageName = strdup(&completeImgPath.c_str()[it]);
-
-    unsigned int fileNameSize = strlen(imageName);
-    assert(fileNameSize < MAX_IMAGE_NAME_SIZE &&
-           "Trace file name is too long. Max of 64 chars");
-
-    staticTrace = new traceGenerator::StaticTraceFile(imageName, folderPath);
+    staticTrace = new trace::traceGenerator::StaticTraceFile(imageName, folderPath);
 
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
@@ -350,12 +270,10 @@ VOID ImageLoad(IMG img, VOID* ptr) {
 
 VOID Fini(INT32 code, VOID* ptr) {
     SINUCA3_LOG_PRINTF("End of tool execution\n");
-    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", staticTrace->bblCount);
+    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", staticTrace->GetBBlCount());
 
     // Close static trace file
     delete staticTrace;
-    free((void*)imageName);
-    free((void*)folderPath);
 }
 
 int main(int argc, char* argv[]) {
@@ -365,10 +283,10 @@ int main(int argc, char* argv[]) {
         return Usage();
     }
 
-    folderPath = strdup(KnobFolder.Value().c_str());
+    folderPath = KnobFolder.Value();
 
-    if (access(folderPath, F_OK) != 0) {
-        mkdir(folderPath, S_IRWXU | S_IRWXG | S_IROTH);
+    if (access(folderPath.c_str(), F_OK) != 0) {
+        mkdir(folderPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     }
 
     PIN_InitLock(&pinLock);
