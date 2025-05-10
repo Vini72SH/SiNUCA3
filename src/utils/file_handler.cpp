@@ -49,6 +49,10 @@ trace::TraceFileWriter::TraceFileWriter(std::string path) {
     if (this->tf.file == NULL) {printFileErrorLog(path.c_str(), mode);}
 }
 
+/* 
+* flush is not done here because derived class might flush buffer size to file
+* in addition to buffer
+*/
 int trace::TraceFileWriter::AppendToBuffer(void *ptr, size_t len) {
     if (BUFFER_SIZE - this->tf.offset < len) {return 1;}
     memcpy(this->tf.buf + this->tf.offset, ptr, len);
@@ -64,4 +68,17 @@ void trace::TraceFileWriter::FlushLenBytes(void *ptr, size_t len) {
 void trace::TraceFileWriter::FlushBuffer() {
     this->FlushLenBytes(this->tf.buf, this->tf.offset);
     this->tf.offset = 0;
+}
+
+std::string trace::FormatPathTidIn(std::string sourceDir, std::string prefix,
+    std::string imageName, THREADID tid) {
+    char tmp[128];
+
+    snprintf(tmp, 128, "%u", tid);
+    return sourceDir + "/" + prefix + "_" + imageName + "_tid" + tmp + ".trace";
+}
+
+std::string trace::FormatPathTidOut(std::string sourceDir, std::string prefix,
+     std::string imageName) {
+    return sourceDir + "/" + prefix + "_" + imageName + ".trace";
 }

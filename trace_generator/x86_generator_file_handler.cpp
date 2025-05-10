@@ -175,21 +175,24 @@ void trace::traceGenerator::StaticTraceFile::FillRegs(struct DataINS* data,
                                                       const INS* ins, int op) {
     REG (*func)(INS, UINT32);
     unsigned char* count;
+    unsigned short int* arr;
     switch (op) {
         case FILL_READ_REGS:
             func = INS_RegR;
             count = &data->numReadRegs;
+            arr = data->readRegs;
             break;
         case FILL_WRITE_REGS:
             func = INS_RegW;
             count = &data->numWriteRegs;
+            arr = data->writeRegs;
             break;
     }
 
     for (unsigned long int i = 0; i < INS_MaxNumRRegs(*ins); ++i) {
         REG regValue = func(*ins, i);
         if (regValue != REG_INVALID()) {
-            data->readRegs[(*count)++] = regValue;
+            arr[(*count)++] = regValue;
         }
     }
 }

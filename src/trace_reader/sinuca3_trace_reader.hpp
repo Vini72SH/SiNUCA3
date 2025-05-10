@@ -24,7 +24,7 @@
  */
 
 #include "trace_reader.hpp"
-#include "reader_file_handler.hpp"
+#include "x86_reader_file_handler.hpp"
 
 namespace sinuca {
 namespace traceReader {

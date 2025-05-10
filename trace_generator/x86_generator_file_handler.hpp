@@ -15,15 +15,6 @@ const int FILL_READ_REGS = 2;
 const int FILL_WRITE_REGS = 3;
 
 class StaticTraceFile : public TraceFileWriter {
-  public:
-    StaticTraceFile(std::string, std::string);
-    ~StaticTraceFile();
-    void PrepareData(struct DataINS *, const INS *);
-    void StAppendToBuffer(void *, size_t);
-    inline void IncBBlCount() { this->bblCount++; }
-    inline void IncInstCount() { this->instCount++; }
-    inline void IncThreadCount() { this->threadCount++; }
-    inline unsigned int GetBBlCount() { return this->bblCount; }
   private:
     unsigned int threadCount;
     unsigned int bblCount;
@@ -34,6 +25,15 @@ class StaticTraceFile : public TraceFileWriter {
     void SetFlags(struct DataINS *, const INS *);
     void SetBranchFields(struct DataINS *, const INS *);
     void FillRegs(struct DataINS *, const INS *, int);
+  public:
+    StaticTraceFile(std::string, std::string);
+    ~StaticTraceFile();
+    void PrepareData(struct DataINS *, const INS *);
+    void StAppendToBuffer(void *, size_t);
+    inline void IncBBlCount() { this->bblCount++; }
+    inline void IncInstCount() { this->instCount++; }
+    inline void IncThreadCount() { this->threadCount++; }
+    inline unsigned int GetBBlCount() { return this->bblCount; }
 };
 
 class DynamicTraceFile : public TraceFileWriter {

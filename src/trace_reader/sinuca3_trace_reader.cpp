@@ -26,7 +26,7 @@
 #include <cstdio>  // FILE*
 
 #include "../utils/logging.hpp"
-#include "reader_file_handler.hpp"
+#include "x86_reader_file_handler.hpp"
 #include "trace_reader.hpp"
 
 int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
@@ -34,8 +34,7 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     std::string folderPath = std::string(traceFolderPath);
     std::string staticFilePath;
 
-    staticFilePath = folderPath + "static_" + executableName + ".trace";
-    StaticTraceFile staticFile(staticFilePath.c_str());
+    StaticTraceFile staticFile(folderPath, executableName);
 
     this->binaryTotalBBLs = staticFile.GetTotalBBLs();
     this->numThreads = staticFile.GetNumThreads();
@@ -49,9 +48,9 @@ int sinuca::traceReader::sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     for (int i = 0; i < this->numThreads; i++) {
         this->isInsideBBL[i] = false;
         this->threadsDynFiles[i] =
-            new DynamicTraceFile(executableName, i, traceFolderPath);
+            new DynamicTraceFile(folderPath, executableName, i);
         this->threadsMemFiles[i] =
-            new MemoryTraceFile(executableName, i, traceFolderPath);
+            new MemoryTraceFile(folderPath, executableName, i);
     }
 
     if (this->GenerateBinaryDict(&staticFile)) return 1;

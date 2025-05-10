@@ -24,37 +24,44 @@ struct InstructionInfo {
     unsigned short staticNumWritings;
 };
 
+const int GET_READ_REGS = 2;
+const int GET_WRITE_REGS = 3;
+
 class StaticTraceFile {
   private:
+    unsigned int totalBBLs;
+    unsigned int totalIns;
+    unsigned int numThreads;
     char *mmapPtr;
     size_t mmapOffset;
     size_t mmapSize;
     int fd;
-    unsigned int totalBBLs;
-    unsigned int totalIns;
-    unsigned int numThreads;
 
+    void *GetData(size_t);
+    void GetInsName(sinuca::StaticInstructionInfo *, DataINS *);
+    void GetFlagValues(InstructionInfo *, DataINS *);
+    void GetBranchFields(sinuca::StaticInstructionInfo *, DataINS *);
+    void GetReadRegs(sinuca::StaticInstructionInfo *, DataINS *);
+    void GetWriteRegs(sinuca::StaticInstructionInfo *, DataINS *);
   public:
-    StaticTraceFile(const char *);
+    StaticTraceFile(std::string, std::string);
     ~StaticTraceFile();
-    unsigned int GetTotalBBLs();
-    unsigned int GetTotalIns();
-    unsigned int GetNumThreads();
-    unsigned int GetNewBBlSize();
+    inline unsigned int GetTotalBBLs() { return this->totalBBLs; }
+    inline unsigned int GetTotalIns() { return this->totalIns; }
+    inline unsigned int GetNumThreads() { return this->numThreads; }
     void ReadNextPackage(InstructionInfo *);
+    unsigned int GetNewBBlSize();
 };
 
 class DynamicTraceFile : public TraceFileReader {
   public:
-    DynamicTraceFile(const char *imageName, THREADID tid,
-                     const char *folderPath);
-    int ReadNextBBl(BBlId *);
+    DynamicTraceFile(std::string, std::string, THREADID);
+    int ReadNextBBl(BBLID *);
 };
 
 class MemoryTraceFile : public TraceFileReader {
   public:
-    MemoryTraceFile(const char *imageName, THREADID tid,
-                    const char *folderPath);
+    MemoryTraceFile(std::string, std::string, THREADID);
     int ReadNextMemAccess(InstructionInfo *, DynamicInstructionInfo *);
 };
 

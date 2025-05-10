@@ -10,7 +10,6 @@ extern "C" {
 #include <unistd.h>    // access
 }
 
-#include "../src/sinuca3.hpp"
 #include "../src/utils/logging.hpp"
 #include "sinuca3_pintool.hpp"
 #include "x86_generator_file_handler.hpp"
@@ -141,8 +140,8 @@ VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     static unsigned short numW;
     memoryTraces[tid]->PrepareData(numR, readings, numW, writings, accessInfo);
     memoryTraces[tid]->MemAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
-    memoryTraces[tid]->MemAppendToBuffer(readings, numR * sizeof(*readings));
     memoryTraces[tid]->MemAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
+    memoryTraces[tid]->MemAppendToBuffer(readings, numR * sizeof(*readings));
     memoryTraces[tid]->MemAppendToBuffer(writings, numW * sizeof(*writings));
 }
 

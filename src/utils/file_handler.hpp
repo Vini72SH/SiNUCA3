@@ -14,6 +14,10 @@ const unsigned long BUFFER_SIZE = 1 << 20;
 const unsigned long CACHE_LINE_SIZE = 64;
 // Adjust if needed
 const unsigned long MAX_IMAGE_NAME_SIZE = 255;
+// Used to standardize reading and writing
+const size_t SIZE_NUM_MEM_R_W = sizeof(unsigned short);
+// Used to standardize reading and writing
+const size_t SIZE_NUM_BBL_INS = sizeof(unsigned int);
 
 namespace trace {
 
@@ -83,7 +87,6 @@ class TraceFileReader {
     int SetBufActiveSize(size_t);
     void RetrieveBuffer();
     void *GetData(size_t);
-    virtual void InterpretData(void *, int) = 0;
 };
 
 class TraceFileWriter {
@@ -94,8 +97,11 @@ class TraceFileWriter {
     int AppendToBuffer(void *, size_t);
     void FlushLenBytes(void *, size_t);
     void FlushBuffer();
-    virtual void PrepareData(void *, int) = 0;
 };
+
+std::string FormatPathTidIn(std::string, std::string, std::string, THREADID);
+
+std::string FormatPathTidOut(std::string, std::string, std::string);
 
 }  // namespace trace
 
