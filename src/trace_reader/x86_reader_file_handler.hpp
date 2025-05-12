@@ -1,5 +1,5 @@
-#ifndef READERFILEHANDLER_HPP_
-#define READERFILEHANDLER_HPP_
+#ifndef X86READERFILEHANDLER_HPP_
+#define X86READERFILEHANDLER_HPP_
 
 #include <cstddef>
 
@@ -38,11 +38,11 @@ class StaticTraceFile {
     int fd;
 
     void *GetData(size_t);
-    void GetInsName(sinuca::StaticInstructionInfo *, DataINS *);
     void GetFlagValues(InstructionInfo *, DataINS *);
     void GetBranchFields(sinuca::StaticInstructionInfo *, DataINS *);
     void GetReadRegs(sinuca::StaticInstructionInfo *, DataINS *);
     void GetWriteRegs(sinuca::StaticInstructionInfo *, DataINS *);
+
   public:
     StaticTraceFile(std::string, std::string);
     ~StaticTraceFile();
