@@ -17,8 +17,8 @@ trace::TraceFileReader::TraceFileReader(std::string path) {
     this->eofFound = false;
 }
 
-int trace::TraceFileReader::RetrieveLenBytes(void *ptr, size_t len) {
-    size_t read = fread(ptr, len, 1, this->tf.file);
+size_t trace::TraceFileReader::RetrieveLenBytes(void *ptr, size_t len) {
+    size_t read = fread(ptr, 1, len, this->tf.file);
     return read;
 }
 
@@ -29,7 +29,7 @@ int trace::TraceFileReader::SetBufActiveSize(size_t size) {
 }
 
 void trace::TraceFileReader::RetrieveBuffer() {
-    int read = this->RetrieveLenBytes(this->tf.buf, this->bufActiveSize);
+    size_t read = this->RetrieveLenBytes(this->tf.buf, this->bufActiveSize);
     if (read < this->bufActiveSize) {
         this->eofLocation = read;
         this->eofFound = true;
@@ -61,7 +61,9 @@ int trace::TraceFileWriter::AppendToBuffer(void *ptr, size_t len) {
 }
 
 void trace::TraceFileWriter::FlushLenBytes(void *ptr, size_t len) {
-    size_t written = fwrite(ptr, len, 1, this->tf.file);
+    SINUCA3_DEBUG_PRINTF("len size [FlushLenBytes] [%lu]\n", len);
+    size_t written = fwrite(ptr, 1, len, this->tf.file);
+    SINUCA3_DEBUG_PRINTF("written size [FlushLenBytes] [%lu]\n", written);
     assert(written == len && "fwrite returned something wrong");
 }
 

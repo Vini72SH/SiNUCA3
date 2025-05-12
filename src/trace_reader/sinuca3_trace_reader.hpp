@@ -40,7 +40,7 @@ class SinucaTraceReader : public TraceReader {
   private:
     DynamicTraceFile **threadsDynFiles;
     MemoryTraceFile **threadsMemFiles;
-    struct ContextInfo *ThrInfo;
+    struct ContextInfo *thrInfo;
 
     unsigned int numThreads;
 

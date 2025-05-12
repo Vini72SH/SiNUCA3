@@ -1,7 +1,5 @@
 #include <cassert>  // assert
 #include <cstddef>  // size_t
-#include <cstdio>
-#include <cstring>  // memcpy
 
 #include "pin.H"
 
@@ -36,7 +34,7 @@ std::vector<const char*> OMP_ignore;
 
 KNOB<INT> KnobNumberIns(KNOB_MODE_WRITEONCE, "pintool", "number_max_inst", "-1",
                         "Maximum number of instructions to be traced");
-KNOB<std::string> KnobFolder(KNOB_MODE_WRITEONCE, "pintool", "store_path", "./",
+KNOB<std::string> KnobFolder(KNOB_MODE_WRITEONCE, "pintool", "trace_folder", "./",
                              "Path to store trace");
 
 int Usage() {
@@ -75,19 +73,15 @@ VOID ThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
 
 VOID ThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v) {
     PIN_GetLock(&pinLock, tid);
-
-    SINUCA3_DEBUG_PRINTF("A thread has finalized! N => %d\n", tid);
-
     delete dynamicTraces[tid];
     delete memoryTraces[tid];
-
     PIN_ReleaseLock(&pinLock);
 }
 
 VOID InitInstrumentation() {
     if (isInstrumentating) return;
     PIN_GetLock(&pinLock, PIN_ThreadId());
-    SINUCA3_LOG_PRINTF("Start of tool instrumentation block.\n");
+    SINUCA3_LOG_PRINTF("Start of tool instrumentation block\n");
     isInstrumentating = true;
     PIN_ReleaseLock(&pinLock);
 }
@@ -95,7 +89,7 @@ VOID InitInstrumentation() {
 VOID StopInstrumentation() {
     if (!isInstrumentating) return;
     PIN_GetLock(&pinLock, PIN_ThreadId());
-    SINUCA3_LOG_PRINTF("End of tool instrumentation block.\n");
+    SINUCA3_LOG_PRINTF("End of tool instrumentation block\n");
     isInstrumentating = false;
     PIN_ReleaseLock(&pinLock);
 }
@@ -103,7 +97,7 @@ VOID StopInstrumentation() {
 VOID EnableInstrumentationInThread(THREADID tid) {
     if (isThreadInstrumentatingEnabled[tid]) return;
     PIN_GetLock(&pinLock, tid);
-    SINUCA3_LOG_PRINTF("Enabling tool instrumentation in thread %d.\n", tid);
+    SINUCA3_LOG_PRINTF("Enabling tool instrumentation in thread [%d]\n", tid);
     isThreadInstrumentatingEnabled[tid] = true;
     PIN_ReleaseLock(&pinLock);
 }
@@ -111,7 +105,7 @@ VOID EnableInstrumentationInThread(THREADID tid) {
 VOID DisableInstrumentationInThread(THREADID tid) {
     if (!isThreadInstrumentatingEnabled[tid]) return;
     PIN_GetLock(&pinLock, tid);
-    SINUCA3_LOG_PRINTF("Disabling tool instrumentation in thread %d.\n", tid);
+    SINUCA3_LOG_PRINTF("Disabling tool instrumentation in thread [%d]\n", tid);
     isThreadInstrumentatingEnabled[tid] = false;
     PIN_ReleaseLock(&pinLock);
 }
@@ -138,7 +132,8 @@ VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     static trace::DataMEM writings[64];
     static unsigned short numR;
     static unsigned short numW;
-    memoryTraces[tid]->PrepareData(numR, readings, numW, writings, accessInfo);
+    memoryTraces[tid]->PrepareDataNonStdAccess(&numR, readings, &numW, writings, accessInfo);
+
     memoryTraces[tid]->MemAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
     memoryTraces[tid]->MemAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
     memoryTraces[tid]->MemAppendToBuffer(readings, numR * sizeof(*readings));
@@ -146,20 +141,19 @@ VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
 }
 
 VOID InstrumentMemoryOperations(const INS* ins) {
-    bool isRead = INS_IsMemoryRead(*ins);
-    bool hasRead2 = INS_HasMemoryRead2(*ins);
-    bool isWrite = INS_IsMemoryWrite(*ins);
-
     /*
      * INS_IsStandardMemop() returns false if this instruction has a memory
      * operand which has unconventional meaning; returns true otherwise
      */
-    bool isNonStandard = !INS_IsStandardMemop(*ins);
-    if (isNonStandard) {
+    if (!INS_IsStandardMemop(*ins)) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTraceNonStd,
                        IARG_MULTI_MEMORYACCESS_EA, IARG_END);
         return;
     }
+
+    bool isRead = INS_IsMemoryRead(*ins);
+    bool hasRead2 = INS_HasMemoryRead2(*ins);
+    bool isWrite = INS_IsMemoryWrite(*ins);
 
     if (isRead) {
         INS_InsertCall(*ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTraceStd,
@@ -183,19 +177,17 @@ VOID Trace(TRACE trace, VOID* ptr) {
 
     if (RTN_Valid(traceRtn)) {
         const char* traceRtnName = RTN_Name(traceRtn).c_str();
-
 #if DEBUG_PRINT_GOMP_RNT == 1
         if (StrStartsWithGomp(traceRtnName)) {
             TRACE_InsertCall(trace, IPOINT_BEFORE, (AFUNPTR)PrintRtnName,
                              IARG_PTR, traceRtnName, IARG_THREAD_ID, IARG_END);
         }
 #endif
-
         /*
-         * This will make every function call from libgomp that have a
-         * PAUSE instruction to be ignored
-         * Still not sure if this is fully correct
-         */
+        * This will make every function call from libgomp that have a
+        * PAUSE instruction to be ignored
+        * Still not sure if this is fully correct
+        */
         for (size_t i = 0; i < OMP_ignore.size(); ++i) {
             if (strcmp(traceRtnName, OMP_ignore[i]) == 0) {
                 // has SPIN_LOCK
@@ -211,7 +203,7 @@ VOID Trace(TRACE trace, VOID* ptr) {
                        IARG_UINT32, staticTrace->GetBBlCount(), IARG_END);
 
         staticTrace->IncBBlCount();
-        UINT32 numIns = BBL_NumIns(bbl);
+        unsigned int numIns = BBL_NumIns(bbl);
         staticTrace->StAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             static struct trace::DataINS data;
@@ -233,7 +225,7 @@ VOID ImageLoad(IMG img, VOID* ptr) {
     size_t it = completeImgPath.find_last_of('/') + 1;
     imageName = &completeImgPath[it];
 
-    staticTrace = new trace::traceGenerator::StaticTraceFile(imageName, folderPath);
+    staticTrace = new trace::traceGenerator::StaticTraceFile(folderPath, imageName);
 
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
@@ -269,7 +261,7 @@ VOID ImageLoad(IMG img, VOID* ptr) {
 
 VOID Fini(INT32 code, VOID* ptr) {
     SINUCA3_LOG_PRINTF("End of tool execution\n");
-    SINUCA3_DEBUG_PRINTF("Number of BBLs => %u\n", staticTrace->GetBBlCount());
+    SINUCA3_DEBUG_PRINTF("Number of BBLs [%u]\n", staticTrace->GetBBlCount());
 
     // Close static trace file
     delete staticTrace;
@@ -283,7 +275,6 @@ int main(int argc, char* argv[]) {
     }
 
     folderPath = KnobFolder.Value();
-
     if (access(folderPath.c_str(), F_OK) != 0) {
         mkdir(folderPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     }

@@ -18,28 +18,19 @@ const unsigned long MAX_IMAGE_NAME_SIZE = 255;
 const size_t SIZE_NUM_MEM_R_W = sizeof(unsigned short);
 // Used to standardize reading and writing
 const size_t SIZE_NUM_BBL_INS = sizeof(unsigned int);
+// Adjust if needed
+const unsigned long MAX_REG_OPERANDS = 8;
 
 namespace trace {
 
 typedef unsigned int BBLID;
 typedef unsigned int THREADID;
 
-enum BooleanValuesIndex {
-    IS_PREDICATED = 0,
-    IS_PREFETCH = 1,
-    IS_CONTROL_FLOW = 2,
-    IS_INDIRECT_CONTROL_FLOW = 3,
-    IS_NON_STANDARD_MEM_OP = 4,
-    IS_READ = 5,
-    IS_READ2 = 6,
-    IS_WRITE = 7,
-};
-
 struct DataINS {
     long addr;
     char name[MAX_INSTRUCTION_NAME_LENGTH];
-    unsigned short int readRegs[64];
-    unsigned short int writeRegs[64];
+    unsigned short int readRegs[MAX_REG_OPERANDS];
+    unsigned short int writeRegs[MAX_REG_OPERANDS];
     unsigned short int baseReg;
     unsigned short int indexReg;
     unsigned char size;
@@ -83,7 +74,7 @@ class TraceFileReader {
     TraceFile tf;
 
     TraceFileReader(std::string);
-    int RetrieveLenBytes(void *, size_t);
+    size_t RetrieveLenBytes(void *, size_t);
     int SetBufActiveSize(size_t);
     void RetrieveBuffer();
     void *GetData(size_t);
