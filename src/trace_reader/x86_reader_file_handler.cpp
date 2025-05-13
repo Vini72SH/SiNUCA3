@@ -87,13 +87,13 @@ sinuca::traceReader::MemoryTraceFile::MemoryTraceFile(std::string folderPath,
                                                       std::string img,
                                                       THREADID tid)
     : TraceFileReader(FormatPathTidIn(folderPath, "memory", img, tid)) {
-    this->RetrieveLenBytes((void *)&this->bufActiveSize,
+    this->RetrieveLenBytes(&this->bufActiveSize,
                            sizeof(this->tf.offset));
     this->RetrieveBuffer();
 }
 
 void sinuca::traceReader::MemoryTraceFile::MemRetrieveBuffer() {
-    this->RetrieveLenBytes((void *)this->bufActiveSize, sizeof(unsigned long));
+    this->RetrieveLenBytes(&this->bufActiveSize, sizeof(unsigned long));
     this->RetrieveBuffer();
 }
 
@@ -154,7 +154,7 @@ int sinuca::traceReader::MemoryTraceFile::ReadNextMemAccess(
 bool GetBitBool(unsigned char byte) { return (byte == 1); }
 
 void *sinuca::traceReader::StaticTraceFile::GetData(size_t len) {
-    void *ptr = (void *)(this->mmapPtr + this->mmapOffset);
+    void *ptr = (this->mmapPtr + this->mmapOffset);
     this->mmapOffset += len;
     return ptr;
 }

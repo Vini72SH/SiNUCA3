@@ -38,7 +38,7 @@ void trace::TraceFileReader::RetrieveBuffer() {
 }
 
 void* trace::TraceFileReader::GetData(size_t len) {
-    void *ptr = (void*)(this->tf.buf + this->tf.offset);
+    void *ptr = (this->tf.buf + this->tf.offset);
     this->tf.offset += len;
     return ptr;
 }
