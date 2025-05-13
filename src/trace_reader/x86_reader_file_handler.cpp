@@ -47,8 +47,7 @@ void sinuca::traceReader::StaticTraceFile::ReadNextPackage(
     
     this->GetFlagValues(info, data);
     this->GetBranchFields(&info->staticInfo, data);
-    this->GetReadRegs(&info->staticInfo, data);
-    this->GetWriteRegs(&info->staticInfo, data);
+    this->GetRegs(&info->staticInfo, data);
 }
 
 unsigned int sinuca::traceReader::StaticTraceFile::GetNewBBlSize() {
@@ -203,15 +202,12 @@ void sinuca::traceReader::StaticTraceFile::GetBranchFields(
     }
 }
 
-void sinuca::traceReader::StaticTraceFile::GetReadRegs(
+void sinuca::traceReader::StaticTraceFile::GetRegs(
     sinuca::StaticInstructionInfo *info, struct DataINS *data) {
     info->numReadRegs = data->numReadRegs;
     memcpy(info->readRegs, data->readRegs,
            data->numReadRegs * sizeof(*data->readRegs));
-}
 
-void sinuca::traceReader::StaticTraceFile::GetWriteRegs(
-    sinuca::StaticInstructionInfo *info, struct DataINS *data) {
     info->numWriteRegs = data->numWriteRegs;
     memcpy(info->writeRegs, data->writeRegs,
            data->numWriteRegs * sizeof(*data->writeRegs));

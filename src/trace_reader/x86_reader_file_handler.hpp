@@ -41,8 +41,7 @@ class StaticTraceFile {
     void *GetData(size_t);
     void GetFlagValues(InstructionInfo *, DataINS *);
     void GetBranchFields(sinuca::StaticInstructionInfo *, DataINS *);
-    void GetReadRegs(sinuca::StaticInstructionInfo *, DataINS *);
-    void GetWriteRegs(sinuca::StaticInstructionInfo *, DataINS *);
+    void GetRegs(sinuca::StaticInstructionInfo *, DataINS *);
 
   public:
     StaticTraceFile(std::string, std::string);
