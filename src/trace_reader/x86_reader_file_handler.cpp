@@ -150,8 +150,6 @@ int sinuca::traceReader::MemoryTraceFile::ReadNextMemAccess(
     return 0;
 }
 
-bool GetBitBool(unsigned char byte) { return (byte == 1); }
-
 void *sinuca::traceReader::StaticTraceFile::GetData(size_t len) {
     void *ptr = (this->mmapPtr + this->mmapOffset);
     this->mmapOffset += len;
@@ -160,29 +158,19 @@ void *sinuca::traceReader::StaticTraceFile::GetData(size_t len) {
 
 void sinuca::traceReader::StaticTraceFile::GetFlagValues(InstructionInfo *info,
                                                          struct DataINS *data) {
-    info->staticInfo.isPredicated = GetBitBool(data->isPredicated);
-    info->staticInfo.isPrefetch = GetBitBool(data->isPrefetch);
-    info->staticInfo.isNonStdMemOp = GetBitBool(data->isNonStandardMemOp);
-
-    info->staticNumReadings = 0;
-    info->staticNumWritings = 0;
-    if (info->staticInfo.isNonStdMemOp == false) {
-        if (GetBitBool(data->isRead)) {
-            info->staticNumReadings++;
-        }
-        if (GetBitBool(data->isRead2)) {
-            info->staticNumReadings++;
-        }
-        if (GetBitBool(data->isWrite)) {
-            info->staticNumWritings++;
-        }
+    info->staticInfo.isPredicated = static_cast<bool>(data->isPredicated);
+    info->staticInfo.isPrefetch = static_cast<bool>(data->isPrefetch);
+    info->staticInfo.isNonStdMemOp = static_cast<bool>(data->isNonStandardMemOp);
+    if (!info->staticInfo.isNonStdMemOp) {
+        info->staticNumReadings = data->isRead + data->isRead2; 
+        info->staticNumWritings = data->isWrite;
     }
 }
 
 void sinuca::traceReader::StaticTraceFile::GetBranchFields(
     sinuca::StaticInstructionInfo *info, struct DataINS *data) {
-    info->isIndirect = GetBitBool(data->isIndirectControlFlow);
-    info->isControlFlow = GetBitBool(data->isControlFlow);
+    info->isIndirect = static_cast<bool>(data->isIndirectControlFlow);
+    info->isControlFlow = static_cast<bool>(data->isControlFlow);
     switch (data->branchType) {
         case BRANCH_CALL:
             info->branchType = BranchCall;
