@@ -90,7 +90,7 @@ trace::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
                                                           THREADID tid) {
     unsigned long bufferSize = trace::GetPathTidInSize(source, "dynamic", img);
     char* path = (char*)alloca(bufferSize);
-    FormatPathTidIn(path, source, "dynamic", img, tid, bufferSize);
+    FormatPathTidIn(path, source, "dynamic", img, ,bufferSize);
 
     this->::trace::TraceFileWriter::UseFile(path);
 }
@@ -237,7 +237,4 @@ void trace::traceGenerator::StaticTraceFile::FillRegs(struct DataINS* data,
             data->readRegs[data->numReadRegs++] = INS_OperandReg(*ins, i);
         }
     }
-
-    SINUCA3_DEBUG_PRINTF("Number Read Regs [%d]\n", data->numReadRegs);
-    SINUCA3_DEBUG_PRINTF("Number Write Regs [%d]\n", data->numWriteRegs);
 }
