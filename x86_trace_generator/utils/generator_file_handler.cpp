@@ -77,7 +77,7 @@ void trace::traceGenerator::StaticTraceFile::PrepareData(struct DataINS* data,
     this->FillRegs(data, ins);
 }
 
-void trace::traceGenerator::StaticTraceFile::StAppendToBuffer(
+void trace::traceGenerator::StaticTraceFile::StaticAppendToBuffer(
     void* ptr, unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushBuffer();
@@ -102,7 +102,7 @@ trace::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
     }
 }
 
-void trace::traceGenerator::DynamicTraceFile::DynAppendToBuffer(
+void trace::traceGenerator::DynamicTraceFile::DynamicAppendToBuffer(
     void* ptr, unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushBuffer();
@@ -146,7 +146,7 @@ void trace::traceGenerator::MemoryTraceFile::PrepareDataNonStdAccess(
     }
 }
 
-void trace::traceGenerator::MemoryTraceFile::MemAppendToBuffer(
+void trace::traceGenerator::MemoryTraceFile::MemoryAppendToBuffer(
     void* ptr, unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushLenBytes(&this->tf.offset, sizeof(unsigned long));

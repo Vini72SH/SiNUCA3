@@ -140,7 +140,7 @@ VOID DisableInstrumentationInThread(THREADID tid) {
 VOID AppendToDynamicTrace(UINT32 bblId) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-    dynamicTraces[tid]->DynAppendToBuffer(&bblId, sizeof(trace::BBLID));
+    dynamicTraces[tid]->DynamicAppendToBuffer(&bblId, sizeof(trace::BBLID));
 }
 
 VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
@@ -149,7 +149,7 @@ VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
     static trace::DataMEM data;
     data.addr = addr;
     data.size = size;
-    memoryTraces[tid]->MemAppendToBuffer(&data, sizeof(data));
+    memoryTraces[tid]->MemoryAppendToBuffer(&data, sizeof(data));
 }
 
 VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
@@ -163,10 +163,10 @@ VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
 
     memoryTraces[tid]->PrepareDataNonStdAccess(&numR, readings, &numW, writings,
                                                accessInfo);
-    memoryTraces[tid]->MemAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
-    memoryTraces[tid]->MemAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
-    memoryTraces[tid]->MemAppendToBuffer(readings, numR * sizeof(*readings));
-    memoryTraces[tid]->MemAppendToBuffer(writings, numW * sizeof(*writings));
+    memoryTraces[tid]->MemoryAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
+    memoryTraces[tid]->MemoryAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
+    memoryTraces[tid]->MemoryAppendToBuffer(readings, numR * sizeof(*readings));
+    memoryTraces[tid]->MemoryAppendToBuffer(writings, numW * sizeof(*writings));
 }
 
 VOID InstrumentMemoryOperations(const INS* ins) {
@@ -233,7 +233,7 @@ VOID Trace(TRACE trace, VOID* ptr) {
 
         staticTrace->IncBBlCount();
         unsigned int numIns = BBL_NumIns(bbl);
-        staticTrace->StAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
+        staticTrace->StaticAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             static struct trace::DataINS data;
             staticTrace->PrepareData(&data, &ins);

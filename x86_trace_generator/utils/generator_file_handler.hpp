@@ -44,7 +44,7 @@ class StaticTraceFile : public TraceFileWriter {
     StaticTraceFile(const char *, const char *);
     ~StaticTraceFile();
     void PrepareData(struct DataINS *, const INS *);
-    void StAppendToBuffer(void *, size_t);
+    void StaticAppendToBuffer(void *, size_t);
     inline void IncBBlCount() { this->bblCount++; }
     inline void IncInstCount() { this->instCount++; }
     inline void IncThreadCount() { this->threadCount++; }
@@ -55,7 +55,7 @@ class DynamicTraceFile : public TraceFileWriter {
   public:
     DynamicTraceFile(const char *, const char *, THREADID);
     ~DynamicTraceFile();
-    void DynAppendToBuffer(void *, size_t);
+    void DynamicAppendToBuffer(void *, size_t);
 };
 
 class MemoryTraceFile : public TraceFileWriter {
@@ -65,7 +65,7 @@ class MemoryTraceFile : public TraceFileWriter {
     void PrepareDataNonStdAccess(unsigned short *, struct DataMEM[],
                                  unsigned short *, struct DataMEM[],
                                  PIN_MULTI_MEM_ACCESS_INFO *);
-    void MemAppendToBuffer(void *, size_t);
+    void MemoryAppendToBuffer(void *, size_t);
 };
 
 }  // namespace traceGenerator
