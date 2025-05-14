@@ -19,8 +19,13 @@
 //
 
 /**
- * @file x86_generator_file_handler.hpp
- * @details Public API of the SiNUCA3 x86_64 tracer.
+ * @file generator_file_handler.hpp
+ * @details All classes defined here inherit from TraceFileWriter and implement
+ * the preparation and buffering/flush of data to each file making up a trace
+ * (static, dynamic and memory files). All of them implement a PrepareData**
+ * method and an AppendToBuffer** one. They should be called in the order:
+ * PrepareData**, it fills data structures, and then AppendToBuffer** which
+ * deals with buffering/flushing the data.
  */
 
 #include "../../src/utils/file_handler.hpp"
@@ -29,22 +34,28 @@
 namespace trace {
 namespace traceGenerator {
 
+// Set to be equal to same constant declared in default_packets.hpp
+const unsigned int MAX_MEM_OPERATIONS = 16;
+
 class StaticTraceFile : public TraceFileWriter {
   private:
+    struct DataINS data;
     unsigned int threadCount;
     unsigned int bblCount;
     unsigned int instCount;
 
-    void ResetFlags(struct DataINS *);
-    void SetFlags(struct DataINS *, const INS *);
-    void SetBranchFields(struct DataINS *, const INS *);
-    void FillRegs(struct DataINS *, const INS *);
+    void ResetFlags();
+    void SetFlags(const INS *pinInstruction);
+    void SetBranchFields(const INS *pinInstruction);
+    void FillRegs(const INS *pinInstruction);
+    void StaticAppendToBuffer(void *ptr, unsigned long len);
 
   public:
-    StaticTraceFile(const char *, const char *);
+    StaticTraceFile(const char *source, const char *img);
     ~StaticTraceFile();
-    void PrepareData(struct DataINS *, const INS *);
-    void StaticAppendToBuffer(void *, size_t);
+    void PrepareDataINS(const INS *pinInstruction);
+    void AppendToBufferDataINS();
+    void AppendToBufferNumIns(unsigned int numIns);
     inline void IncBBlCount() { this->bblCount++; }
     inline void IncInstCount() { this->instCount++; }
     inline void IncThreadCount() { this->threadCount++; }
@@ -52,20 +63,35 @@ class StaticTraceFile : public TraceFileWriter {
 };
 
 class DynamicTraceFile : public TraceFileWriter {
+  private:
+    BBLID bblId;
+
+    void DynamicAppendToBuffer(void *ptr, unsigned long len);
+
   public:
-    DynamicTraceFile(const char *, const char *, THREADID);
+    DynamicTraceFile(const char *source, const char *img, THREADID tid);
     ~DynamicTraceFile();
-    void DynamicAppendToBuffer(void *, size_t);
+    void PrepareId(BBLID id);
+    void AppendToBufferId();
 };
 
 class MemoryTraceFile : public TraceFileWriter {
+  private:
+    struct DataMEM readOps[MAX_MEM_OPERATIONS];
+    struct DataMEM writeOps[MAX_MEM_OPERATIONS];
+    struct DataMEM stdAccessOp;
+    unsigned int numReadOps;
+    unsigned int numWriteOps;
+    bool wasLastOperationStd;
+
+    void MemoryAppendToBuffer(void *ptr, unsigned long len);
+
   public:
-    MemoryTraceFile(const char *, const char *, THREADID);
+    MemoryTraceFile(const char *source, const char *img, THREADID tid);
     ~MemoryTraceFile();
-    void PrepareDataNonStdAccess(unsigned short *, struct DataMEM[],
-                                 unsigned short *, struct DataMEM[],
-                                 PIN_MULTI_MEM_ACCESS_INFO *);
-    void MemoryAppendToBuffer(void *, size_t);
+    void PrepareDataNonStdAccess(PIN_MULTI_MEM_ACCESS_INFO *pinNonStdInfo);
+    void PrepareDataStdMemAccess(unsigned long addr, unsigned int opSize);
+    void AppendToBufferLastMemoryAccess();
 };
 
 }  // namespace traceGenerator

@@ -140,33 +140,22 @@ VOID DisableInstrumentationInThread(THREADID tid) {
 VOID AppendToDynamicTrace(UINT32 bblId) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-    dynamicTraces[tid]->DynamicAppendToBuffer(&bblId, sizeof(trace::BBLID));
+    dynamicTraces[tid]->PrepareId(bblId);
+    dynamicTraces[tid]->AppendToBufferId();
 }
 
 VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-    static trace::DataMEM data;
-    data.addr = addr;
-    data.size = size;
-    memoryTraces[tid]->MemoryAppendToBuffer(&data, sizeof(data));
+    memoryTraces[tid]->PrepareDataStdMemAccess(addr, size);
+    memoryTraces[tid]->AppendToBufferLastMemoryAccess();
 }
 
 VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadInstrumentatingEnabled[tid]) return;
-
-    static trace::DataMEM readings[64];
-    static trace::DataMEM writings[64];
-    static unsigned short numR;
-    static unsigned short numW;
-
-    memoryTraces[tid]->PrepareDataNonStdAccess(&numR, readings, &numW, writings,
-                                               accessInfo);
-    memoryTraces[tid]->MemoryAppendToBuffer(&numR, SIZE_NUM_MEM_R_W);
-    memoryTraces[tid]->MemoryAppendToBuffer(&numW, SIZE_NUM_MEM_R_W);
-    memoryTraces[tid]->MemoryAppendToBuffer(readings, numR * sizeof(*readings));
-    memoryTraces[tid]->MemoryAppendToBuffer(writings, numW * sizeof(*writings));
+    memoryTraces[tid]->PrepareDataNonStdAccess(accessInfo);
+    memoryTraces[tid]->AppendToBufferLastMemoryAccess();
 }
 
 VOID InstrumentMemoryOperations(const INS* ins) {
@@ -232,12 +221,10 @@ VOID Trace(TRACE trace, VOID* ptr) {
                        IARG_UINT32, staticTrace->GetBBlCount(), IARG_END);
 
         staticTrace->IncBBlCount();
-        unsigned int numIns = BBL_NumIns(bbl);
-        staticTrace->StaticAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
+        staticTrace->AppendToBufferNumIns(BBL_NumIns(bbl));
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-            static struct trace::DataINS data;
-            staticTrace->PrepareData(&data, &ins);
-            staticTrace->StAppendToBuffer(&data, sizeof(data));
+            staticTrace->PrepareDataINS(&ins);
+            staticTrace->AppendToBufferDataINS();
             InstrumentMemoryOperations(&ins);
             staticTrace->IncInstCount();
         }
