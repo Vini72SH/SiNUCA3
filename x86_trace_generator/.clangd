@@ -1,0 +1,14 @@
+CompileFlags:
+  Add: [
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/source/include/pin,
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/source/include/pin/gen ,
+    -isystem /home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/cxx/include ,
+    -isystem /home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/crt/include ,
+    -isystem /home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/crt/include/arch-x86_64 ,
+    -isystem /home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/crt/include/kernel/uapi ,
+    -isystem /home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/crt/include/kernel/uapi/asm-x86 ,
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/components/include ,
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/extras/xed-intel64/include/xed ,
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/source/tools/Utils ,
+    -I/home/bruno/facul/sinuca-project/SiNUCA3/x86_trace_generator/pin/source/tools/InstLib
+  ]
