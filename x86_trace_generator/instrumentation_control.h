@@ -24,13 +24,20 @@
  */
 
 /**
- * @brief Begins an instrumentation block. Code after this call will be
- * instrumented.
+ * @brief Begins an instrumentation block.
+ *
+ * Any code appearing after this call (until the exectuion of a
+ * corresponding EndInstrumentationBlock call) becomes will be instrumented,
+ * meaning that analysis code may be inserted into target program
+ * during the instrumentation phase.
  */
 __attribute__((noinline, used)) void BeginInstrumentationBlock() {}
 
 /**
  * @brief Ends an instrumentation block.
+ *
+ * Code following this call will no longer be instrumented.
+ * This must be paired with a preceding BeginInstrumentationBlock call.
  */
 __attribute__((noinline, used)) void EndInstrumentationBlock() {}
 
@@ -39,10 +46,16 @@ __attribute__((noinline, used)) void EndInstrumentationBlock() {}
  * inside an instrumentation block (i.e., after BeginInstrumentationBlock and
  * before EndInstrumentationBlock).
  */
+/**
+ * @brief Enables analysis code execution for the current thread.
+ *
+ * This function allows the execution of previously inserted instrumentation
+ * code (analysis) for the calling thread.
+ */
 __attribute__((noinline, used)) void EnableThreadInstrumentation() {}
 
 /**
- * @brief Disables thread instrumentation for the current thread.
+ * @brief Disables analysis code execution for the current thread.
  */
 __attribute__((noinline, used)) void DisableThreadInstrumentation() {}
 
