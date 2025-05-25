@@ -9,6 +9,7 @@ docs/
 *.so
 *.o
 trace_generator/pin/**/*.a
+pin.log
 
 # The Intel Pin comes with some .o files already compiled.
 # So they should not be ignored by git.
