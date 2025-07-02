@@ -46,7 +46,7 @@ class CircularBuffer {
           bufferSize(0),
           elementSize(0),
           startOfBuffer(0),
-          endOfBuffer(0){};
+          endOfBuffer(0) {};
 
     /**
      * @brief Returns a boolean indicating whether the Buffer is allocated.

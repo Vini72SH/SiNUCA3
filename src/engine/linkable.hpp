@@ -42,7 +42,7 @@ struct Connection {
                                            swapped each cycle.*/
 
   public:
-    Connection() : bufferSize(0), messageSize(0){};
+    Connection() : bufferSize(0), messageSize(0) {};
 
     /**
      * @brief Allocate the buffers used to channels
@@ -260,6 +260,12 @@ class Linkable {
      * It's always called at the beggining of the cycle.
      */
     virtual void Flush() = 0;
+
+    /**
+     * @brief This method is called by the engine after the simulation stops, so
+     * each component can print it's statistics.
+     */
+    virtual void PrintStatistics() = 0;
 
     virtual ~Linkable();
 };
