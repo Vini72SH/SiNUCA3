@@ -26,7 +26,7 @@
 
 #include <cstring>
 
-#include "std_components/ras.hpp"
+#include "std_components/predictors/ras.hpp"
 #include "utils/logging.hpp"
 
 int TestExample() {

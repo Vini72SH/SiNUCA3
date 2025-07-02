@@ -39,8 +39,8 @@
  * adjust the parameters in the configuration YAML and recompile with “make -B”.
  */
 
-#include "../engine/component.hpp"
-#include "../utils/bimodal_predictor.hpp"
+#include "../../engine/component.hpp"
+#include "../../utils/bimodal_predictor.hpp"
 
 const int MAX_INTERLEAVING_FACTOR = 16;
 
@@ -172,7 +172,9 @@ struct BTBEntry {
 
 class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
   private:
-    BTBEntry** btb; /**<The pointer to BTB struct. */
+    BTBEntry** btb;           /**<The pointer to BTB struct. */
+    unsigned long numQueries; /**<Number of queries executed. */
+
     unsigned int
         interleavingFactor; /**<The interleaving factor, defining the number of
                               banks in which the BTB is interleaved. */
@@ -266,6 +268,8 @@ class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
     virtual void Clock();
 
     virtual void Flush();
+
+    virtual void PrintStatistics();
 
     ~BranchTargetBuffer();
 };
