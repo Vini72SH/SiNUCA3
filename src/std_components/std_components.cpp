@@ -24,9 +24,12 @@
 #include <cstring>
 
 #include "../sinuca3.hpp"
+#include "cores/simple_core.hpp"
 #include "engine_debug_component.hpp"
-#include "simple_core.hpp"
-#include "simple_memory.hpp"
+#include "fetch/queues.hpp"
+#include "memory/simple_memory.hpp"
+#include "predictors/interleavedBTB.hpp"
+#include "predictors/ras.hpp"
 
 using namespace sinuca;
 
@@ -37,6 +40,11 @@ engine::Linkable* sinuca::CreateDefaultComponentByClass(const char* name) {
 
     COMPONENT(SimpleMemory);
     COMPONENT(SimpleCore);
+    COMPONENT(Ras);
+    COMPONENT(BranchTargetBuffer);
+    COMPONENT(MemoryQueue);
+    COMPONENT(PredictorQueue);
+    COMPONENT(InstructionQueue);
 
     return NULL;
 }

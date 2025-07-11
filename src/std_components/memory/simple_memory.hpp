@@ -1,5 +1,5 @@
-#ifndef SINUCA3_SIMPLE_CORE_HPP_
-#define SINUCA3_SIMPLE_CORE_HPP_
+#ifndef SINUCA3_SIMPLE_MEMORY_HPP_
+#define SINUCA3_SIMPLE_MEMORY_HPP_
 
 //
 // Copyright (C) 2024  HiPES - Universidade Federal do Paraná
@@ -19,39 +19,32 @@
 //
 
 /**
- * @file simple_core.hpp
- * @details Public API of the SimpleCore, a testing core that executes
- * everything in a single clock cycle.
+ * @file simple_memory.hpp
+ * @details Public API of the SimpleMemory: component for SiNUCA3 which just
+ * responds immediatly for every request. I.e., the perfect memory: big and
+ * works at the light speed!
  */
 
-#include "../sinuca3.hpp"
+#include "../../sinuca3.hpp"
 
 /**
- * @details SimpleCore executes everything in a single cycle. You can optionally
- * set an instructionMemory and a dataMemory pointers to components that extend
- * Component<MemoryPacket>.
+ * @details SimpleMemory is a MemoryComponent that just responds immediatly for
+ * every request. I.e., it's the perfect memory: big and works at the light
+ * speed!
  */
-class SimpleCore : public sinuca::Component<sinuca::InstructionPacket> {
+class SimpleMemory : public sinuca::Component<sinuca::MemoryPacket> {
   private:
-    sinuca::Component<sinuca::MemoryPacket>* instructionMemory;
-    sinuca::Component<sinuca::MemoryPacket>* dataMemory;
-
-    int instructionConnectionID;
-    int dataConnectionID;
-    unsigned long numFetchedInstructions;
+    unsigned long numberOfRequests;
 
   public:
-    inline SimpleCore()
-        : instructionMemory(NULL),
-          dataMemory(NULL),
-          numFetchedInstructions(0) {}
+    inline SimpleMemory() : numberOfRequests(0) {};
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();
-    ~SimpleCore();
+    ~SimpleMemory();
 };
 
-#endif  // SINUCA3_SIMPLE_CORE_HPP_
+#endif  // SINUCA3_SIMPLE_MEMORY_HPP_

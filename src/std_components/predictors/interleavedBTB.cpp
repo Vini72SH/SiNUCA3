@@ -19,7 +19,7 @@
 
 #include <cmath>
 
-#include "../utils/logging.hpp"
+#include "../../utils/logging.hpp"
 
 BTBEntry::BTBEntry()
     : numBanks(0),
@@ -93,6 +93,7 @@ BTBEntry::~BTBEntry() {
 
 BranchTargetBuffer::BranchTargetBuffer()
     : btb(NULL),
+      numQueries(0),
       interleavingFactor(0),
       numEntries(0),
       interleavingBits(0),
@@ -288,6 +289,7 @@ void BranchTargetBuffer::Clock() {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             switch (packet.type) {
                 case RequestQuery:
+                    ++this->numQueries;
                     this->Query(packet.data.requestQuery.address, i);
                     break;
                 case RequestAddEntry:
@@ -314,6 +316,11 @@ void BranchTargetBuffer::Clock() {
 }
 
 void BranchTargetBuffer::Flush() {};
+
+void BranchTargetBuffer::PrintStatistics() {
+    SINUCA3_LOG_PRINTF("BranchTargetBuffer %p: %lu queries", this,
+                       this->numQueries);
+}
 
 BranchTargetBuffer::~BranchTargetBuffer() {
     if (!(this->btb)) return;

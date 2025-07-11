@@ -25,8 +25,8 @@
 
 #include <cstring>
 
-#include "../sinuca3.hpp"
-#include "../utils/logging.hpp"
+#include "../../sinuca3.hpp"
+#include "../../utils/logging.hpp"
 
 int SimpleCore::SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value) {

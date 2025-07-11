@@ -29,7 +29,7 @@
  * updates can have only the target address.
  */
 
-#include "../sinuca3.hpp"
+#include "../../sinuca3.hpp"
 
 class Ras : public sinuca::Component<sinuca::PredictorPacket> {
   private:
