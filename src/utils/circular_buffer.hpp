@@ -66,7 +66,7 @@ class CircularBuffer {
     /**
      * @brief Returns a boolean indicating whether the Buffer is full.
      */
-    inline bool IsFull() { return this->occupation == this->bufferSize; };
+    inline bool IsFull() { return this->occupation == this->maxBufferSize; };
 
     /**
      * @brief Returns a boolean indicating whether the Buffer is empty.
