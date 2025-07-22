@@ -39,11 +39,13 @@ namespace engine {
  * engine. The contents of the message aren't important. The engine will anwser
  * any message with the next executed instruction.
  */
-class Engine : public Component<InstructionPacket> {
+class Engine : public Component<FetchPacket> {
   private:
     Linkable** components;
     traceReader::TraceReader* traceReader;
+    sinuca::InstructionPacket* fetchBuffers;
     long numberOfComponents;
+    long numberOfFetchers;
     unsigned long totalCycles;
     unsigned long fetchedInstructions;
 
@@ -64,10 +66,20 @@ class Engine : public Component<InstructionPacket> {
      */
     void PrintTime(time_t start, unsigned long cycle);
 
+    /** @brief Called at the beggining of Simulate(). */
+    int SetupSimulation(sinuca::traceReader::TraceReader* traceReader);
+
+    /** @brief Auxiliar to Fetch(). */
+    int SendBufferedAndFetch(int id);
+
+    /** @brief Responds to requests. */
+    void Fetch(int id, sinuca::FetchPacket packet);
+
   public:
     inline Engine()
         : components(NULL),
           numberOfComponents(0),
+          numberOfFetchers(0),
           totalCycles(0),
           fetchedInstructions(0),
           flush(false),

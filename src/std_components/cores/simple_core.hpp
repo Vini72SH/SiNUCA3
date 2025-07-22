@@ -35,7 +35,7 @@ class SimpleCore : public sinuca::Component<sinuca::InstructionPacket> {
   private:
     sinuca::Component<sinuca::MemoryPacket>* instructionMemory;
     sinuca::Component<sinuca::MemoryPacket>* dataMemory;
-    sinuca::Component<sinuca::InstructionPacket>* fetching;
+    sinuca::Component<sinuca::FetchPacket>* fetching;
 
     unsigned long numFetchedInstructions;
     int instructionConnectionID;

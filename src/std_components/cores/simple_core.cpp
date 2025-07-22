@@ -48,7 +48,7 @@ int SimpleCore::SetConfigParameter(const char* parameter,
             return 1;
         }
 
-        this->fetching = dynamic_cast<Component<sinuca::InstructionPacket>*>(
+        this->fetching = dynamic_cast<Component<sinuca::FetchPacket>*>(
             value.value.componentReference);
         if (this->fetching == NULL) {
             SINUCA3_ERROR_PRINTF(
@@ -98,29 +98,32 @@ int SimpleCore::FinishSetup() {
 }
 
 void SimpleCore::Clock() {
-    sinuca::InstructionPacket instruction;
-    this->fetching->SendRequest(this->fetchingConnectionID, &instruction);
-    if (this->fetching->ReceiveResponse(this->fetchingConnectionID,
-                                        &instruction) == 0) {
+    sinuca::FetchPacket fetch;
+    fetch.request = 0;
+    this->fetching->SendRequest(this->fetchingConnectionID, &fetch);
+    if (this->fetching->ReceiveResponse(this->fetchingConnectionID, &fetch) ==
+        0) {
         ++this->numFetchedInstructions;
         if (this->instructionMemory != NULL) {
             sinuca::MemoryPacket fetchPacket =
-                instruction.staticInfo->opcodeAddress;
+                fetch.response.staticInfo->opcodeAddress;
             this->instructionMemory->SendRequest(this->instructionConnectionID,
                                                  &fetchPacket);
             if (this->dataMemory != NULL) {
-                for (long i = 0; i < instruction.dynamicInfo.numReadings; ++i) {
+                for (long i = 0; i < fetch.response.dynamicInfo.numReadings;
+                     ++i) {
                     this->dataMemory->SendRequest(
                         this->dataConnectionID,
                         (unsigned long*)&(
-                            instruction.dynamicInfo.readsAddr[i]));
+                            fetch.response.dynamicInfo.readsAddr[i]));
                 }
 
-                for (long i = 0; i < instruction.dynamicInfo.numWritings; ++i) {
+                for (long i = 0; i < fetch.response.dynamicInfo.numWritings;
+                     ++i) {
                     this->dataMemory->SendRequest(
                         this->dataConnectionID,
                         (unsigned long*)&(
-                            instruction.dynamicInfo.writesAddr[i]));
+                            fetch.response.dynamicInfo.writesAddr[i]));
                 }
             }
         }

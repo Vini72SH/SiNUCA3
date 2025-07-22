@@ -43,7 +43,7 @@ class EngineDebugComponent
     : public sinuca::Component<sinuca::InstructionPacket> {
   private:
     EngineDebugComponent* other;
-    Component<sinuca::InstructionPacket>* fetch;
+    Component<sinuca::FetchPacket>* fetch;
     int otherConnectionID;
     int fetchConnectionID;
     bool send;

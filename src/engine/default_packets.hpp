@@ -85,12 +85,10 @@ struct DynamicInstructionInfo {
     int writesSize[MAX_MEM_OPERATIONS];
     unsigned short numReadings;
     unsigned short numWritings;
-
-    inline DynamicInstructionInfo() { memset(this, 0, sizeof(*this)); }
 };
 
 /**
- * @brief Exchanged between the engine and components.
+ * @brief Carries the information regarding an executed instruction.
  *
  * @param staticInfo Stores details that are static and cannot vary during
  * program execution. It is a constant pointer to avoid unnecessary copying.
@@ -102,6 +100,25 @@ struct DynamicInstructionInfo {
 struct InstructionPacket {
     const StaticInstructionInfo* staticInfo;
     DynamicInstructionInfo dynamicInfo;
+};
+
+/**
+ * @brief Exchanged between the engine and components. It's never ambiguous
+ * wether this is a request or response, so it does not need to be a tagged
+ * union.
+ *
+ * @param request A request specifies an amount in bytes to fetch. The engine
+ * will fetch up to this amount in instructions. Specifying an amount less than
+ * the minimum instruction size may lead to deadlocks. Specifying 0 will fetch
+ * a single instruction without any care over the size. Each instruction fetched
+ * will be sended on it's own message. For this reason it's a good idea to
+ * connect to the engine without a maximum buffer size.
+ *
+ * @param response A fetched instruction.
+ */
+union FetchPacket {
+    long request;
+    InstructionPacket response;
 };
 
 /**
