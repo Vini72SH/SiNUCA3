@@ -33,32 +33,53 @@ int Ras::FinishSetup() {
 
     this->buffer = new unsigned long[this->size];
 
+    if (this->sendTo != NULL) {
+        this->forwardToID = this->sendTo->Connect(0);
+    }
+
     return 0;
 }
 
 int Ras::SetConfigParameter(const char* parameter,
                             sinuca::config::ConfigValue value) {
-    if (strcmp(parameter, "size") != 0) {
-        SINUCA3_WARNING_PRINTF("Ras received an unknown parameter: %s.\n",
-                               parameter);
+    if (strcmp(parameter, "size") == 0) {
+        if (value.type != sinuca::config::ConfigValueTypeInteger) {
+            SINUCA3_ERROR_PRINTF("Ras parameter size is not an integer.\n");
+            return 1;
+        }
+
+        const long size = value.value.integer;
+        if (size <= 0) {
+            SINUCA3_ERROR_PRINTF(
+                "Invalid value for Ras parameter size: should be > 0.\n");
+            return 1;
+        }
+
+        this->size = size;
         return 0;
     }
 
-    if (value.type != sinuca::config::ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("Ras parameter size is not an integer.\n");
-        return 1;
+    if (strcmp(parameter, "sendTo") == 0) {
+        if (value.type != sinuca::config::ConfigValueTypeComponentReference) {
+            SINUCA3_ERROR_PRINTF(
+                "Ras parameter sendTo is not a "
+                "Component<PredictorPacket>.\n");
+            return 1;
+        }
+
+        this->sendTo =
+            dynamic_cast<sinuca::Component<sinuca::PredictorPacket>*>(
+                value.value.componentReference);
+        if (this->sendTo == NULL) {
+            SINUCA3_ERROR_PRINTF(
+                "Ras parameter sendTo is not a "
+                "Component<PredictorPacket>.\n");
+            return 1;
+        }
     }
 
-    const long size = value.value.integer;
-    if (size <= 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Invalid value for Ras parameter size: should be > 0.\n");
-        return 1;
-    }
-
-    this->size = size;
-
-    return 0;
+    SINUCA3_ERROR_PRINTF("Ras received an unknown parameter: %s.\n", parameter);
+    return 1;
 }
 
 inline void Ras::RequestQuery(int connectionID) {
@@ -70,7 +91,11 @@ inline void Ras::RequestQuery(int connectionID) {
     response.type = sinuca::ResponseTakeToAddress;
     response.data.responseAddress = prediction;
 
-    this->SendResponseToConnection(connectionID, &response);
+    if (this->sendTo == NULL) {
+        this->SendResponseToConnection(connectionID, &response);
+    } else {
+        this->sendTo->SendRequest(this->forwardToID, &response);
+    }
 }
 
 inline void Ras::RequestUpdate(unsigned long targetAddress) {
