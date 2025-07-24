@@ -175,6 +175,11 @@ class BranchTargetBuffer : public sinuca::Component<struct BTBPacket> {
     BTBEntry** btb;           /**<The pointer to BTB struct. */
     unsigned long numQueries; /**<Number of queries executed. */
 
+    sinuca::Component<BTBPacket>*
+        sendTo; /**<Component to which forward responses.> */
+
+    int sendToID; /**<Connection ID of the forwardTo component.> */
+
     unsigned int
         interleavingFactor; /**<The interleaving factor, defining the number of
                               banks in which the BTB is interleaved. */

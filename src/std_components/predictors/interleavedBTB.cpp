@@ -101,16 +101,7 @@ BranchTargetBuffer::BranchTargetBuffer()
 
 int BranchTargetBuffer::SetConfigParameter(const char* parameter,
                                            sinuca::config::ConfigValue value) {
-    bool isInterleavingFactor = (strcmp(parameter, "interleavingFactor") == 0);
-    bool isNumberOfEntries = (strcmp(parameter, "numberOfEntries") == 0);
-
-    if (!(isInterleavingFactor) || !(isNumberOfEntries)) {
-        SINUCA3_WARNING_PRINTF("BTB received an unknown parameter: %s.\n",
-                               parameter);
-        return 1;
-    }
-
-    if (isInterleavingFactor) {
+    if (strcmp(parameter, "interleavingFactor") == 0) {
         if (value.type != sinuca::config::ConfigValueTypeInteger) {
             SINUCA3_ERROR_PRINTF(
                 "BTB parameter interleavingFactor is not an integer.\n");
@@ -128,9 +119,9 @@ int BranchTargetBuffer::SetConfigParameter(const char* parameter,
         } else {
             this->interleavingFactor = iFactor;
         }
-    }
 
-    if (isNumberOfEntries) {
+        return 0;
+    } else if (strcmp(parameter, "numberOfEntries") == 0) {
         if (value.type != sinuca::config::ConfigValueTypeInteger) {
             SINUCA3_ERROR_PRINTF(
                 "BTB parameter numberOfEntries is not an integer.\n");
@@ -143,9 +134,27 @@ int BranchTargetBuffer::SetConfigParameter(const char* parameter,
             return 1;
         }
         this->numEntries = entries;
+
+        return 0;
+    } else if (strcmp(parameter, "sendTo") == 0) {
+        if (value.type != sinuca::config::ConfigValueTypeComponentReference) {
+            SINUCA3_ERROR_PRINTF(
+                "BTB parameter sendTo is not a Component<BTBPacket>.\n");
+            return 1;
+        }
+        this->sendTo = dynamic_cast<sinuca::Component<BTBPacket>*>(
+            value.value.componentReference);
+        if (this->sendTo == NULL) {
+            SINUCA3_ERROR_PRINTF(
+                "BTB parameter sendTo is not a Component<BTBPacket>.\n");
+            return 1;
+        }
+        return 0;
     }
 
-    return 0;
+    SINUCA3_WARNING_PRINTF("BTB received an unknown parameter: %s.\n",
+                           parameter);
+    return 1;
 }
 
 int BranchTargetBuffer::FinishSetup() {
@@ -174,6 +183,10 @@ int BranchTargetBuffer::FinishSetup() {
     for (unsigned int i = 0; i < this->numEntries; ++i) {
         this->btb[i] = new BTBEntry;
         this->btb[i]->Allocate(this->interleavingFactor);
+    }
+
+    if (this->sendTo != NULL) {
+        this->sendToID = this->sendTo->Connect(0);
     }
 
     return 0;
@@ -269,7 +282,11 @@ inline void BranchTargetBuffer::Query(unsigned long address, int connectionID) {
         response.type = ResponseBTBMiss;
     }
 
-    this->SendResponseToConnection(connectionID, &response);
+    if (this->sendTo == NULL) {
+        this->SendResponseToConnection(connectionID, &response);
+    } else {
+        this->sendTo->SendRequest(this->sendToID, &response);
+    }
 }
 
 inline int BranchTargetBuffer::AddEntry(unsigned long address,

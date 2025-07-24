@@ -33,18 +33,21 @@
 
 class Ras : public sinuca::Component<sinuca::PredictorPacket> {
   private:
+    sinuca::Component<sinuca::PredictorPacket>* sendTo;
     unsigned long* buffer;
     long size;
     long end;
     unsigned long numQueries;
     unsigned long numUpdates;
 
+    int forwardToID;
+
     inline void RequestQuery(int connectionID);
 
     inline void RequestUpdate(unsigned long targetAddress);
 
   public:
-    inline Ras() : buffer(NULL), size(0), end(0) {}
+    inline Ras() : sendTo(NULL), buffer(NULL), size(0), end(0) {}
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);
