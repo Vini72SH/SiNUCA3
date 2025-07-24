@@ -98,7 +98,7 @@ int EngineDebugComponent::SetConfigParameter(
         return 0;
     }
     if (strcmp(parameter, "fetch") == 0) {
-        this->fetch = dynamic_cast<Component<sinuca::InstructionPacket>*>(
+        this->fetch = dynamic_cast<Component<sinuca::FetchPacket>*>(
             value.value.componentReference);
         if (this->fetch == NULL) {
             SINUCA3_DEBUG_PRINTF(
@@ -122,13 +122,14 @@ void EngineDebugComponent::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: Clock!\n", this);
 
     if (this->fetch != NULL) {
-        sinuca::InstructionPacket packet;
+        sinuca::FetchPacket packet;
+        packet.request = 0;
         SINUCA3_DEBUG_PRINTF("%p: Fetching instruction!\n", this);
         this->fetch->SendRequest(this->fetchConnectionID, &packet);
         if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) ==
             0) {
             SINUCA3_DEBUG_PRINTF("%p: Received instruction %s\n", this,
-                                 packet.staticInfo->opcodeAssembly);
+                                 packet.response.staticInfo->opcodeAssembly);
         }
     }
 

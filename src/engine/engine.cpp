@@ -36,23 +36,49 @@ int sinuca::engine::Engine::SetConfigParameter(
     return 0;
 }
 
+int sinuca::engine::Engine::SendBufferedAndFetch(int id) {
+    if (this->SendResponseToConnection(id,
+                                       (FetchPacket*)&this->fetchBuffers[id])) {
+        return 1;
+    }
+
+    const traceReader::FetchResult r =
+        this->traceReader->Fetch(&this->fetchBuffers[id], id);
+    if (r == traceReader::FetchResultEnd) {
+        this->end = true;
+        return 1;
+    } else if (r == traceReader::FetchResultError) {
+        this->error = true;
+        return 1;
+    }
+
+    ++this->fetchedInstructions;
+
+    return 0;
+}
+
+void sinuca::engine::Engine::Fetch(int id, sinuca::FetchPacket packet) {
+    if (packet.request == 0) {
+        this->SendBufferedAndFetch(id);
+        return;
+    }
+
+    long weight = this->fetchBuffers[id].staticInfo->opcodeSize;
+    while (weight < packet.request) {
+        if (this->SendBufferedAndFetch(id)) {
+            return;
+        }
+        weight += this->fetchBuffers[id].staticInfo->opcodeSize;
+    }
+}
+
 void sinuca::engine::Engine::Clock() {
-    sinuca::InstructionPacket packet;
+    sinuca::FetchPacket packet;
     const int numberOfConnections = this->GetNumberOfConnections();
 
     for (int i = 0; i < numberOfConnections; ++i) {
         if (!this->ReceiveRequestFromConnection(i, &packet)) {
-            const traceReader::FetchResult r =
-                this->traceReader->Fetch(&packet, i);
-
-            if (r == traceReader::FetchResultEnd) {
-                this->end = true;
-            } else if (r == traceReader::FetchResultError) {
-                this->error = true;
-            }
-
-            ++this->fetchedInstructions;
-            this->SendResponseToConnection(i, &packet);
+            this->Fetch(i, packet);
         }
     }
 }
@@ -79,9 +105,28 @@ void sinuca::engine::Engine::PrintTime(time_t start, unsigned long cycle) {
                        ctime(&estimatedEnd));
 }
 
-int sinuca::engine::Engine::Simulate(
+int sinuca::engine::Engine::SetupSimulation(
     sinuca::traceReader::TraceReader* traceReader) {
     this->traceReader = traceReader;
+    this->numberOfFetchers = this->GetNumberOfConnections();
+    this->fetchBuffers = new sinuca::InstructionPacket[this->numberOfFetchers];
+
+    // Bufferize the first instruction of each core.
+    for (long i = 0; i < this->numberOfFetchers; ++i) {
+        if (this->traceReader->Fetch(&this->fetchBuffers[i], i) !=
+            traceReader::FetchResultOk) {
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int sinuca::engine::Engine::Simulate(
+    sinuca::traceReader::TraceReader* traceReader) {
+    if (this->SetupSimulation(traceReader)) {
+        return 1;
+    }
 
     const time_t start = time(NULL);
 
@@ -134,5 +179,8 @@ sinuca::engine::Engine::~Engine() {
             delete this->components[i];
         }
         delete[] this->components;
+    }
+    if (this->fetchBuffers != NULL) {
+        delete[] this->fetchBuffers;
     }
 }
