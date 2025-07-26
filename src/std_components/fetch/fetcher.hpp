@@ -30,30 +30,34 @@
 
 class Fetcher : public sinuca::Component<int> {
   private:
-    sinuca::Component<sinuca::InstructionPacket>* fetch;
-    sinuca::Component<sinuca::MemoryPacket>* instructionMemory;
-    sinuca::Component<sinuca::PredictorPacket>** predictors;
-    int* predictorsID;
-    long numberOfPredictors;
+    sinuca::Component<sinuca::FetchPacket>* fetch;
+    sinuca::Component<sinuca::InstructionPacket>* instructionMemory;
     sinuca::InstructionPacket* fetchBuffer;
-    unsigned long numberOfFetchedInstructions;
-    long fetchSize;
-    long fetchInterval;
-    long fetchBufferUsage;
-    unsigned long clock;
+    unsigned long fetchBufferUsage;
+    unsigned long fetchSize;
+    unsigned long fetchInterval;
+    unsigned long fetchClock;
     int fetchID;
     int instructionMemoryID;
+
+    int FetchConfigParameter(sinuca::config::ConfigValue value);
+    int InstructionMemoryConfigParameter(sinuca::config::ConfigValue value);
+    int FetchSizeConfigParameter(sinuca::config::ConfigValue value);
+    int FetchIntervalConfigParameter(sinuca::config::ConfigValue value);
+
+    void ClockSendBuffered();
+    void ClockRequestFetch();
+    void ClockFetch();
 
   public:
     inline Fetcher()
         : fetch(NULL),
-          predictors(NULL),
-          numberOfPredictors(0),
-          numberOfFetchedInstructions(0),
-          fetchSize(0),
-          fetchInterval(0),
+          instructionMemory(NULL),
+          fetchBuffer(NULL),
           fetchBufferUsage(0),
-          clock(0) {}
+          fetchSize(1),
+          fetchInterval(1),
+          fetchClock(0) {}
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);

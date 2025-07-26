@@ -23,180 +23,159 @@
 
 #include "fetcher.hpp"
 
-#include <cstring>
-
 #include "../../sinuca3.hpp"
 #include "../../utils/logging.hpp"
 
 int Fetcher::FinishSetup() {
     if (this->fetch == NULL) {
         SINUCA3_ERROR_PRINTF(
-            "Fetcher didn't received required `fetch` parameter.\n");
+            "Fetcher didn't received required parameter `fetch`.\n");
+        return 1;
+    }
+    if (this->instructionMemory == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Fetcher didn't received required parameter "
+            "`instructionMemory`.\n");
         return 1;
     }
 
-    // Default fetchSize and fetchInterval to 1, if undefined.
-    if (this->fetchSize == 0) {
-        this->fetchSize = 1;
-    }
-    if (this->fetchInterval == 0) {
-        this->fetchInterval = 1;
-    }
+    this->fetchID = this->fetch->Connect(this->fetchSize);
+    this->instructionMemoryID =
+        this->instructionMemory->Connect(this->fetchSize);
 
     this->fetchBuffer = new sinuca::InstructionPacket[this->fetchSize];
 
-    this->fetchID = this->fetch->Connect(this->fetchSize);
-    if (this->instructionMemory != NULL) {
-        this->instructionMemoryID =
-            this->instructionMemory->Connect(this->fetchSize);
+    return 0;
+}
+
+int Fetcher::FetchConfigParameter(sinuca::config::ConfigValue value) {
+    if (value.type == sinuca::config::ConfigValueTypeComponentReference) {
+        this->fetch = dynamic_cast<sinuca::Component<sinuca::FetchPacket>*>(
+            value.value.componentReference);
+        if (this->fetch != NULL) {
+            return 0;
+        }
     }
-    if (this->predictors != NULL) {
-        this->predictorsID = new int[this->numberOfPredictors];
-        for (long i = 0; i < this->numberOfPredictors; ++i) {
-            this->predictorsID[i] =
-                this->predictors[i]->Connect(this->fetchSize);
+    SINUCA3_ERROR_PRINTF(
+        "Fetcher parameter `fetch` is not a Component<FetchPacket>.\n");
+    return 1;
+}
+
+int Fetcher::InstructionMemoryConfigParameter(
+    sinuca::config::ConfigValue value) {
+    if (value.type == sinuca::config::ConfigValueTypeComponentReference) {
+        this->instructionMemory =
+            dynamic_cast<sinuca::Component<sinuca::InstructionPacket>*>(
+                value.value.componentReference);
+        if (this->instructionMemory != NULL) {
+            return 0;
         }
     }
 
-    return 0;
+    SINUCA3_ERROR_PRINTF(
+        "Fetcher parameter `instructionMemory` is not a "
+        "Component<InstructionPacket>.\n");
+    return 1;
+}
+
+int Fetcher::FetchSizeConfigParameter(sinuca::config::ConfigValue value) {
+    if (value.type == sinuca::config::ConfigValueTypeInteger) {
+        if (value.value.integer > 0) {
+            this->fetchSize = value.value.integer;
+            return 0;
+        }
+    }
+
+    SINUCA3_ERROR_PRINTF(
+        "Fetcher parameter `fetchSize` is not a integer > 0.\n");
+    return 1;
+}
+
+int Fetcher::FetchIntervalConfigParameter(sinuca::config::ConfigValue value) {
+    if (value.type == sinuca::config::ConfigValueTypeInteger) {
+        if (value.value.integer > 0) {
+            this->fetchInterval = value.value.integer;
+            return 0;
+        }
+    }
+    SINUCA3_ERROR_PRINTF(
+        "Fetcher parameter `fetchInterval` is not a integer > 0.\n");
+    return 1;
 }
 
 int Fetcher::SetConfigParameter(const char* parameter,
                                 sinuca::config::ConfigValue value) {
     if (strcmp(parameter, "fetch") == 0) {
-        if (value.type != sinuca::config::ConfigValueTypeComponentReference) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher received a parameter `fetch` that's not a reference "
-                "to a Component<InstructionPacket>.\n");
-            return 1;
-        }
-
-        this->fetch =
-            dynamic_cast<sinuca::Component<sinuca::InstructionPacket>*>(
-                value.value.componentReference);
-        if (this->fetch == NULL) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher received a parameter `fetch` that's not a reference "
-                "to a Component<InstructionPacket>.\n");
-            return 1;
-        }
-
-        return 0;
-    }
-
-    if (strcmp(parameter, "instructionMemory") == 0) {
-        if (value.type != sinuca::config::ConfigValueTypeComponentReference) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `instructionMemory` is not "
-                "Component<MemoryPacket>.\n");
-            return 1;
-        }
-
-        this->instructionMemory =
-            dynamic_cast<sinuca::Component<sinuca::MemoryPacket>*>(
-                value.value.componentReference);
-        if (this->instructionMemory == NULL) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `instructionMemory` is not "
-                "Component<MemoryPacket>.\n");
-            return 1;
-        }
-
-        return 0;
-    }
-
-    if (strcmp(parameter, "predictors") == 0) {
-        if (value.type != sinuca::config::ConfigValueTypeArray) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher received a `predictors` parameter that's not an array "
-                "of Component<PredictorPacket>.\n");
-            return 1;
-        }
-
-        if (this->predictors != NULL) {
-            delete[] this->predictors;
-        }
-
-        std::vector<sinuca::config::ConfigValue>* configArray =
-            value.value.array;
-        this->predictors = new sinuca::Component<
-            sinuca::PredictorPacket>*[configArray->size()];
-        for (unsigned long i = 0; i < configArray->size(); ++i) {
-            if ((*configArray)[i].type !=
-                sinuca::config::ConfigValueTypeComponentReference) {
-                SINUCA3_ERROR_PRINTF(
-                    "A parameter of the array `predictors` passed to Fetcher "
-                    "is not a Component<PredictorPacket>.\n");
-                return 1;
-            }
-
-            this->predictors[i] =
-                dynamic_cast<sinuca::Component<sinuca::PredictorPacket>*>(
-                    (*configArray)[i].value.componentReference);
-            if (this->predictors[i] == NULL) {
-                SINUCA3_ERROR_PRINTF(
-                    "A parameter of the array `predictors` passed to Fetcher "
-                    "is not a Component<PredictorPacket>.\n");
-                return 1;
-            }
-        }
-
-        return 0;
-    }
-
-    if (strcmp(parameter, "fetchSize") == 0) {
-        if (value.type != sinuca::config::ConfigValueTypeInteger) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `fetchSize` is not an integer.\n");
-            return 1;
-        }
-        if (value.value.integer <= 0) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `fetchSize` should be greater than 0, got "
-                "%ld.\n",
-                value.value.integer);
-            return 1;
-        }
-        this->fetchSize = value.value.integer;
-        return 0;
-    }
-
-    if (strcmp(parameter, "fetchInterval") == 0) {
-        if (value.type != sinuca::config::ConfigValueTypeInteger) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `fetchInterval` is not an integer.\n");
-            return 1;
-        }
-        if (value.value.integer <= 0) {
-            SINUCA3_ERROR_PRINTF(
-                "Fetcher parameter `fetchInterval` should be greater than "
-                "0.\n");
-            return 1;
-        }
-        return 0;
+        return this->FetchConfigParameter(value);
+    } else if (strcmp(parameter, "instructionMemory") == 0) {
+        return this->InstructionMemoryConfigParameter(value);
+    } else if (strcmp(parameter, "fetchSize") == 0) {
+        return this->FetchSizeConfigParameter(value);
+    } else if (strcmp(parameter, "fetchInterval") == 0) {
+        return this->FetchIntervalConfigParameter(value);
     }
 
     SINUCA3_ERROR_PRINTF("Fetcher received unknown parameter %s.\n", parameter);
+
     return 1;
 }
 
-void Fetcher::Clock() {
-    // TODO.
+void Fetcher::ClockSendBuffered() {
+    unsigned long i = 0;
 
-    ++this->clock;
+    while (i < this->fetchBufferUsage &&
+           (this->instructionMemory->SendRequest(this->instructionMemoryID,
+                                                 &this->fetchBuffer[i]) == 0)) {
+        ++i;
+    }
+    this->fetchBufferUsage -= i;
+    if (this->fetchBufferUsage > 0) {
+        memmove(&this->fetchBuffer[i], this->fetchBuffer,
+                this->fetchBufferUsage * sizeof(*this->fetchBuffer));
+    }
+}
+
+void Fetcher::ClockRequestFetch() {
+    unsigned long fetchBufferByteUsage = 0;
+    for (unsigned long i = 0; i < this->fetchBufferUsage; ++i) {
+        fetchBufferByteUsage += this->fetchBuffer[i].staticInfo->opcodeSize;
+    }
+
+    sinuca::FetchPacket request;
+    request.request = fetchSize - fetchBufferByteUsage;
+    this->fetch->SendRequest(this->fetchID, &request);
+}
+
+void Fetcher::ClockFetch() {
+    // We're guaranteed to have space because we asked only enough bytes to fill
+    // the buffer. The engine is guaranteed to send only up until that amount,
+    // the cycle right after we asked.
+    while (
+        this->fetch->ReceiveResponse(
+            this->fetchID,
+            (sinuca::FetchPacket*)&this->fetchBuffer[this->fetchBufferUsage]) ==
+        0) {
+        ++this->fetchBufferUsage;
+    }
+}
+
+void Fetcher::Clock() {
+    this->ClockSendBuffered();
+    this->ClockFetch();
+
+    if (this->fetchClock % this->fetchInterval == 0) {
+        this->fetchClock = 0;
+        this->ClockRequestFetch();
+    }
+
+    ++this->fetchClock;
 }
 
 void Fetcher::Flush() {}
 
-void Fetcher::PrintStatistics() {
-    SINUCA3_LOG_PRINTF("Fetcher %p: fetched %lu instructions.\n", this,
-                       this->numberOfFetchedInstructions);
-}
+void Fetcher::PrintStatistics() {}
 
 Fetcher::~Fetcher() {
-    if (this->predictors != NULL) {
-        delete[] this->predictors;
-    }
     if (this->fetchBuffer != NULL) {
         delete[] this->fetchBuffer;
     }

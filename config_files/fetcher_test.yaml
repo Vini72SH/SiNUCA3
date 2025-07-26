@@ -1,0 +1,9 @@
+instantiate:
+  class: Fetcher
+  fetch: *ENGINE
+  fetchSize: 16
+  fetchInterval: 8
+  instructionMemory:
+    class: SimpleInstructionMemory
+    sendTo:
+      class: SimpleExecutionUnit
