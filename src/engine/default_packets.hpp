@@ -153,15 +153,15 @@ enum PredictorPacketType {
  */
 struct PredictorPacket {
     union {
-        const StaticInstructionInfo* requestQuery;
+        sinuca::InstructionPacket requestQuery;
 
         struct {
-            const StaticInstructionInfo* instruction;
+            sinuca::InstructionPacket instruction;
             unsigned long target;
         } requestUpdate;
 
         struct {
-            const StaticInstructionInfo* instruction;
+            sinuca::InstructionPacket instruction;
             unsigned long target;
         } response;
     } data;
