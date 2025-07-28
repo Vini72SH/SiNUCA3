@@ -28,6 +28,7 @@
 #include "engine_debug_component.hpp"
 #include "fetch/queues.hpp"
 #include "memory/simple_memory.hpp"
+#include "predictors/hardwired_predictor.hpp"
 #include "predictors/interleavedBTB.hpp"
 #include "predictors/ras.hpp"
 
@@ -45,6 +46,7 @@ engine::Linkable* sinuca::CreateDefaultComponentByClass(const char* name) {
     COMPONENT(MemoryQueue);
     COMPONENT(PredictorQueue);
     COMPONENT(InstructionQueue);
+    COMPONENT(HardwiredPredictor);
 
     return NULL;
 }
