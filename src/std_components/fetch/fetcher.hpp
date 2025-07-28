@@ -39,7 +39,6 @@ const FetchBufferEntryFlags FetchBufferEntryFlagsSentToMemory = (1 << 2);
 
 struct FetchBufferEntry {
     sinuca::InstructionPacket instruction;
-    unsigned long prediction;
     FetchBufferEntryFlags flags;
 
     inline FetchBufferEntry() : flags((FetchBufferEntryFlags)0) {}
@@ -56,13 +55,13 @@ class Fetcher : public sinuca::Component<int> {
     unsigned long fetchSize;
     unsigned long fetchInterval;
     unsigned long fetchClock;
-    unsigned long numberOfPredictors;
     unsigned long misspredictPenalty;
     unsigned long misspredictions;
     unsigned long currentPenalty;
-    long lastPrediction;
+    unsigned long fetchedInstructions;
     int fetchID;
     int instructionMemoryID;
+    FetchBufferEntryFlags flagsToCheck;
 
     int FetchConfigParameter(sinuca::config::ConfigValue value);
     int InstructionMemoryConfigParameter(sinuca::config::ConfigValue value);
@@ -72,7 +71,7 @@ class Fetcher : public sinuca::Component<int> {
     int MisspredictPenaltyConfigParameter(sinuca::config::ConfigValue value);
 
     void ClockSendBuffered();
-    void ClockCheckPredictor();
+    int ClockCheckPredictor();
     void ClockUnbuffer();
     void ClockRequestFetch();
     void ClockFetch();
@@ -87,11 +86,11 @@ class Fetcher : public sinuca::Component<int> {
           fetchSize(1),
           fetchInterval(1),
           fetchClock(0),
-          numberOfPredictors(0),
           misspredictPenalty(0),
           misspredictions(0),
           currentPenalty(0),
-          lastPrediction(0) {}
+          fetchedInstructions(0),
+          flagsToCheck(FetchBufferEntryFlagsSentToMemory) {}
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter,
                                    sinuca::config::ConfigValue value);

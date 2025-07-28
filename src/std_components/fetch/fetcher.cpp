@@ -50,6 +50,7 @@ int Fetcher::FinishSetup() {
     // Maybe connect to a predictor.
     if (this->predictor != NULL) {
         this->predictorID = this->predictor->Connect(this->fetchSize);
+        this->flagsToCheck |= FetchBufferEntryFlagsPredicted;
     }
 
     return 0;
@@ -173,6 +174,8 @@ void Fetcher::ClockSendBuffered() {
     }
 
     // Same thing for the predictor.
+    if (this->predictor == NULL) return;
+
     i = 0;
 
     while (this->fetchBuffer[i].flags & FetchBufferEntryFlagsSentToPredictor)
@@ -184,14 +187,15 @@ void Fetcher::ClockSendBuffered() {
         packet.data.requestQuery = this->fetchBuffer[i].instruction.staticInfo;
         if (this->predictor->SendRequest(this->predictorID, &packet) != 0)
             break;
-        this->fetchBuffer[i].flags |= FetchBufferEntryFlagsSentToPredictor;
+        this->fetchBuffer[i].flags |= (FetchBufferEntryFlagsSentToPredictor |
+                                       FetchBufferEntryFlagsPredicted);
         ++i;
     }
 }
 
-// TODO: this makes the fetcher send one instruction more after a misspredict...
-// if we could put the target address in the dynamicInfo it would be so nice.
-void Fetcher::ClockCheckPredictor() {
+int Fetcher::ClockCheckPredictor() {
+    if (this->predictor == NULL) return 0;
+
     sinuca::PredictorPacket response;
     unsigned long i = 0;
     // We depend on the predictor sending the responses in order and, of course,
@@ -201,24 +205,35 @@ void Fetcher::ClockCheckPredictor() {
         assert(this->fetchBuffer[i].instruction.staticInfo ==
                response.data.response.instruction);
         this->fetchBuffer[i].flags |= FetchBufferEntryFlagsPredicted;
-
-        long last = this->lastPrediction;
-        this->lastPrediction = response.data.response.target;
-
-        // We check wether the last prediction was successful here because it
-        // would be just too complex otherwise. We literally stop the world,
-        // letting the remaining of the buffer to be treated when the penalty
-        // is paid.
-        if (last != 0 &&
-            last !=
-                this->fetchBuffer[i].instruction.staticInfo->opcodeAddress) {
-            this->currentPenalty = this->misspredictPenalty;
-            break;
+        long target =
+            this->fetchBuffer[i].instruction.staticInfo->opcodeAddress +
+            this->fetchBuffer[i].instruction.staticInfo->opcodeSize;
+        // "Redirect" the fetch only if the predictor has an address, otherwise
+        // expect the instruction to be at the next logical PC.
+        if (response.type == sinuca::PredictorPacketTypeResponseTakeToAddress) {
+            target = response.data.response.target;
+        }
+        // If a missprediction happened.
+        if (target != this->fetchBuffer[i].instruction.nextInstruction) {
+            return 1;
         }
     }
+
+    return 0;
 }
 
-void Fetcher::ClockUnbuffer() {}
+void Fetcher::ClockUnbuffer() {
+    unsigned long i = 0;
+    while (i < this->fetchBufferUsage &&
+           this->fetchBuffer[i].flags & this->flagsToCheck) {
+        ++i;
+    }
+    this->fetchBufferUsage -= i;
+    if (this->fetchBufferUsage > 0) {
+        memmove(this->fetchBuffer, &this->fetchBuffer[i],
+                sizeof(*this->fetchBuffer) * this->fetchBufferUsage);
+    }
+}
 
 void Fetcher::ClockRequestFetch() {
     unsigned long fetchBufferByteUsage = 0;
@@ -241,14 +256,32 @@ void Fetcher::ClockFetch() {
             this->fetchID,
             (sinuca::FetchPacket*)&this->fetchBuffer[this->fetchBufferUsage]) ==
         0) {
+        this->fetchBuffer[this->fetchBufferUsage].flags = 0;
         ++this->fetchBufferUsage;
+        ++this->fetchedInstructions;
     }
 }
 
 void Fetcher::Clock() {
+    // If paying a misspredict penalty.
+    if (this->currentPenalty > 0) {
+        --this->currentPenalty;
+        return;
+    }
+
     this->ClockSendBuffered();
-    this->ClockCheckPredictor();
+    const int predictionResult = this->ClockCheckPredictor();
     this->ClockUnbuffer();
+
+    // Don't fetch if a misspredict happened. The fetchClock is set to 0 so when
+    // the missprediction is paid, we start fetching immediatly.
+    if (predictionResult != 0) {
+        ++this->misspredictions;
+        this->currentPenalty = this->misspredictPenalty;
+        this->fetchClock = 0;
+        return;
+    }
+
     this->ClockFetch();
 
     if (this->fetchClock % this->fetchInterval == 0) {
@@ -261,7 +294,12 @@ void Fetcher::Clock() {
 
 void Fetcher::Flush() {}
 
-void Fetcher::PrintStatistics() {}
+void Fetcher::PrintStatistics() {
+    SINUCA3_LOG_PRINTF("Fetcher %p: %lu fetched instructions.\n", this,
+                       this->fetchedInstructions);
+    SINUCA3_LOG_PRINTF("Fetcher %p: %lu misspredictions.\n", this,
+                       this->misspredictions);
+}
 
 Fetcher::~Fetcher() {
     if (this->fetchBuffer != NULL) {
