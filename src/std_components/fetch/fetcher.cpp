@@ -178,17 +178,17 @@ void Fetcher::ClockSendBuffered() {
 
     i = 0;
 
-    while (this->fetchBuffer[i].flags & FetchBufferEntryFlagsSentToPredictor)
+    while (i < this->fetchBufferUsage &&
+           this->fetchBuffer[i].flags & FetchBufferEntryFlagsSentToPredictor)
         ++i;
 
     while (i < this->fetchBufferUsage) {
         sinuca::PredictorPacket packet;
         packet.type = sinuca::PredictorPacketTypeRequestQuery;
-        packet.data.requestQuery = this->fetchBuffer[i].instruction.staticInfo;
+        packet.data.requestQuery = this->fetchBuffer[i].instruction;
         if (this->predictor->SendRequest(this->predictorID, &packet) != 0)
             break;
-        this->fetchBuffer[i].flags |= (FetchBufferEntryFlagsSentToPredictor |
-                                       FetchBufferEntryFlagsPredicted);
+        this->fetchBuffer[i].flags |= FetchBufferEntryFlagsSentToPredictor;
         ++i;
     }
 }
@@ -203,7 +203,7 @@ int Fetcher::ClockCheckPredictor() {
     while (this->predictor->ReceiveResponse(this->predictorID, &response) ==
            0) {
         assert(this->fetchBuffer[i].instruction.staticInfo ==
-               response.data.response.instruction);
+               response.data.response.instruction.staticInfo);
         this->fetchBuffer[i].flags |= FetchBufferEntryFlagsPredicted;
         long target =
             this->fetchBuffer[i].instruction.staticInfo->opcodeAddress +
@@ -217,6 +217,7 @@ int Fetcher::ClockCheckPredictor() {
         if (target != this->fetchBuffer[i].instruction.nextInstruction) {
             return 1;
         }
+        ++i;
     }
 
     return 0;
@@ -225,7 +226,8 @@ int Fetcher::ClockCheckPredictor() {
 void Fetcher::ClockUnbuffer() {
     unsigned long i = 0;
     while (i < this->fetchBufferUsage &&
-           this->fetchBuffer[i].flags & this->flagsToCheck) {
+           ((this->fetchBuffer[i].flags & this->flagsToCheck) ==
+            this->flagsToCheck)) {
         ++i;
     }
     this->fetchBufferUsage -= i;
