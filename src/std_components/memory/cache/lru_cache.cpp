@@ -58,8 +58,8 @@ void LRUCache::Write(unsigned long addr, unsigned long value) {
     int i;
     int j;
 
-    for(int way=0; way<this->numWays; ++way){
-        CacheEntry *entry = &this->entries[index][way];
+    for (int way = 0; way < this->numWays; ++way) {
+        CacheEntry* entry = &this->entries[index][way];
 
         if (!entry->isValid) {
             lruEntry = entry;

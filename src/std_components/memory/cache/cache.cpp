@@ -20,20 +20,19 @@
  * @brief Implementation of a abstract nway cache.
  */
 
- // TODO
- // We need to know how many bits are going to be used as offset... in other
- // words... how large is one page in memory. Idealy, we import this information
- // from elsewhere. But I will leave as global constants for now.
+// TODO
+// We need to know how many bits are going to be used as offset... in other
+// words... how large is one page in memory. Idealy, we import this information
+// from elsewhere. But I will leave as global constants for now.
 #include <cstddef>
 unsigned long offsetBitsMask = 12;
 unsigned long indexBitsMask = 6;
 unsigned long tagBitsMask = 46;
 
-#include "cache.hpp"
-
 #include <cassert>
 
 #include "../../../utils/logging.hpp"
+#include "cache.hpp"
 
 unsigned long Cache::GetIndex(unsigned long addr) const {
     return (addr & indexBitsMask) >> offsetBitsMask;
@@ -46,7 +45,7 @@ unsigned long Cache::GetTag(unsigned long addr) const {
 bool Cache::GetEntry(unsigned long addr, CacheEntry **result) const {
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
-    for(int way=0; way<this->numWays; ++way){
+    for (int way = 0; way < this->numWays; ++way) {
         CacheEntry *entry = &this->entries[index][way];
 
         if (entry->isValid && entry->tag == tag) {
@@ -158,7 +157,8 @@ void Cache::Clock() {
                 // TODO
                 // Call the page-table walker.
                 // This is a memory access, if the memory is perfect,
-                // there is no penalty, so we still need to decide what happens in this case.
+                // there is no penalty, so we still need to decide what happens
+                // in this case.
                 //
                 // Then, call Write() to insert a new addr in cache
                 // according to the replacement policy.

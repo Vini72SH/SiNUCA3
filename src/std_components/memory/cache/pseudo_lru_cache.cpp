@@ -112,13 +112,13 @@ void PseudoLRUCache::Write(unsigned long addr, unsigned long value) {
         unsigned char old_direction =
             this->plruTree[set][j].direction;  // 0 is left, 1 is right
         this->plruTree[set][j].direction =
-            !this->plruTree[set][j].direction;  // Switch this node to opposite direction.
+            !this->plruTree[set][j]
+                 .direction;  // Switch this node to opposite direction.
         j = 2 * j + 1 + old_direction;
     }
 
     int way = j - (this->numWays - 1);
     CacheEntry *plruEntry = &this->entries[set][way];
-    CacheEntry newEntry = {tag,           set,           true,
-                            plruEntry->i, plruEntry->j, value};
+    CacheEntry newEntry = {tag, set, true, plruEntry->i, plruEntry->j, value};
     *plruEntry = newEntry;
 }
