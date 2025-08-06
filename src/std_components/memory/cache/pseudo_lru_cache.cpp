@@ -80,12 +80,12 @@ int PseudoLRUCache::FinishSetup() {
 }
 
 bool PseudoLRUCache::Read(unsigned long addr, CacheEntry **result) {
-    // get entry
+    // Get entry early to find set and way.
     int exist = GetEntry(addr, result);
-
-    // update nodes
     int set = (*result)->i;
     int way = (*result)->j;
+
+    // Update nodes because we acessed.
     int current = 0;
     while (this->plruTree[set][current].r - this->plruTree[set][current].l >
            1) {
@@ -95,13 +95,12 @@ bool PseudoLRUCache::Read(unsigned long addr, CacheEntry **result) {
         unsigned char direction = (way <= mid) ? 0 : 1;
 
         this->plruTree[set][current].direction =
-            !direction;  // marca direção oposta
+            !direction;  // Switch this node to opposite direction.
 
         // Go to next node in the path
         current = 2 * current + 1 + direction;
     }
 
-    // return entry
     return exist;
 }
 
@@ -113,7 +112,7 @@ void PseudoLRUCache::Write(unsigned long addr, unsigned long value) {
         unsigned char old_direction =
             this->plruTree[set][j].direction;  // 0 is left, 1 is right
         this->plruTree[set][j].direction =
-            !this->plruTree[set][j].direction;  // marca direção oposta
+            !this->plruTree[set][j].direction;  // Switch this node to opposite direction.
         j = 2 * j + 1 + old_direction;
     }
 

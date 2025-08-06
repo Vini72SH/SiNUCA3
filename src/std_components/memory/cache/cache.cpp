@@ -20,9 +20,10 @@
  * @brief Implementation of a abstract nway cache.
  */
 
-// Preciso saber quantos bits serão usados como offset... ou seja... precisamos
-// saber o tamanho de uma página. Vou deixar isso aqui de exemplo antes de
-// começar a fazer um jeito de importar essas informações de outro lugar.
+ // TODO
+ // We need to know how many bits are going to be used as offset... in other
+ // words... how large is one page in memory. Idealy, we import this information
+ // from elsewhere. But I will leave as global constants for now.
 unsigned long offset_bits_mask = 12;
 unsigned long index_bits_mask = 6;
 unsigned long tag_bits_mask = 46;
@@ -145,14 +146,21 @@ void Cache::Clock() {
 
             CacheEntry *result;
 
-            // confirmar se packet está na tlb
-            // se sim, responde
+            // We dont have (and dont need) data to send back, so a
+            // MemoryPacket is send back to to signal
+            // that the cache's operation has been completed.
+
+            // Read() returns true if it was hit.
             if (this->Read(packet, &result)) {
                 this->SendResponseToConnection(i, &packet);
             } else {
-                // se não,
-                // chama o page-table walker (faz acesso a memoria = penalidade)
-                // coloca o novo endereço na tabela de acordo com a policy.
+                // TODO
+                // Call the page-table walker.
+                // This is a memory access, if the memory is perfect,
+                // there is no penalty, so we still need to decide what happens in this case.
+                //
+                // Then, call Write() to insert a new addr in cache
+                // according to the replacement policy.
             }
         }
     }
