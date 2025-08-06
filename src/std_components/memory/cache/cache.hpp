@@ -27,14 +27,6 @@
 
 #include "../../../sinuca3.hpp"
 
-// @param entry Ouput: A (CacheEntry *) to store result
-// @param index Input: A (unsigned long) containing the index of addr to be
-// acessed
-#define for_each_way(entry, index)                                      \
-    for (int __way = 0; __way < this->numWays &&                        \
-                        ((entry) = &this->entries[index][__way], true); \
-         ++__way)
-
 struct CacheEntry {
     unsigned long tag;
     unsigned long index;

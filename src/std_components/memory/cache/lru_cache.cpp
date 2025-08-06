@@ -51,27 +51,28 @@ bool LRUCache::Read(unsigned long addr, CacheEntry** result) {
 }
 
 void LRUCache::Write(unsigned long addr, unsigned long value) {
-    CacheEntry* entry;
-    CacheEntry* lru_entry = NULL;
-    unsigned long oldest_time = ~0UL;  // valor máximo
+    CacheEntry* lruEntry = NULL;
+    unsigned long oldestTime = ~0UL;  // Max value
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
     int i;
     int j;
 
-    for_each_way(entry, index) {
+    for(int way=0; way<this->numWays; ++way){
+        CacheEntry *entry = &this->entries[index][way];
+
         if (!entry->isValid) {
-            lru_entry = entry;
+            lruEntry = entry;
             break;
         }
         i = entry->i;
         j = entry->j;
-        if (this->WayUsageCounters[i][j] < oldest_time) {
-            oldest_time = this->WayUsageCounters[i][j];
-            lru_entry = entry;
+        if (this->WayUsageCounters[i][j] < oldestTime) {
+            oldestTime = this->WayUsageCounters[i][j];
+            lruEntry = entry;
         }
     }
 
     CacheEntry newEntry = {tag, index, true, i, j, value};
-    *lru_entry = newEntry;
+    *lruEntry = newEntry;
 }

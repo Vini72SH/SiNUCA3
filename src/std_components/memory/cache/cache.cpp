@@ -45,8 +45,9 @@ unsigned long Cache::GetTag(unsigned long addr) const {
 bool Cache::GetEntry(unsigned long addr, CacheEntry **result) const {
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
-    CacheEntry *entry;
-    for_each_way(entry, index) {
+    for(int way=0; way<this->numWays; ++way){
+        CacheEntry *entry = &this->entries[index][way];
+
         if (entry->isValid && entry->tag == tag) {
             *result = entry;
             return true;
