@@ -24,8 +24,7 @@
 #include "hardwired_predictor.hpp"
 
 #include <cstring>
-
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int HardwiredPredictor::FinishSetup() {
     if (this->sendTo != NULL) {

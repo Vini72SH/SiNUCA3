@@ -24,7 +24,7 @@
  * everything in a single clock cycle.
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @details SimpleCore fetches an instruction from the required parameter

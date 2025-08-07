@@ -24,7 +24,7 @@
  * care at all about wrong predictions.
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief API of the Ras. A simple, generic return address stack. It does not

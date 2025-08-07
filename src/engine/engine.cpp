@@ -24,8 +24,7 @@
 
 #include <cstdio>
 #include <ctime>
-
-#include "../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int Engine::FinishSetup() { return 0; }
 

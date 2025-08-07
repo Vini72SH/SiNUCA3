@@ -25,11 +25,12 @@
 
 // These pragmas make clangd don't warn about unused includes when using just
 // sinuca3.hpp to include the below files.
-#include "config/config.hpp"           // IWYU pragma: export
-#include "engine/component.hpp"        // IWYU pragma: export
-#include "engine/default_packets.hpp"  // IWYU pragma: export
-#include "engine/engine.hpp"
-#include "engine/linkable.hpp"
+#include <config/config.hpp>           // IWYU pragma: export
+#include <engine/component.hpp>        // IWYU pragma: export
+#include <engine/default_packets.hpp>  // IWYU pragma: export
+#include <engine/engine.hpp>
+#include <engine/linkable.hpp>
+#include <utils/logging.hpp>  // IWYU pragma: export
 
 /**
  * @brief Global engine object so everyone can call it's methods.

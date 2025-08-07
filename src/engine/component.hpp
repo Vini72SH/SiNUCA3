@@ -23,7 +23,7 @@
  * @brief Public API of the component template class.
  */
 
-#include "linkable.hpp"
+#include <engine/linkable.hpp>
 
 /**
  * @details All components shall inherit from this class. The MessageType type

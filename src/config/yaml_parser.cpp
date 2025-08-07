@@ -28,9 +28,8 @@
 #include <cassert>
 #include <cstdio>
 #include <cstring>
+#include <utils/logging.hpp>
 #include <vector>
-
-#include "../utils/logging.hpp"
 
 // This functions are declared up here because they're codependencies with other
 // parsing functions.

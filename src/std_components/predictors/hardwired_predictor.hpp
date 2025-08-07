@@ -24,7 +24,7 @@
  * misses a specific set of instructions.
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief The HardwiredPredictor is a predictor that always predicted correctly

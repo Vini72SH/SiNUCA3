@@ -23,19 +23,16 @@
 
 #include <getopt.h>
 
+#include <config/engine_builder.hpp>
 #include <cstdlib>
 #include <cstring>
-
-#include "config/engine_builder.hpp"
-#include "engine/engine.hpp"
-#include "sinuca3.hpp"
-#include "trace_reader/sinuca3_trace_reader.hpp"
-#include "trace_reader/trace_reader.hpp"
-#include "utils/logging.hpp"
+#include <sinuca3.hpp>
+#include <trace_reader/sinuca3_trace_reader.hpp>
+#include <trace_reader/trace_reader.hpp>
 
 // Include our testing facilities in debug mode.
 #ifndef NDEBUG
-#include "tests.hpp"
+#include <tests.hpp>
 #endif
 
 /** @brief Definition of the ENGINE global object declared in sinuca3.hpp. */

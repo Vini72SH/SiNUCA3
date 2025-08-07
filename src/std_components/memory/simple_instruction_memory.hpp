@@ -25,7 +25,7 @@
  * perfect (instruction) memory: big and works at the light speed!
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief component for SiNUCA3 which just responds immediatly for every request

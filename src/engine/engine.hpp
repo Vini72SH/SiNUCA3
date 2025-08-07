@@ -24,11 +24,8 @@
  */
 
 #include <ctime>
-
-#include "../trace_reader/trace_reader.hpp"
-#include "component.hpp"
-#include "default_packets.hpp"
-#include "linkable.hpp"
+#include <engine/component.hpp>
+#include <trace_reader/trace_reader.hpp>
 
 /**
  * @brief The engine itself.

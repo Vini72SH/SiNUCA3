@@ -23,9 +23,7 @@
  * @brief Pure virtual TraceReader class, that all trace readers must implement.
  */
 
-#include <cstring>
-
-#include "../engine/default_packets.hpp"
+#include <engine/default_packets.hpp>
 
 enum FetchResult {
     FetchResultOk,

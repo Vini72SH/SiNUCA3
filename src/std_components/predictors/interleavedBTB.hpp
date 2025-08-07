@@ -39,9 +39,8 @@
  * adjust the parameters in the configuration YAML and recompile with “make -B”.
  */
 
-#include "../../engine/component.hpp"
-#include "../../sinuca3.hpp"
-#include "../../utils/bimodal_predictor.hpp"
+#include <sinuca3.hpp>
+#include <utils/bimodal_predictor.hpp>
 
 const int MAX_INTERLEAVING_FACTOR = 16;
 

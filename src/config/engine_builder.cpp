@@ -2,14 +2,12 @@
 
 #include <cassert>
 #include <cmath>
+#include <config/config.hpp>
+#include <config/yaml_parser.hpp>
 #include <cstddef>
 #include <cstring>
+#include <sinuca3.hpp>
 #include <vector>
-
-#include "../sinuca3.hpp"
-#include "../utils/logging.hpp"
-#include "config.hpp"
-#include "yaml_parser.hpp"
 
 //
 // Copyright (C) 2024  HiPES - Universidade Federal do Paraná

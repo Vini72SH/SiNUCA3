@@ -23,8 +23,8 @@
  * @brief Public API of the x86_64 trace reader.
  */
 
-#include "../engine/default_packets.hpp"
-#include "../utils/file_handler.hpp"
+#include <sinuca3.hpp>
+#include <utils/file_handler.hpp>
 
 using namespace trace;
 

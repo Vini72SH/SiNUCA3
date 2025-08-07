@@ -18,7 +18,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
+
 #include "queue.hpp"
 
 /** @brief Queue of MemoryPacket. */

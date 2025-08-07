@@ -22,7 +22,7 @@
 
 #include "ras.hpp"
 
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int Ras::FinishSetup() {
     if (this->size == 0) {

@@ -18,8 +18,7 @@
 #include "interleavedBTB.hpp"
 
 #include <cmath>
-
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 BTBEntry::BTBEntry()
     : numBanks(0),

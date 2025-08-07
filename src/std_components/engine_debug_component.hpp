@@ -26,7 +26,7 @@
  * CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include "../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief A component that serves to debug the engine itself.

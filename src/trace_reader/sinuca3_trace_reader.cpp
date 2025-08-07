@@ -22,10 +22,9 @@
 #include "sinuca3_trace_reader.hpp"
 
 #include <cassert>
-
-#include "../utils/logging.hpp"
-#include "trace_reader.hpp"
-#include "x86_reader_file_handler.hpp"
+#include <sinuca3.hpp>
+#include <trace_reader/trace_reader.hpp>
+#include <trace_reader/x86_reader_file_handler.hpp>
 
 int sinuca3TraceReader::SinucaTraceReader::OpenTrace(
     const char *executableName, const char *traceFolderPath) {

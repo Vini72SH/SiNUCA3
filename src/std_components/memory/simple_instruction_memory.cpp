@@ -22,7 +22,7 @@
 
 #include "simple_instruction_memory.hpp"
 
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int SimpleInstructionMemory::SetConfigParameter(const char* parameter,
                                                 ConfigValue value) {

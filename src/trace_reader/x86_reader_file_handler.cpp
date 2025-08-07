@@ -32,7 +32,7 @@ extern "C" {
 #include <unistd.h>    // lseek
 }
 
-#include "../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 inline void printFileErrorLog(const char *path) {
     SINUCA3_ERROR_PRINTF("Could not open [%s]: %s\n", path, strerror(errno));

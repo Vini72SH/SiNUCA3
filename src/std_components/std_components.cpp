@@ -22,8 +22,8 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <sinuca3.hpp>
 
-#include "../sinuca3.hpp"
 #include "cores/simple_core.hpp"
 #include "engine_debug_component.hpp"
 #include "execute/simple_execution_unit.hpp"

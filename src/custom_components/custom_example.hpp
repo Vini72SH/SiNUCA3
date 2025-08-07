@@ -24,7 +24,7 @@
  * them.
  */
 
-#include "../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @details All custom components should inherit from sinuca::Component<T>,

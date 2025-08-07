@@ -29,10 +29,9 @@
  */
 
 #include <cassert>
+#include <config/yaml_parser.hpp>
+#include <engine/engine.hpp>
 #include <vector>
-
-#include "../engine/engine.hpp"
-#include "yaml_parser.hpp"
 
 namespace builder {
 

@@ -22,7 +22,7 @@
 
 #include "simple_execution_unit.hpp"
 
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int SimpleExecutionUnit::SetConfigParameter(const char* parameter,
                                             ConfigValue value) {

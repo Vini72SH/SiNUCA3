@@ -25,8 +25,7 @@
  */
 
 #include <cstdlib>
-
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief Enum for flags for the fetch buffer of the fetcher.

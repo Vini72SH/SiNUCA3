@@ -1,4 +1,4 @@
-#include "../x86_trace_generator/instrumentation_control.h"
+#include <instrumentation_control.h>
 
 int __attribute__((noinline)) IterativeFactorial(int x) {
     if (x == 0 || x == 1) {

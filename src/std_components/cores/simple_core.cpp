@@ -25,9 +25,7 @@
 
 #include <cassert>
 #include <cstring>
-
-#include "../../sinuca3.hpp"
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int SimpleCore::SetConfigParameter(const char* parameter, ConfigValue value) {
     Component<MemoryPacket>** ptrToParameter;

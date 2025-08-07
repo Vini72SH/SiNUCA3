@@ -24,9 +24,7 @@
 #include "fetcher.hpp"
 
 #include <cassert>
-
-#include "../../sinuca3.hpp"
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int Fetcher::FinishSetup() {
     if (this->fetch == NULL) {

@@ -25,7 +25,7 @@
  * works at the light speed!
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @details SimpleMemory is a MemoryComponent that just responds immediatly for

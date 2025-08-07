@@ -25,7 +25,7 @@
  * perfect execution unit: executes any instruction instantly!
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief The SimpleExecutionUnit simply executes any instruction immediatly.

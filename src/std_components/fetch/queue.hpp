@@ -43,6 +43,9 @@
  * as they arrive. This way, the queue actually simply adds a cycle of latency
  * to the pipeline.
  */
+
+#include <sinuca3.hpp>
+
 template <typename Type>
 class Queue : public Component<Type> {
     Component<Type>*

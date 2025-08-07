@@ -25,8 +25,8 @@
  * CALLED BY CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include "../sinuca3.hpp"
-#include "../utils/logging.hpp"
+#include <sinuca3.hpp>
+
 #include "engine_debug_component.hpp"
 
 void EngineDebugComponent::PrintConfigValue(const char* parameter,
