@@ -25,13 +25,12 @@
  * perfect execution unit: executes any instruction instantly!
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief The SimpleExecutionUnit simply executes any instruction immediatly.
  */
-class SimpleExecutionUnit
-    : public sinuca::Component<sinuca::InstructionPacket> {
+class SimpleExecutionUnit : public Component<InstructionPacket> {
   private:
     unsigned long
         numberOfInstructions; /** @brief The number of instructions executed. */
@@ -39,8 +38,7 @@ class SimpleExecutionUnit
   public:
     inline SimpleExecutionUnit() : numberOfInstructions(0) {};
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();

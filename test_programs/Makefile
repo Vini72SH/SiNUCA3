@@ -11,7 +11,7 @@ ifndef CC
   endif
 endif
 
-CFLAGS = -Wall -Wextra -std=c99 -O3
+CFLAGS = -Wall -Wextra -std=c99 -O3 -I../x86_trace_generator/
 
 all: factorials
 

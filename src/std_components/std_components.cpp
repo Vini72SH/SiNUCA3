@@ -22,8 +22,8 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <sinuca3.hpp>
 
-#include "../sinuca3.hpp"
 #include "cores/simple_core.hpp"
 #include "engine_debug_component.hpp"
 #include "execute/simple_execution_unit.hpp"
@@ -35,8 +35,7 @@
 #include "predictors/interleavedBTB.hpp"
 #include "predictors/ras.hpp"
 
-sinuca::engine::Linkable* sinuca::CreateDefaultComponentByClass(
-    const char* name) {
+Linkable* CreateDefaultComponentByClass(const char* name) {
 #ifndef NDEBUG
     COMPONENT(EngineDebugComponent);
 #endif

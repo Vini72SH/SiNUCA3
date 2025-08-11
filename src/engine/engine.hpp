@@ -24,14 +24,8 @@
  */
 
 #include <ctime>
-
-#include "../trace_reader/trace_reader.hpp"
-#include "component.hpp"
-#include "default_packets.hpp"
-#include "linkable.hpp"
-
-namespace sinuca {
-namespace engine {
+#include <engine/component.hpp>
+#include <trace_reader/trace_reader.hpp>
 
 /**
  * @brief The engine itself.
@@ -44,8 +38,8 @@ class Engine : public Component<FetchPacket> {
     Linkable**
         components; /** @brief The components of the simulation INCLUDING
                        THE ENGINE ITSELF, guaranteed to be the first element. */
-    traceReader::TraceReader* traceReader; /** @brief The trace reader. */
-    sinuca::InstructionPacket*
+    TraceReader* traceReader; /** @brief The trace reader. */
+    InstructionPacket*
         fetchBuffers;        /** @brief Fetch buffers for each connection. */
     long numberOfComponents; /** @brief The number of components. */
     long numberOfFetchers; /** @brief The number of components connected to the
@@ -72,13 +66,13 @@ class Engine : public Component<FetchPacket> {
     void PrintTime(time_t start, unsigned long cycle);
 
     /** @brief Called at the beggining of Simulate(). */
-    int SetupSimulation(sinuca::traceReader::TraceReader* traceReader);
+    int SetupSimulation(TraceReader* traceReader);
 
     /** @brief Auxiliar to Fetch(). */
     int SendBufferedAndFetch(int id);
 
     /** @brief Responds to requests. */
-    void Fetch(int id, sinuca::FetchPacket packet);
+    void Fetch(int id, FetchPacket packet);
 
   public:
     inline Engine()
@@ -103,19 +97,15 @@ class Engine : public Component<FetchPacket> {
      * @returns Non-zero if the simulation stopped because of a problem. 0 if it
      * stopped normally.
      */
-    int Simulate(traceReader::TraceReader* traceReader);
+    int Simulate(TraceReader* traceReader);
 
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();
 
     virtual ~Engine();
 };
-
-}  // namespace engine
-}  // namespace sinuca
 
 #endif  // SINUCA3_ENGINE_HPP_

@@ -28,11 +28,9 @@
 
 #include "tests.hpp"
 
-#include <cstring>  // IWYU pragma: keep
-
-#include "std_components/fetch/queue.hpp"
-#include "std_components/predictors/ras.hpp"
-#include "utils/logging.hpp"
+#include <sinuca3.hpp>
+#include <std_components/fetch/queue.hpp>
+#include <std_components/predictors/ras.hpp>
 
 int TestExample() {
     SINUCA3_LOG_PRINTF("Hello, World!\n");

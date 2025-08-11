@@ -29,12 +29,9 @@
  */
 
 #include <cassert>
+#include <config/yaml_parser.hpp>
+#include <engine/engine.hpp>
 #include <vector>
-
-#include "../engine/engine.hpp"
-#include "yaml_parser.hpp"
-
-namespace sinuca {
 
 namespace builder {
 
@@ -52,25 +49,23 @@ typedef int DefinitionID;
  * other components.
  */
 enum ParameterType {
-    ParameterTypeInteger =
-        sinuca::config::ConfigValueTypeInteger, /** @brief Integer (long)
-                                                 * parameter. */
+    ParameterTypeInteger = ConfigValueTypeInteger, /** @brief Integer (long)
+                                                    * parameter. */
     ParameterTypeNumber =
-        sinuca::config::ConfigValueTypeNumber, /** @brief Number (double)
-                                                  parameter. */
-    ParameterTypeBoolean =
-        sinuca::config::ConfigValueTypeBoolean, /** @brief Boolean (bool)
-                                                 * parameter. */
+        ConfigValueTypeNumber,                     /** @brief Number (double)
+                                                                      parameter. */
+    ParameterTypeBoolean = ConfigValueTypeBoolean, /** @brief Boolean (bool)
+                                                    * parameter. */
     ParameterTypeArray =
-        sinuca::config::ConfigValueTypeArray, /** @brief Array of parameters. */
+        ConfigValueTypeArray, /** @brief Array of parameters. */
     ParameterTypeInstanceReference =
-        sinuca::config::ConfigValueTypeComponentReference, /** @brief A
+        ConfigValueTypeComponentReference, /** @brief A
                                                               reference to other
                                                               component. */
-    ParameterTypeDefinitionReference, /** @brief A reference to a component
-                                         definition, i.e., a reference to other
-                                         component that must be instantiated on
-                                         the reference site. */
+    ParameterTypeDefinitionReference,      /** @brief A reference to a component
+                                              definition, i.e., a reference to other
+                                              component that must be instantiated on
+                                              the reference site. */
 };
 
 // Pre-declaration for ComponentInstantiation.
@@ -101,7 +96,7 @@ struct ComponentInstantiation {
      * resolved in the configuration of other components later. Thus, we cannot
      * delete this pointer here because it's literally the thing we're creating.
      */
-    sinuca::engine::Linkable* component;
+    Linkable* component;
     /**
      * @brief Tells if the instance was already defined in the configuration
      * file or if it was previously added because another component points to
@@ -243,8 +238,6 @@ struct ComponentDefinition {
 
 }  // namespace builder
 
-namespace config {
-
 /**
  * @brief Builds an Engine from a configuration file, with the single public
  * method Instantiate.
@@ -254,7 +247,7 @@ class EngineBuilder {
     /**
      * @brief What we're building.
      */
-    engine::Engine* engine;
+    Engine* engine;
 
     /**
      * @brief Part of the stuff we're going to produce.
@@ -341,7 +334,7 @@ class EngineBuilder {
 
     /** @brief Called by Parameter2ConfigValue to create new instances from
      * references to definitions. */
-    engine::Linkable* NewComponentFromDefinitionReference(
+    Linkable* NewComponentFromDefinitionReference(
         builder::DefinitionID reference);
 
     /** @brief Creates an anonymous instance defined by the instantiate
@@ -350,17 +343,16 @@ class EngineBuilder {
 
     /** @brief Helper that frees all memory used by the builder and returns NULL
      * (to be used as `return this->FreeSelf...`). */
-    sinuca::engine::Engine* FreeSelfOnInstantiationFailure(
-        const yaml::YamlValue* yamlConfig);
+    Engine* FreeSelfOnInstantiationFailure(const yaml::YamlValue* yamlConfig);
 
     /** @brief After everything is done, constructs the engine. */
-    sinuca::engine::Engine* BuildEngine();
+    Engine* BuildEngine();
 
   public:
     /** @brief Instantiates an Engine from a configuration file, returning NULL
      * on error. */
-    engine::Engine* Instantiate(const char* configFile);
-    inline EngineBuilder() : engine(new engine::Engine) {
+    Engine* Instantiate(const char* configFile);
+    inline EngineBuilder() : engine(new Engine) {
         builder::ComponentInstantiation engineInstantiation =
             builder::ComponentInstantiation(NULL, 0, true);
         engineInstantiation.component = this->engine;
@@ -370,8 +362,5 @@ class EngineBuilder {
         this->components.push_back(engineInstantiation);
     }
 };
-
-}  // namespace config
-}  // namespace sinuca
 
 #endif  // SINUCA3_CONFIG_ENGINE_BUILDER_HPP_

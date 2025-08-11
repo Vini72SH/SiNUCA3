@@ -22,10 +22,10 @@
 
 #include "custom_example.hpp"
 
-#include "../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 int CustomExample::SetConfigParameter(const char* parameter,
-                                      sinuca::config::ConfigValue value) {
+                                      ConfigValue value) {
     (void)parameter;
     (void)value;
 
