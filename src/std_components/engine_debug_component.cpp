@@ -147,14 +147,14 @@ void EngineDebugComponent::Clock() {
             SINUCA3_DEBUG_PRINTF("%p: Sending message (%p) to %p.\n", this,
                                  messageInput.staticInfo, this->other);
             this->other->SendRequest(this->otherConnectionID, &messageInput);
-            this->sent = true;
+            this->send = true;
         } else {
             if (this->other->ReceiveResponse(this->otherConnectionID,
                                              &messageOutput) == 0) {
                 SINUCA3_DEBUG_PRINTF("%p: Received response (%p) from %p.\n",
                                      this, messageOutput.staticInfo,
                                      this->other);
-                this->sent = false;
+                this->send = false;
             } else {
                 SINUCA3_DEBUG_PRINTF("%p: No response from %p.\n", this,
                                      this->other);
