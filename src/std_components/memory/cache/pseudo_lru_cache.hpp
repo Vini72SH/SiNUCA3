@@ -32,7 +32,7 @@ struct plruNode {
     int r;                    // range right
 };
 
-class PseudoLRUCache : public sinuca::Component<sinuca::MemoryPacket> {
+class PseudoLRUCache : public Component<MemoryPacket> {
   public:
     PseudoLRUCache();
     virtual ~PseudoLRUCache();
@@ -45,7 +45,7 @@ class PseudoLRUCache : public sinuca::Component<sinuca::MemoryPacket> {
     virtual void PrintStatistics();
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char *parameter,
-                                   sinuca::config::ConfigValue value);
+                                   ConfigValue value);
 
   private:
     Cache c;

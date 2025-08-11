@@ -38,7 +38,7 @@ void RandomCache::Write(unsigned long addr, unsigned long value) {}
 void RandomCache::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: CacheNWay Clock!\n", this);
     long numberOfConnections = this->GetNumberOfConnections();
-    sinuca::MemoryPacket packet;
+    MemoryPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             ++this->numberOfRequests;
@@ -75,6 +75,6 @@ int RandomCache::FinishSetup(){
 }
 
 int RandomCache::SetConfigParameter(const char *parameter,
-                               sinuca::config::ConfigValue value){
+                               ConfigValue value){
                                    return this->c.SetConfigParameter(parameter, value);
                                }

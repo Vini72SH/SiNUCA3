@@ -96,7 +96,7 @@ int Cache::FinishSetup() {
 }
 
 int Cache::SetConfigParameter(const char *parameter,
-                              sinuca::config::ConfigValue value) {
+                              ConfigValue value) {
     bool isSets = (strcmp(parameter, "sets") == 0);
     bool isWays = (strcmp(parameter, "ways") == 0);
 
@@ -107,7 +107,7 @@ int Cache::SetConfigParameter(const char *parameter,
     }
 
     if ((isSets || isWays) &&
-        value.type != sinuca::config::ConfigValueTypeInteger) {
+        value.type != ConfigValueTypeInteger) {
         SINUCA3_ERROR_PRINTF("TLB parameter \"%s\" is not an integer.\n",
                              isSets ? "sets" : "ways");
         return 1;

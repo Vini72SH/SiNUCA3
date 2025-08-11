@@ -26,7 +26,7 @@
 #include "../../../sinuca3.hpp"
 #include "cache.hpp"
 
-class RoundRobinCache : public sinuca::Component<sinuca::MemoryPacket> {
+class RoundRobinCache : public Component<MemoryPacket> {
   public:
     RoundRobinCache();
     virtual ~RoundRobinCache();
@@ -39,7 +39,7 @@ class RoundRobinCache : public sinuca::Component<sinuca::MemoryPacket> {
     virtual void PrintStatistics();
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char *parameter,
-                                   sinuca::config::ConfigValue value);
+                                   ConfigValue value);
 
   private:
     Cache c;

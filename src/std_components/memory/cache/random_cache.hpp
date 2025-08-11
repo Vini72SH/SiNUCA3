@@ -26,7 +26,7 @@
 #include "../../../sinuca3.hpp"
 #include "cache.hpp"
 
-class RandomCache : public sinuca::Component<sinuca::MemoryPacket> {
+class RandomCache : public Component<MemoryPacket> {
   public:
     RandomCache();
     virtual ~RandomCache();
@@ -39,7 +39,7 @@ class RandomCache : public sinuca::Component<sinuca::MemoryPacket> {
     virtual void PrintStatistics();
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char *parameter,
-                                   sinuca::config::ConfigValue value);
+                                   ConfigValue value);
 
   private:
     Cache c;

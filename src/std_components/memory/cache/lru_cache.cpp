@@ -80,7 +80,7 @@ void LRUCache::Write(unsigned long addr, unsigned long value) {
 void LRUCache::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: LRUCache Clock!\n", this);
     long numberOfConnections = this->GetNumberOfConnections();
-    sinuca::MemoryPacket packet;
+    MemoryPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             ++this->numberOfRequests;
@@ -117,6 +117,6 @@ int LRUCache::FinishSetup(){
 }
 
 int LRUCache::SetConfigParameter(const char *parameter,
-                               sinuca::config::ConfigValue value){
+                               ConfigValue value){
                                    return this->c.SetConfigParameter(parameter, value);
                                }

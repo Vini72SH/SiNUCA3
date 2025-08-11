@@ -116,7 +116,7 @@ void PseudoLRUCache::Write(unsigned long addr, unsigned long value) {
 void PseudoLRUCache::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: CacheNWay Clock!\n", this);
     long numberOfConnections = this->GetNumberOfConnections();
-    sinuca::MemoryPacket packet;
+    MemoryPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             ++this->numberOfRequests;
@@ -160,6 +160,6 @@ int PseudoLRUCache::FinishSetup() {
 
 
 int PseudoLRUCache::SetConfigParameter(const char *parameter,
-                               sinuca::config::ConfigValue value){
+                               ConfigValue value){
                                    return this->c.SetConfigParameter(parameter, value);
                                }

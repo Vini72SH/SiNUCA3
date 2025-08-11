@@ -42,7 +42,7 @@ class Cache {
     virtual ~Cache();
     int FinishSetup();
     int SetConfigParameter(const char *parameter,
-                                   sinuca::config::ConfigValue value);
+                                   ConfigValue value);
     void Clock();
 
     int numSets;

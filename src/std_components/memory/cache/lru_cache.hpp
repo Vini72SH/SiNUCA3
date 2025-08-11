@@ -26,7 +26,7 @@
 #include "../../../sinuca3.hpp"
 #include "cache.hpp"
 
-class LRUCache : public sinuca::Component<sinuca::MemoryPacket> {
+class LRUCache : public Component<MemoryPacket> {
   public:
     LRUCache();
     virtual ~LRUCache();
@@ -39,7 +39,7 @@ class LRUCache : public sinuca::Component<sinuca::MemoryPacket> {
     virtual void PrintStatistics();
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char *parameter,
-                                   sinuca::config::ConfigValue value);
+                                   ConfigValue value);
 
   private:
     Cache c;
