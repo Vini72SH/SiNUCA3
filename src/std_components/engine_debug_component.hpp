@@ -26,7 +26,7 @@
  * CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include "../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @brief A component that serves to debug the engine itself.
@@ -39,31 +39,42 @@
  * the component is printed to differentiate between multiple
  * EngineDebugComponent.
  */
-class EngineDebugComponent
-    : public sinuca::Component<sinuca::InstructionPacket> {
+class EngineDebugComponent : public Component<InstructionPacket> {
   private:
-    bool send;
-    int connectionID;
-    EngineDebugComponent* other;
-    bool shallFailOnFinish;
-    /** @brief If >0, asks the engine for a flush at this cycle. */
-    long flush;
+    EngineDebugComponent*
+        other; /** @brief Another component to test sending messages. */
+    Component<FetchPacket>*
+        fetch; /** @brief Another component to test fetching instructions. */
+    int otherConnectionID; /** @brief Connection ID for `other`. */
+    int fetchConnectionID; /** @brief Connection ID for `fetch`. */
+    bool send; /** @brief Tells wether we already sent a message to other. */
+    bool shallFailOnFinish; /** @brief If true, fails at the FinishSetup method
+                               to test the engine handling of failures. */
+    long flush; /** @brief If >0, asks the engine for a flush at this cycle. */
 
-    void PrintConfigValue(const char* parameter,
-                          sinuca::config::ConfigValue value,
+    /**
+     * @brief Prints a config value along with the parameter name. This is
+     * recursive for arrays.
+     * @param parameter self-explanatory.
+     * @param value self-explanatory.
+     * @param indent The indentation level for printing, increased every
+     * recursion.
+     */
+    void PrintConfigValue(const char* parameter, ConfigValue value,
                           unsigned char indent = 0);
 
   public:
     inline EngineDebugComponent()
-        : send(false),
-          connectionID(-1),
-          other(NULL),
-          shallFailOnFinish(true),
+        : other(NULL),
+          fetch(NULL),
+          otherConnectionID(-1),
+          fetchConnectionID(-1),
+          send(false),
+          shallFailOnFinish(false),
           flush(-1) {}
 
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();

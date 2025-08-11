@@ -24,14 +24,14 @@
  * them.
  */
 
-#include "../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
  * @details All custom components should inherit from sinuca::Component<T>,
  * where T is the type of messages it receives. When no messages are received,
  * one may just use int as a placeholder.
  */
-class CustomExample : public sinuca::Component<int> {
+class CustomExample : public Component<int> {
   public:
     /** @brief The engine calls this method each clock cycle. */
     virtual void Clock();
@@ -52,8 +52,7 @@ class CustomExample : public sinuca::Component<int> {
      * @param value The value of the parameter provided.
      * @returns Non-zero on error, 0 otherwise.
      */
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     /**
      * @brief This method is called by the engine when a flush should occur.
      * It's always called at the beggining of the cycle. Components can request

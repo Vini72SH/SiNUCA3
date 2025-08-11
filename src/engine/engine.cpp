@@ -24,77 +24,125 @@
 
 #include <cstdio>
 #include <ctime>
+#include <sinuca3.hpp>
 
-#include "../trace_reader/trace_reader.hpp"
-#include "../utils/logging.hpp"
-#include "component.hpp"
-#include "linkable.hpp"
+int Engine::FinishSetup() { return 0; }
 
-int sinuca::engine::Engine::AddCPUs(sinuca::engine::Linkable** cpus,
-                                    long numberOfCPUs) {
-    this->cpus = new Component<InstructionPacket>*[numberOfCPUs];
-    this->numberOfCPUs = numberOfCPUs;
+int Engine::SetConfigParameter(const char* parameter, ConfigValue value) {
+    (void)parameter;
+    (void)value;
+    return 0;
+}
 
-    // This could be done without another allocation and in a single cast but
-    // this way we got a better error message. Me when C++.
-    for (long i = 0; i < numberOfCPUs; ++i) {
-        // Ensure the component passed was a Component<InstructionPacket>.
-        this->cpus[i] =
-            dynamic_cast<Component<sinuca::InstructionPacket>*>(cpus[i]);
-        // If it wasn't, we error out.
-        if (this->cpus[i] == NULL) {
-            delete[] this->cpus;
-            // This pointer must be grounded due to the destructor.
-            this->cpus = NULL;
-            SINUCA3_ERROR_PRINTF(
-                "CPU number %ld is not of type Component<InstructionPacket>.\n",
-                i);
-            return 1;
-        }
+int Engine::SendBufferedAndFetch(int id) {
+    InstructionPacket toSend = this->fetchBuffers[id];
+    const FetchResult r = this->traceReader->Fetch(&this->fetchBuffers[id], id);
+    toSend.nextInstruction = this->fetchBuffers[id].staticInfo->opcodeAddress;
 
-        this->cpus[i]->Connect(1);
+    // This unfortunately drops the packet if the buffer is full. The component
+    // must ensure the buffers never fills.
+    if (this->SendResponseToConnection(id, (FetchPacket*)&toSend) != 0) {
+        SINUCA3_WARNING_PRINTF(
+            "engine: == INSTRUCTION DROP DETECTED == core %d made requests "
+            "with a full buffer, instructions will be dropped.\n",
+            id);
     }
 
-    delete[] cpus;
+    if (r == FetchResultEnd) {
+        this->end = true;
+        return 1;
+    } else if (r == FetchResultError) {
+        this->error = true;
+        return 1;
+    }
+
+    ++this->fetchedInstructions;
 
     return 0;
 }
 
-int sinuca::engine::Engine::Simulate(
-    sinuca::traceReader::TraceReader* traceReader) {
-    InstructionPacket packet;
-    traceReader::FetchResult result;
-    const unsigned long traceSize = traceReader->GetTraceSize();
-    // Start at 1 to avoid a heartbeat in the first cycle.
-    unsigned long cycle = 1;
+void Engine::Fetch(int id, FetchPacket packet) {
+    if (packet.request == 0) {
+        this->SendBufferedAndFetch(id);
+        return;
+    }
 
-    time_t start = time(NULL);
+    long weight = this->fetchBuffers[id].staticInfo->opcodeSize;
+
+    while (weight < packet.request) {
+        if (this->SendBufferedAndFetch(id)) {
+            return;
+        }
+        weight += this->fetchBuffers[id].staticInfo->opcodeSize;
+    }
+}
+
+void Engine::Clock() {
+    FetchPacket packet;
+    const int numberOfConnections = this->GetNumberOfConnections();
+
+    for (int i = 0; i < numberOfConnections; ++i) {
+        if (!this->ReceiveRequestFromConnection(i, &packet)) {
+            this->Fetch(i, packet);
+        }
+    }
+}
+
+void Engine::Flush() { this->flush = true; }
+
+void Engine::PrintStatistics() {
+    SINUCA3_LOG_PRINTF("engine: Cycled %lu times.\n", this->totalCycles);
+    SINUCA3_LOG_PRINTF("engine: Fetched %lu instructions.\n",
+                       this->fetchedInstructions);
+}
+
+void Engine::PrintTime(time_t start, unsigned long cycle) {
+    const unsigned long traceSize = this->traceReader->GetTraceSize();
+    const unsigned long remaining =
+        traceSize - this->traceReader->GetNumberOfFetchedInstructions();
+
+    SINUCA3_LOG_PRINTF("engine: Heartbeat at cycle %ld.\n", cycle);
+    SINUCA3_LOG_PRINTF("engine: Remaining instructions: %ld.\n", remaining - 1);
+
+    const time_t now = time(NULL);
+    const time_t estimatedEnd = (traceSize * (now - start) / remaining) + start;
+    SINUCA3_LOG_PRINTF("engine: Estimated simulation end: %s",
+                       ctime(&estimatedEnd));
+}
+
+int Engine::SetupSimulation(TraceReader* traceReader) {
+    this->traceReader = traceReader;
+    this->numberOfFetchers = this->GetNumberOfConnections();
+    this->fetchBuffers = new InstructionPacket[this->numberOfFetchers];
+
+    // Bufferize the first instruction of each core.
+    for (long i = 0; i < this->numberOfFetchers; ++i) {
+        if (this->traceReader->Fetch(&this->fetchBuffers[i], i) !=
+            FetchResultOk) {
+            return 1;
+        }
+        ++this->fetchedInstructions;
+    }
+
+    return 0;
+}
+
+int Engine::Simulate(TraceReader* traceReader) {
+    if (this->SetupSimulation(traceReader)) {
+        return 1;
+    }
+
+    const time_t start = time(NULL);
 
     SINUCA3_LOG_PRINTF("engine: Simulation started at %s", ctime(&start));
-    SINUCA3_LOG_PRINTF("engine: Total instructions: %ld.\n", traceSize);
+    SINUCA3_LOG_PRINTF("engine: Total instructions: %ld.\n",
+                       traceReader->GetTraceSize());
 
-    while (this->stall || (result = traceReader->Fetch(&packet, 0)) ==
-                              traceReader::FetchResultOk) {
-        if (cycle % (1 << 8) == 0) {
-            const unsigned long fetched =
-                traceReader->GetNumberOfFetchedInstructions();
-            const unsigned long remaining = traceSize - fetched;
-            SINUCA3_LOG_PRINTF("engine: Heartbeat at cycle %ld.\n", cycle);
-            SINUCA3_LOG_PRINTF("engine: Remaining instructions: %ld.\n",
-                               remaining - 1);
-
-            time_t now = time(NULL);
-            time_t estimatedEnd =
-                (traceSize * (now - start) / remaining) + start;
-            SINUCA3_LOG_PRINTF("engine: Estimated simulation end: %s",
-                               ctime(&estimatedEnd));
-        }
+    while (!this->end && !this->error) {
+        if ((this->totalCycles + 1) % (1 << 8) == 0)
+            this->PrintTime(start, this->totalCycles + 1);
 
         if (this->flush) {
-            for (long i = 0; i < this->numberOfCPUs; ++i) {
-                this->cpus[i]->Flush();
-                this->cpus[i]->LinkableFlush();
-            }
             for (long i = 0; i < this->numberOfComponents; ++i) {
                 this->components[i]->Flush();
                 this->components[i]->LinkableFlush();
@@ -102,23 +150,41 @@ int sinuca::engine::Engine::Simulate(
             this->flush = false;
         }
 
-        if (!this->stall) {
-            for (long i = 0; i < this->numberOfCPUs; ++i) {
-                this->cpus[i]->SendRequest(0, &packet);
-            }
-            this->stall = false;
-        }
-
-        for (long i = 0; i < this->numberOfCPUs; ++i) this->cpus[i]->Clock();
         for (long i = 0; i < this->numberOfComponents; ++i)
             this->components[i]->Clock();
 
-        for (long i = 0; i < this->numberOfCPUs; ++i) this->cpus[i]->PosClock();
         for (long i = 0; i < this->numberOfComponents; ++i)
             this->components[i]->PosClock();
 
-        ++cycle;
+        ++this->totalCycles;
     }
 
-    return (result == traceReader::FetchResultError) ? 1 : 0;
+    const time_t end = time(NULL);
+    SINUCA3_LOG_PRINTF("engine: Simulation ended at %s", ctime(&end));
+    SINUCA3_LOG_PRINTF("=== SIMULATION STATISTICS ===\n");
+
+    if (this->error) {
+        SINUCA3_ERROR_PRINTF(
+            "Simulation ended due to error in trace fetching!\n");
+    }
+
+    for (long i = 0; i < this->numberOfComponents; ++i) {
+        this->components[i]->PrintStatistics();
+    }
+
+    return this->error;
+}
+
+Engine::~Engine() {
+    if (this->components != NULL) {
+        // The first component is a pointer to the engine itself, thus we start
+        // from the second.
+        for (long i = 1; i < this->numberOfComponents; ++i) {
+            delete this->components[i];
+        }
+        delete[] this->components;
+    }
+    if (this->fetchBuffers != NULL) {
+        delete[] this->fetchBuffers;
+    }
 }

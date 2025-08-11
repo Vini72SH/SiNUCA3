@@ -19,16 +19,18 @@
 
 /**
  * @file tests.cpp
- * @details Defines the tests the simulator supports.
+ * @details Defines the tests the simulator supports. A test is a function with
+ * the signature `int()` that returns 0 if the test succeeds and a number
+ * greater than zero otherwise. To add a test to the infrastructure, go to the
+ * file `tests.cpp` and declare your test inside the function `Test` with the
+ * `TEST()` macro.
  */
 
 #include "tests.hpp"
 
-#include <cstring>  // IWYU pragma: keep
-
-#include "std_components/fetch/queue.hpp"
-#include "std_components/predictors/ras.hpp"
-#include "utils/logging.hpp"
+#include <sinuca3.hpp>
+#include <std_components/fetch/queue.hpp>
+#include <std_components/predictors/ras.hpp>
 
 int TestExample() {
     SINUCA3_LOG_PRINTF("Hello, World!\n");

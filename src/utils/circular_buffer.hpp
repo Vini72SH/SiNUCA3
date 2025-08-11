@@ -27,11 +27,17 @@
 
 #include <cstring>
 
+/**
+ * @brief A performant circular buffer.
+ * @details You may use this as a queue. Use Allocate() to init it.
+ */
 class CircularBuffer {
   private:
     void* buffer;      /**<The Buffer. */
     int occupation;    /**<Buffer's current occupancy */
-    int bufferSize;    /**<The maximum buffer capacity. */
+    int maxBufferSize; /**<The maximum buffer capacity. Zero if it can grow
+                       undefinitely. */
+    int bufferSize;    /**<Actual alloced buffer size. */
     int elementSize;   /**<The element size supported by the buffer. */
     int startOfBuffer; /**<Sentinel to the start of the buffer. */
     int endOfBuffer;   /**<Sentinel for the end of the buffer. */
@@ -40,6 +46,7 @@ class CircularBuffer {
     CircularBuffer()
         : buffer(NULL),
           occupation(0),
+          maxBufferSize(0),
           bufferSize(0),
           elementSize(0),
           startOfBuffer(0),
@@ -72,8 +79,10 @@ class CircularBuffer {
 
     /**
      * @brief Allocates the structure of a Circular Buffer.
-     * @param bufferSize self-explanatory.
-     * @param elementSize self-explanatory.
+     * @param bufferSize When > 0, sets a limit size, and trying to enqueue more
+     * elements will result in an error. When 0, the buffer grows as needed.
+     * @param elementSize Sets the element buffer. For instance, elementSize = 4
+     * and bufferSize = 4 will allocate a circular buffer of 16 bytes.
      */
     void Allocate(int bufferSize, int elementSize);
 

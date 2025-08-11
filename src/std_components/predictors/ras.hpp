@@ -22,32 +22,40 @@
  * @file ras.hpp
  * @brief API of the Ras. A simple, generic return address stack. It does not
  * care at all about wrong predictions.
+ */
+
+#include <sinuca3.hpp>
+
+/**
+ * @brief API of the Ras. A simple, generic return address stack. It does not
+ * care at all about wrong predictions.
  *
  * @details It does not checks wether the branch is a return on queries.
  * Clients should make this check before sending a query request. It always
- * responds with a ResponseTakeToAddress. Queries need not to fill any data, and
- * updates can have only the target address.
+ * responds with a ResponseTakeToAddress. It accepts the following parameters:
+ * - size (required): integer > 0, sets the ras buffer size.
+ * - sendTo: Component<PredictorPacket>, if exists, the Ras sends responses to
+ *   this component instead of in the response channel.
  */
-
-#include "../../sinuca3.hpp"
-
-class Ras : public sinuca::Component<sinuca::PredictorPacket> {
+class Ras : public Component<PredictorPacket> {
   private:
+    Component<PredictorPacket>* sendTo;
     unsigned long* buffer;
     long size;
     long end;
     unsigned long numQueries;
     unsigned long numUpdates;
 
-    inline void RequestQuery(int connectionID);
+    int forwardToID;
+
+    inline void RequestQuery(InstructionPacket instruction, int connectionID);
 
     inline void RequestUpdate(unsigned long targetAddress);
 
   public:
-    inline Ras() : buffer(NULL), size(0), end(0) {}
+    inline Ras() : sendTo(NULL), buffer(NULL), size(0), end(0) {}
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();

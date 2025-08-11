@@ -23,85 +23,89 @@
  * @brief Public API of the simulation engine.
  */
 
-#include "../trace_reader/trace_reader.hpp"
-#include "component.hpp"
-#include "default_packets.hpp"
-#include "linkable.hpp"
+#include <ctime>
+#include <engine/component.hpp>
+#include <trace_reader/trace_reader.hpp>
 
-namespace sinuca {
-namespace engine {
-
-/** @brief The engine itself. */
-class Engine {
+/**
+ * @brief The engine itself.
+ * @details A component may fetch an instruction by sending a message to the
+ * engine. In the configuration file, it's accessible via the pre-defined alias
+ * *ENGINE. Each connection to the engine represents a core.
+ */
+class Engine : public Component<FetchPacket> {
   private:
-    /**
-     * @brief This components receives the instruction packets from the engine.
-     */
-    Component<InstructionPacket>** cpus;
-    long numberOfCPUs;
-    Linkable** components;
-    long numberOfComponents;
+    Linkable**
+        components; /** @brief The components of the simulation INCLUDING
+                       THE ENGINE ITSELF, guaranteed to be the first element. */
+    TraceReader* traceReader; /** @brief The trace reader. */
+    InstructionPacket*
+        fetchBuffers;        /** @brief Fetch buffers for each connection. */
+    long numberOfComponents; /** @brief The number of components. */
+    long numberOfFetchers; /** @brief The number of components connected to the
+                              engine. I.e., cores. */
+    unsigned long totalCycles; /** @brief Counter of cycles. */
+    unsigned long
+        fetchedInstructions; /** @brief Counter of instructions fetched. */
+
     /**
      * @brief This variable tells wether a flush should occur in the beggining
      * of the next clock.
      */
     bool flush;
     /**
-     * @brief This variable tells wether a global stall should occur in the
-     * beggining of the next clock.
+     * @brief Will be one when there's no more instructions in the trace file.
      */
-    bool stall;
+    bool end;
+    /** @brief Will be set if the traceReader returns an error. */
+    bool error;
+
+    /**
+     * @brief Prints the estimated remaining simulation time.
+     */
+    void PrintTime(time_t start, unsigned long cycle);
+
+    /** @brief Called at the beggining of Simulate(). */
+    int SetupSimulation(TraceReader* traceReader);
+
+    /** @brief Auxiliar to Fetch(). */
+    int SendBufferedAndFetch(int id);
+
+    /** @brief Responds to requests. */
+    void Fetch(int id, FetchPacket packet);
 
   public:
-    inline Engine(Linkable** components, long numberOfComponents)
-        : components(components),
-          numberOfComponents(numberOfComponents),
-          flush(false) {}
+    inline Engine()
+        : components(NULL),
+          fetchBuffers(NULL),
+          numberOfComponents(0),
+          numberOfFetchers(0),
+          totalCycles(0),
+          fetchedInstructions(0),
+          flush(false),
+          end(false),
+          error(false) {}
+
+    /** @brief Instantiates a simulation from the array of components. */
+    inline void Instantiate(Linkable** components, long numberOfComponents) {
+        this->components = components;
+        this->numberOfComponents = numberOfComponents;
+    }
+
     /**
-     * @brief Don't call this method.
-     * @details After reading the configuration file, the simulator calls this
-     * method to set which component should receive the instruction packets from
-     * the engine. This component should inherit from
-     * Component<InstructionPacket>.
-     * @param root A pointer to a Component<InstructionPacket>.
-     * @returns Non-zero if root is not a pointer to
-     * Component<InstructionPacket>. 0 otherwise. Trying to start the simulation
-     * after this method returns non-zero is undefined behaviour.
-     */
-    int AddCPUs(Linkable** cpus, long numberOfCPUs);
-    /**
-     * @brief Self-explanatory. Should be called only after AddRoot returned 0.
-     * Causes undefined behaviour otherwise.
+     * @brief Self-explanatory.
      * @returns Non-zero if the simulation stopped because of a problem. 0 if it
      * stopped normally.
      */
-    int Simulate(traceReader::TraceReader* traceReader);
+    int Simulate(TraceReader* traceReader);
 
-    /**
-     * @brief A flush call is forward for all components before the next clock.
-     *
-     */
-    inline void Flush() { this->flush = true; }
+    virtual int FinishSetup();
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
+    virtual void Clock();
+    virtual void Flush();
+    virtual void PrintStatistics();
 
-    /**
-     * @brief A stall call stops the fetching of instructions for a cycle.
-     */
-    inline void Stall() { this->flush = true; }
-
-    inline ~Engine() {
-        for (long i = 0; i < this->numberOfComponents; ++i)
-            delete this->components[i];
-        delete[] this->components;
-
-        // We shall only delete the CPUs if the engine was properly initialized.
-        if (this->cpus != NULL) {
-            for (long i = 0; i < this->numberOfCPUs; ++i) delete this->cpus[i];
-            delete[] this->cpus;
-        }
-    }
+    virtual ~Engine();
 };
-
-}  // namespace engine
-}  // namespace sinuca
 
 #endif  // SINUCA3_ENGINE_HPP_

@@ -23,10 +23,7 @@
  * @brief Standard message types.
  */
 
-#include <cstdlib>
 #include <cstring>
-
-namespace sinuca {
 
 const unsigned int MAX_REGISTERS = 32;
 const unsigned int MAX_MEM_OPERATIONS = 16;
@@ -86,12 +83,10 @@ struct DynamicInstructionInfo {
     int writesSize[MAX_MEM_OPERATIONS];
     unsigned short numReadings;
     unsigned short numWritings;
-
-    inline DynamicInstructionInfo() { memset(this, 0, sizeof(*this)); }
 };
 
 /**
- * @brief Exchanged between the engine and components.
+ * @brief Carries the information regarding an executed instruction.
  *
  * @param staticInfo Stores details that are static and cannot vary during
  * program execution. It is a constant pointer to avoid unnecessary copying.
@@ -103,6 +98,28 @@ struct DynamicInstructionInfo {
 struct InstructionPacket {
     const StaticInstructionInfo* staticInfo;
     DynamicInstructionInfo dynamicInfo;
+    long nextInstruction; /** @brief The engine fills this as it buffers the
+                             next instruction. */
+};
+
+/**
+ * @brief Exchanged between the engine and components. It's never ambiguous
+ * wether this is a request or response, so it does not need to be a tagged
+ * union.
+ *
+ * @param request A request specifies an amount in bytes to fetch. The engine
+ * will fetch up to this amount in instructions. Specifying an amount less than
+ * the minimum instruction size may lead to deadlocks. Specifying 0 will fetch
+ * a single instruction without any care over the size. Each instruction fetched
+ * will be sended on it's own message. For this reason it's a good idea to
+ * connect to the engine without a maximum buffer size.
+ *
+ * @param response A fetched instruction.
+ */
+union FetchPacket {
+    long request; /** @brief Amount of bytes to fetch. 0 to fetch a single
+                     instruction regardless of it's size. */
+    InstructionPacket response; /** @brief The fetched instruction. */
 };
 
 /**
@@ -110,18 +127,21 @@ struct InstructionPacket {
  */
 typedef unsigned long MemoryPacket;
 
+/**
+ * @brief Tag for the PredictorPacket union.
+ */
 enum PredictorPacketType {
-    RequestQuery,
-    RequestUpdate,
-    ResponseUnknown,
-    ResponseTake,
-    ResponseTakeToAddress,
-    ResponseDontTake,
+    PredictorPacketTypeRequestQuery,
+    PredictorPacketTypeRequestUpdate,
+    PredictorPacketTypeResponseUnknown,
+    PredictorPacketTypeResponseTake,
+    PredictorPacketTypeResponseTakeToAddress,
+    PredictorPacketTypeResponseDontTake,
 };
 
 /**
  * @brief Message exchanged between components and branch predictors such as
- * BTBs, RASs, etc.
+ * BTBs, RASs, etc. Tagged union with PredictorPacketType.
  *
  * @details When a component wishes to query the predictor about a newly-arrived
  * instruction, it sends a RequestQuery message with the address of the
@@ -135,24 +155,21 @@ enum PredictorPacketType {
  */
 struct PredictorPacket {
     union {
-        struct {
-            unsigned long address;
-            Branch branchType;
-            bool isBranchTypeKnown;
-        } requestQuery;
+        InstructionPacket
+            requestQuery; /** @brief A request to predict a instruction. */
 
         struct {
-            unsigned long address;
-            unsigned long targetAddress;
-            Branch branchType;
-            bool wasTaken;
-        } requestUpdate;
+            InstructionPacket instruction; /** @brief The instruction. */
+            unsigned long target;          /** @brief It's target. */
+        } requestUpdate; /** @brief A request to update the target of an
+                            instruction. */
 
-        unsigned long responseAddress;
-    } data;
-    PredictorPacketType type;
+        struct {
+            InstructionPacket instruction; /** @brief The instruction. */
+            unsigned long target;          /** @brief It's target. */
+        } response;                        /** @brief Data of response types. */
+    } data;                                /** @brief The data. */
+    PredictorPacketType type;              /** @brief The tag. */
 };
-
-}  // namespace sinuca
 
 #endif  // SINUCA3_DEFAULT_PACKETS_HPP_

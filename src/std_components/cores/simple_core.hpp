@@ -24,30 +24,37 @@
  * everything in a single clock cycle.
  */
 
-#include "../../sinuca3.hpp"
+#include <sinuca3.hpp>
 
 /**
- * @details SimpleCore executes everything in a single cycle. You can optionally
- * set an instructionMemory and a dataMemory pointers to components that extend
- * Component<MemoryPacket>.
+ * @details SimpleCore fetches an instruction from the required parameter
+ * `fetching`, a Component<InstructionPacket> and optionally queries two
+ * memories (without caring with the result at all) with the instruction. The
+ * two memories are passed as the Component<MemoryPacket> parameters
+ * `instructionMemory` and `dataMemory`.
  */
-class SimpleCore : public sinuca::Component<sinuca::InstructionPacket> {
+class SimpleCore : public Component<InstructionPacket> {
   private:
-    sinuca::Component<sinuca::MemoryPacket>* instructionMemory;
-    sinuca::Component<sinuca::MemoryPacket>* dataMemory;
+    Component<MemoryPacket>*
+        instructionMemory;               /** @brief The instruction memory. */
+    Component<MemoryPacket>* dataMemory; /** @brief The data memory. */
+    Component<FetchPacket>* fetching;    /** @brief The fetching. */
 
-    int instructionConnectionID;
-    int dataConnectionID;
-    unsigned long numFetchedInstructions;
+    unsigned long numFetchedInstructions; /** @brief The number of fetched
+                                             instructions. */
+    int instructionConnectionID;          /** @brief The connection ID of
+                                             instructionMemory. */
+    int dataConnectionID;     /** @brief The connection ID of dataMemory. */
+    int fetchingConnectionID; /** @brief The connection ID of fetching. */
 
   public:
     inline SimpleCore()
         : instructionMemory(NULL),
           dataMemory(NULL),
+          fetching(NULL),
           numFetchedInstructions(0) {}
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();

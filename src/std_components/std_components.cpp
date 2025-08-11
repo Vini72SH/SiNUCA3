@@ -22,33 +22,39 @@
 
 #include <cstdlib>
 #include <cstring>
+#include <sinuca3.hpp>
 
-#include "../sinuca3.hpp"
 #include "cores/simple_core.hpp"
 #include "engine_debug_component.hpp"
+#include "execute/simple_execution_unit.hpp"
+#include "fetch/fetcher.hpp"
 #include "fetch/queues.hpp"
+#include "memory/simple_instruction_memory.hpp"
 #include "memory/simple_memory.hpp"
+#include "predictors/hardwired_predictor.hpp"
+#include "predictors/interleavedBTB.hpp"
+#include "predictors/ras.hpp"
 #include "memory/cache/lru_cache.hpp"
 #include "memory/cache/pseudo_lru_cache.hpp"
 #include "memory/cache/random_cache.hpp"
 #include "memory/cache/roundRobin_cache.hpp"
-#include "predictors/interleavedBTB.hpp"
-#include "predictors/ras.hpp"
 
-using namespace sinuca;
-
-engine::Linkable* sinuca::CreateDefaultComponentByClass(const char* name) {
+Linkable* CreateDefaultComponentByClass(const char* name) {
 #ifndef NDEBUG
     COMPONENT(EngineDebugComponent);
 #endif
 
     COMPONENT(SimpleMemory);
+    COMPONENT(SimpleInstructionMemory);
     COMPONENT(SimpleCore);
     COMPONENT(Ras);
     COMPONENT(BranchTargetBuffer);
     COMPONENT(MemoryQueue);
     COMPONENT(PredictorQueue);
     COMPONENT(InstructionQueue);
+    COMPONENT(Fetcher);
+    COMPONENT(SimpleExecutionUnit);
+    COMPONENT(HardwiredPredictor);
     COMPONENT(LRUCache);
     COMPONENT(PseudoLRUCache);
 

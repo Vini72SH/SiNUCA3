@@ -1,8 +1,8 @@
-#ifndef SINUCA3_SIMPLE_MEMORY_HPP_
-#define SINUCA3_SIMPLE_MEMORY_HPP_
+#ifndef SINUCA3_SIMPLE_EXECUTION_UNIT_HPP_
+#define SINUCA3_SIMPLE_EXECUTION_UNIT_HPP_
 
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,31 +19,30 @@
 //
 
 /**
- * @file simple_memory.hpp
- * @details Public API of the SimpleMemory: component for SiNUCA3 which just
- * responds immediatly for every request. I.e., the perfect memory: big and
- * works at the light speed!
+ * @file simple_execution_unit.hpp
+ * @details Public API of the SimpleExecutionUnit: component for SiNUCA3
+ * which just responds immediatly for every request. I.e., the
+ * perfect execution unit: executes any instruction instantly!
  */
 
 #include <sinuca3.hpp>
 
 /**
- * @details SimpleMemory is a MemoryComponent that just responds immediatly for
- * every request. I.e., it's the perfect memory: big and works at the light
- * speed!
+ * @brief The SimpleExecutionUnit simply executes any instruction immediatly.
  */
-class SimpleMemory : public Component<MemoryPacket> {
+class SimpleExecutionUnit : public Component<InstructionPacket> {
   private:
-    unsigned long numberOfRequests;
+    unsigned long
+        numberOfInstructions; /** @brief The number of instructions executed. */
 
   public:
-    inline SimpleMemory() : numberOfRequests(0) {};
+    inline SimpleExecutionUnit() : numberOfInstructions(0) {};
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();
-    ~SimpleMemory();
+    ~SimpleExecutionUnit();
 };
 
-#endif  // SINUCA3_SIMPLE_MEMORY_HPP_
+#endif  // SINUCA3_SIMPLE_EXECUTION_UNIT_HPP_

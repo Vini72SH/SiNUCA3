@@ -22,7 +22,7 @@
 
 #include "ras.hpp"
 
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 int Ras::FinishSetup() {
     if (this->size == 0) {
@@ -33,44 +33,68 @@ int Ras::FinishSetup() {
 
     this->buffer = new unsigned long[this->size];
 
+    if (this->sendTo != NULL) {
+        this->forwardToID = this->sendTo->Connect(0);
+    }
+
     return 0;
 }
 
-int Ras::SetConfigParameter(const char* parameter,
-                            sinuca::config::ConfigValue value) {
-    if (strcmp(parameter, "size") != 0) {
-        SINUCA3_WARNING_PRINTF("Ras received an unknown parameter: %s.\n",
-                               parameter);
+int Ras::SetConfigParameter(const char* parameter, ConfigValue value) {
+    if (strcmp(parameter, "size") == 0) {
+        if (value.type != ConfigValueTypeInteger) {
+            SINUCA3_ERROR_PRINTF("Ras parameter size is not an integer.\n");
+            return 1;
+        }
+
+        const long size = value.value.integer;
+        if (size <= 0) {
+            SINUCA3_ERROR_PRINTF(
+                "Invalid value for Ras parameter size: should be > 0.\n");
+            return 1;
+        }
+
+        this->size = size;
         return 0;
     }
 
-    if (value.type != sinuca::config::ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("Ras parameter size is not an integer.\n");
-        return 1;
+    if (strcmp(parameter, "sendTo") == 0) {
+        if (value.type != ConfigValueTypeComponentReference) {
+            SINUCA3_ERROR_PRINTF(
+                "Ras parameter sendTo is not a "
+                "Component<PredictorPacket>.\n");
+            return 1;
+        }
+
+        this->sendTo = dynamic_cast<Component<PredictorPacket>*>(
+            value.value.componentReference);
+        if (this->sendTo == NULL) {
+            SINUCA3_ERROR_PRINTF(
+                "Ras parameter sendTo is not a "
+                "Component<PredictorPacket>.\n");
+            return 1;
+        }
     }
 
-    const long size = value.value.integer;
-    if (size <= 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Invalid value for Ras parameter size: should be > 0.\n");
-        return 1;
-    }
-
-    this->size = size;
-
-    return 0;
+    SINUCA3_ERROR_PRINTF("Ras received an unknown parameter: %s.\n", parameter);
+    return 1;
 }
 
-inline void Ras::RequestQuery(int connectionID) {
+inline void Ras::RequestQuery(InstructionPacket instruction, int connectionID) {
     unsigned long prediction = this->buffer[this->end];
     --this->end;
     if (this->end < 0) this->end = this->size - 1;
 
-    sinuca::PredictorPacket response;
-    response.type = sinuca::ResponseTakeToAddress;
-    response.data.responseAddress = prediction;
+    PredictorPacket response;
+    response.type = PredictorPacketTypeResponseTakeToAddress;
+    response.data.response.instruction = instruction;
+    response.data.response.target = prediction;
 
-    this->SendResponseToConnection(connectionID, &response);
+    if (this->sendTo == NULL) {
+        this->SendResponseToConnection(connectionID, &response);
+    } else {
+        this->sendTo->SendRequest(this->forwardToID, &response);
+    }
 }
 
 inline void Ras::RequestUpdate(unsigned long targetAddress) {
@@ -82,18 +106,17 @@ inline void Ras::RequestUpdate(unsigned long targetAddress) {
 
 void Ras::Clock() {
     long numberOfConnections = this->GetNumberOfConnections();
-    sinuca::PredictorPacket packet;
+    PredictorPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
         if (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             switch (packet.type) {
-                case sinuca::RequestQuery:
+                case PredictorPacketTypeRequestQuery:
                     ++this->numQueries;
-                    this->RequestQuery(i);
+                    this->RequestQuery(packet.data.requestQuery, i);
                     break;
-                case sinuca::RequestUpdate:
+                case PredictorPacketTypeRequestUpdate:
                     ++this->numUpdates;
-                    this->RequestUpdate(
-                        packet.data.requestUpdate.targetAddress);
+                    this->RequestUpdate(packet.data.requestUpdate.target);
                     break;
                 default:
                     SINUCA3_WARNING_PRINTF(
@@ -120,18 +143,18 @@ Ras::~Ras() {
 int TestRas() {
     Ras ras;
 
-    ras.SetConfigParameter("size", sinuca::config::ConfigValue((long)5));
+    ras.SetConfigParameter("size", ConfigValue((long)5));
     int id = ras.Connect(1);
     ras.FinishSetup();
 
     ras.Clock();
     ras.PosClock();
 
-    sinuca::PredictorPacket msg;
-    msg.type = sinuca::RequestUpdate;
+    PredictorPacket msg;
+    msg.type = PredictorPacketTypeRequestUpdate;
 
     ras.Clock();
-    msg.data.requestUpdate.targetAddress = 0xcafebabe;
+    msg.data.requestUpdate.target = 0xcafebabe;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -139,7 +162,7 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.data.requestUpdate.targetAddress = 0xdeadbeef;
+    msg.data.requestUpdate.target = 0xdeadbeef;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -147,7 +170,7 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.type = sinuca::RequestQuery;
+    msg.type = PredictorPacketTypeRequestQuery;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -159,10 +182,10 @@ int TestRas() {
         SINUCA3_LOG_PRINTF("Ras did not respond first query!\n");
         return 1;
     }
-    if (msg.data.responseAddress != 0xdeadbeef) {
+    if (msg.data.response.target != 0xdeadbeef) {
         SINUCA3_LOG_PRINTF(
             "Ras responded first query with wrong address %ld!\n",
-            msg.data.responseAddress);
+            msg.data.response.target);
         return 1;
     }
     ras.PosClock();
@@ -171,8 +194,8 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.type = sinuca::RequestUpdate;
-    msg.data.requestUpdate.targetAddress = 0xb16b00b5;
+    msg.type = PredictorPacketTypeRequestUpdate;
+    msg.data.requestUpdate.target = 0xb16b00b5;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -180,7 +203,7 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.type = sinuca::RequestQuery;
+    msg.type = PredictorPacketTypeRequestQuery;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -191,10 +214,10 @@ int TestRas() {
         SINUCA3_LOG_PRINTF("Ras did not respond second query!\n");
         return 1;
     }
-    if (msg.data.responseAddress != 0xb16b00b5) {
+    if (msg.data.response.target != 0xb16b00b5) {
         SINUCA3_LOG_PRINTF(
             "Ras responded second query with wrong address %ld!\n",
-            msg.data.responseAddress);
+            msg.data.response.target);
         return 1;
     }
 
@@ -202,7 +225,7 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.type = sinuca::RequestQuery;
+    msg.type = PredictorPacketTypeRequestQuery;
     ras.SendRequest(id, &msg);
     ras.PosClock();
 
@@ -213,10 +236,10 @@ int TestRas() {
         SINUCA3_LOG_PRINTF("Ras did not respond third query!\n");
         return 1;
     }
-    if (msg.data.responseAddress != 0xcafebabe) {
+    if (msg.data.response.target != 0xcafebabe) {
         SINUCA3_LOG_PRINTF(
             "Ras responded third query with wrong address %ld!\n",
-            msg.data.responseAddress);
+            msg.data.response.target);
         return 1;
     }
 

@@ -25,12 +25,12 @@
  * CALLED BY CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include "../sinuca3.hpp"
-#include "../utils/logging.hpp"
+#include <sinuca3.hpp>
+
 #include "engine_debug_component.hpp"
 
 void EngineDebugComponent::PrintConfigValue(const char* parameter,
-                                            sinuca::config::ConfigValue value,
+                                            ConfigValue value,
                                             unsigned char indent) {
     // This is not good code. Please don't use this kind of stuff outside this
     // very specific niche where we want to avoid allocations and have a very
@@ -40,27 +40,27 @@ void EngineDebugComponent::PrintConfigValue(const char* parameter,
     indentChars[indent] = '\0';
 
     switch (value.type) {
-        case sinuca::config::ConfigValueTypeArray:
+        case ConfigValueTypeArray:
             SINUCA3_DEBUG_PRINTF("%p: %s %s%s%s\n", this, parameter,
                                  indentChars, indentChars, "array: ");
             for (unsigned long i = 0; i < value.value.array->size(); ++i)
                 this->PrintConfigValue(parameter, (*value.value.array)[i],
                                        indent + 1);
             return;
-        case sinuca::config::ConfigValueTypeBoolean:
+        case ConfigValueTypeBoolean:
             SINUCA3_DEBUG_PRINTF("%p: %s %s%sbool: %s\n", this, parameter,
                                  indentChars, indentChars,
                                  value.value.boolean ? "true" : "false");
             return;
-        case sinuca::config::ConfigValueTypeNumber:
+        case ConfigValueTypeNumber:
             SINUCA3_DEBUG_PRINTF("%p: %s %s%snumber: %f\n", this, parameter,
                                  indentChars, indentChars, value.value.number);
             return;
-        case sinuca::config::ConfigValueTypeInteger:
+        case ConfigValueTypeInteger:
             SINUCA3_DEBUG_PRINTF("%p: %s %s%sinteger: %ld\n", this, parameter,
                                  indentChars, indentChars, value.value.integer);
             return;
-        case sinuca::config::ConfigValueTypeComponentReference:
+        case ConfigValueTypeComponentReference:
             SINUCA3_DEBUG_PRINTF("%p: %s %s%sreference: %p\n", this, parameter,
                                  indentChars, indentChars,
                                  value.value.componentReference);
@@ -68,8 +68,8 @@ void EngineDebugComponent::PrintConfigValue(const char* parameter,
     }
 }
 
-int EngineDebugComponent::SetConfigParameter(
-    const char* parameter, sinuca::config::ConfigValue value) {
+int EngineDebugComponent::SetConfigParameter(const char* parameter,
+                                             ConfigValue value) {
     this->PrintConfigValue(parameter, value);
     if (strcmp(parameter, "failNow") == 0) {
         SINUCA3_DEBUG_PRINTF("%p: SetConfigParameter returning failure.\n",
@@ -90,12 +90,23 @@ int EngineDebugComponent::SetConfigParameter(
                 this);
             return 1;
         }
-        connectionID = this->other->Connect(4);
+        this->otherConnectionID = this->other->Connect(4);
         return 0;
     }
     if (strcmp(parameter, "flush") == 0) {
         this->flush = value.value.integer;
         return 0;
+    }
+    if (strcmp(parameter, "fetch") == 0) {
+        this->fetch = dynamic_cast<Component<FetchPacket>*>(
+            value.value.componentReference);
+        if (this->fetch == NULL) {
+            SINUCA3_DEBUG_PRINTF(
+                "%p: Failed to cast fetch to Component<InstructionPacket>.\n",
+                this);
+            return 1;
+        }
+        this->fetchConnectionID = this->fetch->Connect(0);
     }
 
     return 0;
@@ -110,30 +121,40 @@ int EngineDebugComponent::FinishSetup() {
 void EngineDebugComponent::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: Clock!\n", this);
 
-    if (this->flush > 0) {
-        --this->flush;
-        if (this->flush == 0) sinuca::ENGINE->Flush();
+    if (this->fetch != NULL) {
+        FetchPacket packet;
+        packet.request = 0;
+        SINUCA3_DEBUG_PRINTF("%p: Fetching instruction!\n", this);
+        this->fetch->SendRequest(this->fetchConnectionID, &packet);
+        if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) ==
+            0) {
+            SINUCA3_DEBUG_PRINTF("%p: Received instruction %s\n", this,
+                                 packet.response.staticInfo->opcodeAssembly);
+        }
     }
 
-    sinuca::InstructionPacket messageInput = {NULL,
-                                              sinuca::DynamicInstructionInfo()};
-    sinuca::InstructionPacket messageOutput = {
-        NULL, sinuca::DynamicInstructionInfo()};
+    if (this->flush > 0) {
+        --this->flush;
+        if (this->flush == 0) ENGINE->Flush();
+    }
+
+    InstructionPacket messageInput = {NULL, DynamicInstructionInfo(), 0};
+    InstructionPacket messageOutput = {NULL, DynamicInstructionInfo(), 0};
 
     if (this->other) {
         if (!(this->send)) {
-            messageInput.staticInfo =
-                (const sinuca::StaticInstructionInfo*)0xcafebabe;
+            messageInput.staticInfo = (const StaticInstructionInfo*)0xcafebabe;
             SINUCA3_DEBUG_PRINTF("%p: Sending message (%p) to %p.\n", this,
                                  messageInput.staticInfo, this->other);
-            this->other->SendRequest(this->connectionID, &messageInput);
+            this->other->SendRequest(this->otherConnectionID, &messageInput);
             this->send = true;
         } else {
-            if (this->other->ReceiveResponse(this->connectionID,
+            if (this->other->ReceiveResponse(this->otherConnectionID,
                                              &messageOutput) == 0) {
                 SINUCA3_DEBUG_PRINTF("%p: Received response (%p) from %p.\n",
                                      this, messageOutput.staticInfo,
                                      this->other);
+                this->send = false;
             } else {
                 SINUCA3_DEBUG_PRINTF("%p: No response from %p.\n", this,
                                      this->other);

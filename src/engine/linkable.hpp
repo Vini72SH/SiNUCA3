@@ -23,14 +23,11 @@
  * @brief Public API of the Linkable class.
  */
 
-#include "../config/config.hpp"
-#include "../utils/circular_buffer.hpp"
+#include <config/config.hpp>
+#include <utils/circular_buffer.hpp>
 
 static const int SOURCE_ID = 0;
 static const int DEST_ID = 1;
-
-namespace sinuca {
-namespace engine {
 
 struct Connection {
   private:
@@ -247,7 +244,7 @@ class Linkable {
      * @returns Non-zero on error, 0 otherwise.
      */
     virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value) = 0;
+                                   ConfigValue value) = 0;
 
     /**
      * @brief This method should be declared here so the simulator can send
@@ -269,8 +266,5 @@ class Linkable {
 
     virtual ~Linkable();
 };
-
-}  // namespace engine
-}  // namespace sinuca
 
 #endif  // SINUCA3_ENGINE_LINKABLE_HPP_

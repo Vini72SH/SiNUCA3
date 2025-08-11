@@ -23,8 +23,15 @@
  * @details API of the template Queue, a generic fetching queue that can be used
  * to enqueue results from caches, predictors, etc. You need to create a proper
  * component that instantiates this template class to use it.
- *
- * The size of the queue is actually just the buffer size of the connection one
+ */
+
+#include "../../sinuca3.hpp"
+#include "../../utils/logging.hpp"
+
+/**
+ * @brief Queue is a template class for creating fetching queues.
+ * @details The queue uses the connection ones creates to it as buffer. Thus,
+ * the size of the queue is actually just the buffer size of the connection one
  * makes to it.
  *
  * The queue must receive a parameter `sendTo` that points to a component of the
@@ -37,20 +44,19 @@
  * to the pipeline.
  */
 
-#include "../../sinuca3.hpp"
-#include "../../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 template <typename Type>
-class Queue : public sinuca::Component<Type> {
-    sinuca::Component<Type>* sendTo;
-    long throughput;
-    int connectionID;
+class Queue : public Component<Type> {
+    Component<Type>*
+        sendTo;       /** @brief Component to which send the responses. */
+    long throughput;  /** @brief Size of the connection to `sendTo`. */
+    int connectionID; /** @brief Connection ID with `sendTo`. */
 
   public:
     inline Queue() : sendTo(NULL), throughput(0) {}
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter,
-                                   sinuca::config::ConfigValue value);
+    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void Flush();
     virtual void PrintStatistics();
@@ -70,13 +76,12 @@ int Queue<Type>::FinishSetup() {
 }
 
 template <typename Type>
-int Queue<Type>::SetConfigParameter(const char* parameter,
-                                    sinuca::config::ConfigValue value) {
+int Queue<Type>::SetConfigParameter(const char* parameter, ConfigValue value) {
     if (strcmp(parameter, "sendTo") == 0) {
-        if (value.type == sinuca::config::ConfigValueTypeComponentReference) {
-            sinuca::engine::Linkable* linkable = value.value.componentReference;
-            sinuca::Component<Type>* component =
-                dynamic_cast<sinuca::Component<Type>*>(linkable);
+        if (value.type == ConfigValueTypeComponentReference) {
+            Linkable* linkable = value.value.componentReference;
+            Component<Type>* component =
+                dynamic_cast<Component<Type>*>(linkable);
             if (component != NULL) {
                 this->sendTo = component;
                 return 0;
@@ -90,7 +95,7 @@ int Queue<Type>::SetConfigParameter(const char* parameter,
             "Queue parameter sendTo is not a component pointer.\n");
         return 1;
     } else if (strcmp(parameter, "throughput") == 0) {
-        if (value.type == sinuca::config::ConfigValueTypeInteger) {
+        if (value.type == ConfigValueTypeInteger) {
             this->throughput = value.value.integer;
         }
 

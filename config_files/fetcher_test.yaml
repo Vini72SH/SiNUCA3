@@ -1,0 +1,18 @@
+instantiate:
+  class: Fetcher
+  fetch: *ENGINE
+  fetchSize: 16
+  fetchInterval: 8
+  instructionMemory:
+    class: SimpleInstructionMemory
+    sendTo:
+      class: SimpleExecutionUnit
+  predictor:
+    class: HardwiredPredictor
+    syscall: false
+    call: false
+    return: false
+    uncond: false
+    cond: false
+    noBranch: false
+  misspredictPenalty: 10

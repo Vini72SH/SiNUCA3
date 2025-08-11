@@ -23,40 +23,39 @@
  * are actually imported from other headers.
  */
 
-#include <cstring>
-
 // These pragmas make clangd don't warn about unused includes when using just
 // sinuca3.hpp to include the below files.
-#include "config/config.hpp"           // IWYU pragma: export
-#include "engine/component.hpp"        // IWYU pragma: export
-#include "engine/default_packets.hpp"  // IWYU pragma: export
-#include "engine/engine.hpp"
-#include "engine/linkable.hpp"
-
-namespace sinuca {
+#include <config/config.hpp>           // IWYU pragma: export
+#include <engine/component.hpp>        // IWYU pragma: export
+#include <engine/default_packets.hpp>  // IWYU pragma: export
+#include <engine/engine.hpp>
+#include <engine/linkable.hpp>
+#include <utils/logging.hpp>  // IWYU pragma: export
 
 /**
- * Global engine so everyone can call it's methods.
+ * @brief Global engine object so everyone can call it's methods.
  */
-extern engine::Engine* ENGINE;
+extern Engine* ENGINE;
 
 #define COMPONENT(type) \
     if (!strcmp(name, #type)) return new type
 
-#define COMPONENTS(components)                                         \
-    namespace sinuca {                                                 \
-    engine::Linkable* CreateCustomComponentByClass(const char* name) { \
-        components;                                                    \
-        return 0;                                                      \
-    }                                                                  \
+#define COMPONENTS(components)                                 \
+    Linkable* CreateCustomComponentByClass(const char* name) { \
+        components;                                            \
+        return 0;                                              \
     }
 
-/** @brief Don't call, used by the SimulatorBuilder. */
-engine::Linkable* CreateDefaultComponentByClass(const char* name);
-/** @brief Don't call, used by the SimulatorBuilder. */
-engine::Linkable* CreateCustomComponentByClass(const char* name);
-
-}  // namespace sinuca
+/**
+ * @brief Don't call, used by the SimulatorBuilder.
+ * @details Allocates a default component by it's class name.
+ */
+Linkable* CreateDefaultComponentByClass(const char* name);
+/**
+ * @brief Don't call, used by the SimulatorBuilder.
+ * @details Allocates a custom component by it's class name.
+ */
+Linkable* CreateCustomComponentByClass(const char* name);
 
 #define SINUCA3_HPP_
 #endif  // SINUCA3_HPP_

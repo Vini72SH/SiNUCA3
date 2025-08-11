@@ -31,7 +31,7 @@ extern "C" {
 #include <errno.h>
 }
 
-#include "../utils/logging.hpp"
+#include <sinuca3.hpp>
 
 inline void printFileErrorLog(const char *path, const char *mode) {
     SINUCA3_ERROR_PRINTF("Could not open [%s] in [%s] mode: %s\n", path, mode,
