@@ -26,7 +26,6 @@
 
 extern "C" {
 #include <alloca.h>
-#include <errno.h>
 }
 
 tracer::MemoryTraceFile::MemoryTraceFile(const char *folderPath, const char *img,

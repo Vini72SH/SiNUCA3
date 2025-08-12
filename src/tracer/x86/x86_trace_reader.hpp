@@ -33,8 +33,8 @@ namespace tracer {
 struct ThrInfo {
     DynamicTraceFile *dynFile;
     MemoryTraceFile *memFile;
-    unsigned int currentBBL;
-    unsigned int currentOpcode;
+    unsigned int currentBBL;    /**<Index of basic block. */
+    unsigned int currentOpcode; /**<Index of instruction inside basic block. */
     bool isInsideBBL;
 
   public:
@@ -68,22 +68,34 @@ class SinucaTraceReader : public TraceReader {
 
   public:
     /**
-     * @brief Class attributes initializer
+     * @brief Class attributes initializer.
      * @param imageName Name of the executable used to generate the traces.
      * @param sourceDir Complete path to the directory that stores the traces.
      */
     virtual int OpenTrace(const char *imageName, const char *sourceDir);
-
-    virtual unsigned long GetTraceSize();
-
-    virtual unsigned long GetNumberOfFetchedInstructions();
-
+    /**
+     * @brief Prints the number of fetched instructions for now.
+     */
     virtual void PrintStatistics();
-
-    virtual FetchResult Fetch(InstructionPacket *, unsigned int);
-
+    /**
+     * @brief Trace size is the equivalent to the number of basic blocks from
+     * static trace.
+     */
+    virtual unsigned long GetTraceSize();
+    /**
+     * @return Value stored in fetchInstructions.
+     */
+    virtual unsigned long GetNumberOfFetchedInstructions();
+    /**
+     * @brief Get next executed instruction.
+     * @param ret Pointer to struct that will be filled.
+     * @param tid Thread identifier.
+     */
+    virtual FetchResult Fetch(InstructionPacket *ret, unsigned int tid);
+    /**
+     * @brief Free allocated memory in OpenTrace and GenerateBinaryDict.
+     */
     void CloseTrace();
-
     inline ~SinucaTraceReader() { this->CloseTrace(); }
 };
 

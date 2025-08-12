@@ -22,13 +22,13 @@
 #include "x86_trace_reader.hpp"
 
 #include <cassert>
+
 #include "sinuca3.hpp"
 #include "tracer/x86/utils/memory_trace_reader.hpp"
 #include "utils/logging.hpp"
 
-int tracer::SinucaTraceReader::OpenTrace(
-    const char *imageName, const char *sourceDir) {
-
+int tracer::SinucaTraceReader::OpenTrace(const char *imageName,
+                                         const char *sourceDir) {
     StaticTraceFile staticFile(sourceDir, imageName);
     if (!staticFile.Valid()) return 1;
 
@@ -64,8 +64,7 @@ unsigned long tracer::SinucaTraceReader::GetNumberOfFetchedInstructions() {
     return this->fetchInstructions;
 }
 
-void tracer::SinucaTraceReader::GenerateBinaryDict(
-    StaticTraceFile *stFile) {
+void tracer::SinucaTraceReader::GenerateBinaryDict(StaticTraceFile *stFile) {
     InstructionInfo *package;
     unsigned long poolOffset;
     unsigned int bblSize;
@@ -93,7 +92,7 @@ void tracer::SinucaTraceReader::GenerateBinaryDict(
 }
 
 FetchResult tracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
-                                                         unsigned int tid) {
+                                             unsigned int tid) {
     InstructionInfo *packageInfo;
 
     if (!this->thrsInfo[tid].isInsideBBL) {
@@ -110,7 +109,7 @@ FetchResult tracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
     packageInfo = &this->binaryDict[currentBbl][currentIns];
     ret->staticInfo = &(packageInfo->staticInfo);
     this->thrsInfo[tid].memFile->ReadNextMemAccess(packageInfo,
-                                                  &ret->dynamicInfo);
+                                                   &ret->dynamicInfo);
 
     this->thrsInfo[tid].currentOpcode++;
     if (this->thrsInfo[tid].currentOpcode >=
@@ -132,7 +131,8 @@ void tracer::SinucaTraceReader::PrintStatistics() {
     SINUCA3_LOG_PRINTF("###########################\n");
 }
 
-int tracer::ThrInfo::Allocate(const char *sourceDir, const char *imageName, int tid) {
+int tracer::ThrInfo::Allocate(const char *sourceDir, const char *imageName,
+                              int tid) {
     this->dynFile = new DynamicTraceFile(sourceDir, imageName, tid);
     if (!this->dynFile->Valid()) return 1;
     this->memFile = new MemoryTraceFile(sourceDir, imageName, tid);
