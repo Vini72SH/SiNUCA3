@@ -42,8 +42,8 @@ tracer::traceGenerator::MemoryTraceFile::MemoryTraceFile(const char* source,
 
 tracer::traceGenerator::MemoryTraceFile::~MemoryTraceFile() {
     SINUCA3_DEBUG_PRINTF("Last MemoryTraceFile flush\n");
-    if (this->tf.offset > 0) {
-        this->FlushLenBytes(&this->tf.offset, sizeof(this->tf.offset));
+    if (this->tf.offsetInBytes > 0) {
+        this->FlushLenBytes(&this->tf.offsetInBytes, sizeof(this->tf.offsetInBytes));
         this->FlushBuffer();
     }
 }
@@ -101,7 +101,7 @@ void tracer::traceGenerator::MemoryTraceFile::AppendToBufferLastMemoryAccess() {
 void tracer::traceGenerator::MemoryTraceFile::MemoryAppendToBuffer(void* ptr,
                                                                   size_t len) {
     if (this->AppendToBuffer(ptr, len)) {
-        this->FlushLenBytes(&this->tf.offset, sizeof(unsigned long));
+        this->FlushLenBytes(&this->tf.offsetInBytes, sizeof(unsigned long));
         this->FlushBuffer();
         this->AppendToBuffer(ptr, len);
     }

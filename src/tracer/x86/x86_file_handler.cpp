@@ -27,9 +27,7 @@
 #include <cstdio>
 #include <cstring>
 
-extern "C" {
-#include <errno.h>
-}
+const int MAX_INT_DIGITS = 7;
 
 FILE *tracer::TraceFileReader::UseFile(const char *path) {
     char mode[] = "rb";
@@ -43,16 +41,24 @@ FILE *tracer::TraceFileReader::UseFile(const char *path) {
     return this->tf.file;
 }
 
+FILE *tracer::TraceFileWriter::UseFile(const char *path) {
+    char mode[] = "wb";
+    this->tf.file = fopen(path, mode);
+    if (this->tf.file == NULL) {
+        printFileErrorLog(path, mode);
+        return NULL;
+    }
+    return this->tf.file;
+}
+
 unsigned long tracer::TraceFileReader::RetrieveLenBytes(void *ptr,
-                                                       unsigned long len) {
+                                                        unsigned long len) {
     unsigned long read = fread(ptr, 1, len, this->tf.file);
     return read;
 }
 
 int tracer::TraceFileReader::SetBufActiveSize(unsigned long size) {
-    if (size > BUFFER_SIZE) {
-        return 1;
-    }
+    if (size > BUFFER_SIZE) return 1;
     this->bufActiveSize = size;
     return 0;
 }
@@ -73,20 +79,6 @@ void *tracer::TraceFileReader::GetData(unsigned long len) {
     return ptr;
 }
 
-FILE *tracer::TraceFileWriter::UseFile(const char *path) {
-    char mode[] = "wb";
-    this->tf.file = fopen(path, mode);
-    if (this->tf.file == NULL) {
-        printFileErrorLog(path, mode);
-        return NULL;
-    }
-    return this->tf.file;
-}
-
-/*
- * flush is not done here because derived class might flush buffer size to file
- * in addition to buffer
- */
 int tracer::TraceFileWriter::AppendToBuffer(void *ptr, unsigned long len) {
     if (BUFFER_SIZE - this->tf.offsetInBytes < len) {
         return 1;
@@ -97,14 +89,8 @@ int tracer::TraceFileWriter::AppendToBuffer(void *ptr, unsigned long len) {
 }
 
 void tracer::TraceFileWriter::FlushLenBytes(void *ptr, unsigned long len) {
-    SINUCA3_DEBUG_PRINTF("len size [FlushLenBytes] [%lu]\n", len);
     unsigned long written = fwrite(ptr, 1, len, this->tf.file);
-    SINUCA3_DEBUG_PRINTF("written size [FlushLenBytes] [%lu]\n", written);
-    if (written != len) {
-        SINUCA3_ERROR_PRINTF("fwrite returned something wrong: %s\n",
-                             strerror(errno));
-        assert(false && "fwrite error");
-    }
+    assert(written != len && "fwrite error");
 }
 
 void tracer::TraceFileWriter::FlushBuffer() {
@@ -112,37 +98,35 @@ void tracer::TraceFileWriter::FlushBuffer() {
     this->tf.offsetInBytes = 0;
 }
 
-unsigned long tracer::GetPathTidInSize(const char *sourceDir, const char *prefix,
-                                      const char *imageName) {
-    unsigned long sourceDirLen = strlen(sourceDir);
-    unsigned long prefixLen = strlen(prefix);
-    unsigned long imageNameLen = strlen(imageName);
-    /*
-     * 7 is the number of digits on MAX_INT
-     * 13 is the number of characters on the format string
-     */
-    return 13 + 7 + sourceDirLen + prefixLen + imageNameLen;
-}
-
-void tracer::FormatPathTidIn(char *dest, const char *sourceDir,
-                            const char *prefix, const char *imageName,
-                            THREADID tid, unsigned long bufferSize) {
-    snprintf(dest, bufferSize, "%s/%s_%s_tid%u.trace", sourceDir, prefix,
-             imageName, tid);
-}
-
-unsigned long tracer::GetPathTidOutSize(const char *sourceDir,
+unsigned long tracer::GetPathTidInSize(const char *sourceDir,
                                        const char *prefix,
                                        const char *imageName) {
     unsigned long sourceDirLen = strlen(sourceDir);
     unsigned long prefixLen = strlen(prefix);
     unsigned long imageNameLen = strlen(imageName);
-    // 9 == number characters on the format string.
+    // 13 is the number of characters on the format string
+    return MAX_INT_DIGITS + 7 + sourceDirLen + prefixLen + imageNameLen;
+}
+
+void tracer::FormatPathTidIn(char *dest, const char *sourceDir,
+                             const char *prefix, const char *imageName,
+                             THREADID tid, long destSize) {
+    snprintf(dest, destSize, "%s/%s_%s_tid%u.trace", sourceDir, prefix,
+             imageName, tid);
+}
+
+unsigned long tracer::GetPathTidOutSize(const char *sourceDir,
+                                        const char *prefix,
+                                        const char *imageName) {
+    unsigned long sourceDirLen = strlen(sourceDir);
+    unsigned long prefixLen = strlen(prefix);
+    unsigned long imageNameLen = strlen(imageName);
+    // 9 is the number characters in the format string.
     return 9 + sourceDirLen + prefixLen + imageNameLen;
 }
 
 void tracer::FormatPathTidOut(char *dest, const char *sourceDir,
-                             const char *prefix, const char *imageName,
-                             unsigned long bufferSize) {
-    snprintf(dest, bufferSize, "%s/%s_%s.trace", sourceDir, prefix, imageName);
+                              const char *prefix, const char *imageName,
+                              long destSize) {
+    snprintf(dest, destSize, "%s/%s_%s.trace", sourceDir, prefix, imageName);
 }

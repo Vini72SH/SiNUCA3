@@ -24,15 +24,17 @@
  */
 
 #include "../x86_file_handler.hpp"
-#include "sinuca3.hpp"
 
 namespace tracer {
 
 class DynamicTraceFile : public TraceFileReader {
   public:
-    DynamicTraceFile(const char *folderPath, const char *img, THREADID tid);
-
-    int ReadNextBBl(BBLID *);
+    DynamicTraceFile(const char *sourceDir, const char *imgName, THREADID tid);
+    /**
+     * @brief
+     * @param bbl
+     */
+    int ReadNextBBl(BBLID *bbl);
 };
 
 }

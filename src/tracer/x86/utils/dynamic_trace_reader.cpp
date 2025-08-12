@@ -26,14 +26,15 @@
 
 extern "C" {
 #include <alloca.h>
-#include <errno.h>
 }
 
-tracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath, const char *img,
-                                   THREADID tid) {
-    unsigned long bufferSize = GetPathTidInSize(folderPath, "dynamic", img);
+tracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath,
+                                           const char *imageName,
+                                           THREADID tid) {
+    unsigned long bufferSize =
+        GetPathTidInSize(folderPath, "dynamic", imageName);
     char *path = (char *)alloca(bufferSize);
-    FormatPathTidIn(path, folderPath, "dynamic", img, tid, bufferSize);
+    FormatPathTidIn(path, folderPath, "dynamic", imageName, tid, bufferSize);
 
     if (this->UseFile(path) == NULL) {
         this->isValid = false;

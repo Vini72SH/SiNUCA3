@@ -20,7 +20,7 @@
 
 /**
  * @file trace_reader.hpp
- * @brief Pure virtual TraceReader class, that all trace readers must implement.
+ * @brief Pure virtual TraceReader class that all trace readers must implement.
  */
 
 #include <engine/default_packets.hpp>

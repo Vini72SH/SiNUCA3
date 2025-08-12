@@ -150,7 +150,7 @@ int main() {
     traceReader::FetchResult ret;
     traceReader::TraceReader *tracer =
         new traceReader::tracer::SinucaTraceReader();
-    tracer->OpenTrace("sinuca_teste", "/home/fbc04/Programas/SiNUCA3/trace");
+    tracer->OpenTrace("sinuca_teste", "");
 
     do {
         ret = tracer->Fetch(&package, 0);

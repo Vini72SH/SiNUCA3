@@ -41,7 +41,7 @@ tracer::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
 
 tracer::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
     SINUCA3_DEBUG_PRINTF("Last DynamicTraceFile flush\n");
-    if (this->tf.offset > 0) {
+    if (this->tf.offsetInBytes > 0) {
         this->FlushBuffer();
     }
 }
