@@ -89,8 +89,9 @@ int tracer::TraceFileWriter::AppendToBuffer(void *ptr, unsigned long len) {
 }
 
 void tracer::TraceFileWriter::FlushLenBytes(void *ptr, unsigned long len) {
-    unsigned long written = fwrite(ptr, 1, len, this->tf.file);
-    assert(written != len && "fwrite error");
+    __attribute__((unused)) unsigned long written;
+    written = fwrite(ptr, 1, len, this->tf.file);
+    assert(written == len && "fwrite error");
 }
 
 void tracer::TraceFileWriter::FlushBuffer() {
@@ -121,7 +122,7 @@ unsigned long tracer::GetPathTidOutSize(const char *sourceDir,
     unsigned long sourceDirLen = strlen(sourceDir);
     unsigned long prefixLen = strlen(prefix);
     unsigned long imageNameLen = strlen(imageName);
-    // 9 is the number characters in the format string.
+    /* 9 is the number characters in the format string */
     return 9 + sourceDirLen + prefixLen + imageNameLen;
 }
 

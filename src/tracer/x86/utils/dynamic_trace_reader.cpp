@@ -22,7 +22,9 @@
 
 #include "dynamic_trace_reader.hpp"
 
+#include <cstdio>
 #include <cstring>
+#include "utils/logging.hpp"
 
 extern "C" {
 #include <alloca.h>
@@ -47,9 +49,10 @@ tracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath,
     this->isValid = true;
     /*
      * The number of executed instructions is placed at the top of the dynamic
-     * file. 
+     * file.
      */
     fread(&this->totalExecInst, sizeof(this->totalExecInst), 1, this->tf.file);
+    printf("totalExecInst [%lu]\n", this->totalExecInst);
 }
 
 int tracer::DynamicTraceFile::ReadNextBBl(BBLID *bbl) {
