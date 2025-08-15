@@ -29,32 +29,47 @@ extern "C" {
 #include <alloca.h>
 }
 
-trace::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
+tracer::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
                                                           const char* img,
                                                           THREADID tid) {
-    unsigned long bufferSize = trace::GetPathTidInSize(source, "dynamic", img);
+    unsigned long bufferSize = tracer::GetPathTidInSize(source, "dynamic", img);
     char* path = (char*)alloca(bufferSize);
-    FormatPathTidIn(path, source, "dynamic", img, tid, bufferSize);
 
-    this->::trace::TraceFileWriter::UseFile(path);
+    FormatPathTidIn(path, source, "dynamic", img, tid, bufferSize);
+    this->UseFile(path);
+
+    this->totalExecInst = 0;
+    /*
+     * This space will be used to store the total of instruction executed per
+     * thread.
+     */
+    fseek(this->tf.file, 1 * sizeof(this->totalExecInst), SEEK_SET);
 }
 
-trace::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
+tracer::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
     SINUCA3_DEBUG_PRINTF("Last DynamicTraceFile flush\n");
-    if (this->tf.offset > 0) {
+    if (this->tf.offsetInBytes > 0) {
         this->FlushBuffer();
     }
+
+    rewind(this->tf.file);
+    fwrite(&this->totalExecInst, sizeof(this->totalExecInst), 1, this->tf.file);
+    SINUCA3_DEBUG_PRINTF("totalExecInst [%lu]\n", this->totalExecInst);
 }
 
-void trace::traceGenerator::DynamicTraceFile::PrepareId(BBLID id) {
+void tracer::traceGenerator::DynamicTraceFile::PrepareId(BBLID id) {
     this->bblId = id;
 }
 
-void trace::traceGenerator::DynamicTraceFile::AppendToBufferId() {
+void tracer::traceGenerator::DynamicTraceFile::IncTotalExecInst(int ins) {
+    this->totalExecInst += ins;
+}
+
+void tracer::traceGenerator::DynamicTraceFile::AppendToBufferId() {
     this->DynamicAppendToBuffer(&this->bblId, sizeof(this->bblId));
 }
 
-void trace::traceGenerator::DynamicTraceFile::DynamicAppendToBuffer(
+void tracer::traceGenerator::DynamicTraceFile::DynamicAppendToBuffer(
     void* ptr, unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushBuffer();

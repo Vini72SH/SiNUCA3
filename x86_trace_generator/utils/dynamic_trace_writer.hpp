@@ -28,26 +28,28 @@
  * deals with buffering/flushing the data.
  */
 
-#include "../../src/utils/file_handler.hpp"
+#include "../../src/tracer/x86/x86_file_handler.hpp"
 #include "pin.H"
 
-namespace trace {
+namespace tracer {
 namespace traceGenerator {
 
 class DynamicTraceFile : public TraceFileWriter {
   private:
-    BBLID bblId;
+    BBLID bblId;                 /**<Basic block identifier. */
+    unsigned long totalExecInst; /**<Total instructions executed per thread. */
 
     void DynamicAppendToBuffer(void *ptr, unsigned long len);
 
   public:
     DynamicTraceFile(const char *source, const char *img, THREADID tid);
-    ~DynamicTraceFile();
     void PrepareId(BBLID id);
+    void IncTotalExecInst(int ins);
     void AppendToBufferId();
-};
+    ~DynamicTraceFile();
+  };
 
 }  // namespace traceGenerator
-}  // namespace trace
+}  // namespace tracer
 
 #endif

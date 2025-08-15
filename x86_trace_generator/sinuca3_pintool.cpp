@@ -21,6 +21,7 @@
  */
 
 #include <cassert>  // assert
+#include <cstdint>
 
 #include "pin.H"
 
@@ -45,7 +46,7 @@ VOID EnableInstrumentationInThread(THREADID tid);
 VOID DisableInstrumentationInThread(THREADID tid);
 VOID InsertInstrumentionOnMemoryOperations(const INS* ins);
 
-VOID AppendToDynamicTrace(UINT32 bblId);
+VOID AppendToDynamicTrace(UINT32 bblId, UINT32 numInst);
 VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size);
 VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo);
 
@@ -102,9 +103,9 @@ char* imageName = NULL;
 const char* folderPath;
 bool wasInstrumented = false; // true, if program was been instrumented once at least.
 
-trace::traceGenerator::StaticTraceFile* staticTrace;
-std::vector<trace::traceGenerator::DynamicTraceFile*> dynamicTraces;
-std::vector<trace::traceGenerator::MemoryTraceFile*> memoryTraces;
+tracer::traceGenerator::StaticTraceFile* staticTrace;
+std::vector<tracer::traceGenerator::DynamicTraceFile*> dynamicTraces;
+std::vector<tracer::traceGenerator::MemoryTraceFile*> memoryTraces;
 
 PIN_LOCK pinLock;
 std::vector<const char*> OMP_ignore;
@@ -183,11 +184,12 @@ VOID DisableInstrumentationInThread(THREADID tid) {
     PIN_ReleaseLock(&pinLock);
 }
 
-VOID AppendToDynamicTrace(UINT32 bblId) {
+VOID AppendToDynamicTrace(UINT32 bblId, UINT32 numInst) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadAnalysisEnabled[tid]) return;
     dynamicTraces[tid]->PrepareId(bblId);
     dynamicTraces[tid]->AppendToBufferId();
+    dynamicTraces[tid]->IncTotalExecInst(numInst);
 }
 
 VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size) {
@@ -209,10 +211,10 @@ VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
     SINUCA3_DEBUG_PRINTF("New thread created! N => %d (%s)\n", tid, imageName);
     staticTrace->IncThreadCount();
     isThreadAnalysisEnabled.push_back(KnobForceInstrumentation.Value()); // Init with instru. disabled (or enabled if forced with "-f")
-    dynamicTraces.push_back(new trace::traceGenerator::DynamicTraceFile(
+    dynamicTraces.push_back(new tracer::traceGenerator::DynamicTraceFile(
         folderPath, imageName, tid));
     memoryTraces.push_back(
-        new trace::traceGenerator::MemoryTraceFile(folderPath, imageName, tid));
+        new tracer::traceGenerator::MemoryTraceFile(folderPath, imageName, tid));
     PIN_ReleaseLock(&pinLock);
 }
 
@@ -282,11 +284,13 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
     PIN_GetLock(&pinLock, tid);
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
+        unsigned int numberInstBBl = BBL_NumIns(bbl);
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)AppendToDynamicTrace,
-                       IARG_UINT32, staticTrace->GetBBlCount(), IARG_END);
+                       IARG_UINT32, staticTrace->GetBBlCount(),
+                       IARG_UINT32, numberInstBBl, IARG_END);
 
         staticTrace->IncBBlCount();
-        staticTrace->AppendToBufferNumIns(BBL_NumIns(bbl));
+        staticTrace->AppendToBufferNumIns(numberInstBBl);
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             staticTrace->PrepareDataINS(&ins);
             staticTrace->AppendToBufferDataINS();
@@ -320,7 +324,7 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
     memcpy(imageName, completeImgPathPtr + idx, imageNameLen);
 
     staticTrace =
-        new trace::traceGenerator::StaticTraceFile(folderPath, imageName);
+        new tracer::traceGenerator::StaticTraceFile(folderPath, imageName);
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
             RTN_Open(rtn);
