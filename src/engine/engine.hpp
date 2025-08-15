@@ -47,6 +47,8 @@ class Engine : public Component<FetchPacket> {
     unsigned long totalCycles; /** @brief Counter of cycles. */
     unsigned long
         fetchedInstructions; /** @brief Counter of instructions fetched. */
+    unsigned long traceSize; /** @brief The total amount of instructions to be
+                                executed. */
 
     /**
      * @brief This variable tells wether a flush should occur in the beggining
@@ -59,6 +61,11 @@ class Engine : public Component<FetchPacket> {
     bool end;
     /** @brief Will be set if the traceReader returns an error. */
     bool error;
+
+    /**
+     * @brief Returns the number of instructions to be executed.
+     */
+    unsigned long GetTraceSize();
 
     /**
      * @brief Prints the estimated remaining simulation time.
