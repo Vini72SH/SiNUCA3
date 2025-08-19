@@ -51,11 +51,6 @@ class Engine : public Component<FetchPacket> {
                                 executed. */
 
     /**
-     * @brief This variable tells wether a flush should occur in the beggining
-     * of the next clock.
-     */
-    bool flush;
-    /**
      * @brief Will be one when there's no more instructions in the trace file.
      */
     bool end;
@@ -89,7 +84,6 @@ class Engine : public Component<FetchPacket> {
           numberOfFetchers(0),
           totalCycles(0),
           fetchedInstructions(0),
-          flush(false),
           end(false),
           error(false) {}
 
@@ -109,7 +103,6 @@ class Engine : public Component<FetchPacket> {
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
-    virtual void Flush();
     virtual void PrintStatistics();
 
     virtual ~Engine();
