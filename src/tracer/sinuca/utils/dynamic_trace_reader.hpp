@@ -26,9 +26,9 @@
  * is stored as a BBLID, a type defined in x86_file_handler header.
  */
 
-#include "../x86_file_handler.hpp"
+#include <tracer/sinuca/file_handler.hpp>
 
-namespace tracer {
+namespace sinucaTracer {
 
 class DynamicTraceFile : public TraceFileReader {
   private:
@@ -42,10 +42,10 @@ class DynamicTraceFile : public TraceFileReader {
      * @return 1 if end of file reached, 0 otherwise.
      */
     int ReadNextBBl(BBLID *bbl);
-    
-    inline unsigned long GetTotalExecInst() {return this->totalExecInst;}
+
+    inline unsigned long GetTotalExecInst() { return this->totalExecInst; }
 };
 
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif

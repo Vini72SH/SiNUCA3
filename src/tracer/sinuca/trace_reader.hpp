@@ -23,12 +23,12 @@
  * @brief Implementation of SinucaTraceReader for x86 based traces.
  */
 
-#include "../trace_reader.hpp"
-#include "utils/dynamic_trace_reader.hpp"
-#include "utils/memory_trace_reader.hpp"
-#include "utils/static_trace_reader.hpp"
+#include <tracer/sinuca/utils/dynamic_trace_reader.hpp>
+#include <tracer/sinuca/utils/memory_trace_reader.hpp>
+#include <tracer/sinuca/utils/static_trace_reader.hpp>
+#include <tracer/trace_reader.hpp>
 
-namespace tracer {
+namespace sinucaTracer {
 
 struct ThrInfo {
     DynamicTraceFile *dynFile;
@@ -80,6 +80,6 @@ class SinucaTraceReader : public TraceReader {
     inline ~SinucaTraceReader() { this->CloseTrace(); }
 };
 
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif  // SINUCA3_X86_TRACE_READER_HPP_

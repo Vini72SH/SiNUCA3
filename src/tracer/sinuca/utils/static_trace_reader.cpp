@@ -31,8 +31,8 @@ extern "C" {
 #include <unistd.h>    // lseek
 }
 
-tracer::StaticTraceFile::StaticTraceFile(const char *folderPath,
-                                         const char *img) {
+sinucaTracer::StaticTraceFile::StaticTraceFile(const char *folderPath,
+                                               const char *img) {
     unsigned long bufferLen = GetPathTidOutSize(folderPath, "static", img);
     char *staticPath = (char *)alloca(bufferLen);
     FormatPathTidOut(staticPath, folderPath, "static", img, bufferLen);
@@ -68,7 +68,7 @@ tracer::StaticTraceFile::StaticTraceFile(const char *folderPath,
     this->instLeftInBBL = 0;
 }
 
-void tracer::StaticTraceFile::ReadNextInstruction(InstructionInfo *info) {
+void sinucaTracer::StaticTraceFile::ReadNextInstruction(InstructionInfo *info) {
     DataINS *data = (DataINS *)(this->GetData(sizeof(DataINS)));
 
     unsigned long len = strlen(data->name);
@@ -91,21 +91,21 @@ void tracer::StaticTraceFile::ReadNextInstruction(InstructionInfo *info) {
     this->instLeftInBBL--;
 }
 
-int tracer::StaticTraceFile::GetNewBBLSize(unsigned int *size) {
+int sinucaTracer::StaticTraceFile::GetNewBBLSize(unsigned int *size) {
     if (this->instLeftInBBL > 0) return 1;
     *size = *(unsigned int *)(this->GetData(SIZE_NUM_BBL_INS));
     instLeftInBBL = *size;
     return 0;
 }
 
-void *tracer::StaticTraceFile::GetData(unsigned long len) {
+void *sinucaTracer::StaticTraceFile::GetData(unsigned long len) {
     void *ptr = (void *)(this->mmapPtr + this->mmapOffset);
     this->mmapOffset += len;
     return ptr;
 }
 
-void tracer::StaticTraceFile::GetBooleanValues(StaticInstructionInfo *info,
-                                               DataINS *data) {
+void sinucaTracer::StaticTraceFile::GetBooleanValues(
+    StaticInstructionInfo *info, DataINS *data) {
     info->isNonStdMemOp = static_cast<bool>(data->isNonStandardMemOp);
     info->isControlFlow = static_cast<bool>(data->isControlFlow);
     info->isPredicated = static_cast<bool>(data->isPredicated);
@@ -113,8 +113,8 @@ void tracer::StaticTraceFile::GetBooleanValues(StaticInstructionInfo *info,
     info->isIndirect = static_cast<bool>(data->isIndirectControlFlow);
 }
 
-void tracer::StaticTraceFile::GetBranchType(StaticInstructionInfo *info,
-                                            DataINS *data) {
+void sinucaTracer::StaticTraceFile::GetBranchType(StaticInstructionInfo *info,
+                                                  DataINS *data) {
     switch (data->branchType) {
         case BRANCH_CALL:
             info->branchType = BranchCall;
@@ -134,8 +134,8 @@ void tracer::StaticTraceFile::GetBranchType(StaticInstructionInfo *info,
     }
 }
 
-void tracer::StaticTraceFile::GetRegisters(StaticInstructionInfo *info,
-                                           struct DataINS *data) {
+void sinucaTracer::StaticTraceFile::GetRegisters(StaticInstructionInfo *info,
+                                                 struct DataINS *data) {
     info->numReadRegs = data->numReadRegs;
     memcpy(info->readRegs, data->readRegs,
            data->numReadRegs * sizeof(*data->readRegs));
@@ -145,7 +145,7 @@ void tracer::StaticTraceFile::GetRegisters(StaticInstructionInfo *info,
            data->numWriteRegs * sizeof(*data->writeRegs));
 }
 
-tracer::StaticTraceFile::~StaticTraceFile() {
+sinucaTracer::StaticTraceFile::~StaticTraceFile() {
     munmap(this->mmapPtr, this->mmapSize);
     close(this->fd);
 }

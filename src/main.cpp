@@ -27,7 +27,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <sinuca3.hpp>
-#include <tracer/x86/x86_trace_reader.hpp>
+#include <tracer/sinuca/trace_reader.hpp>
 #include <tracer/trace_reader.hpp>
 
 // Include our testing facilities in debug mode.
@@ -85,7 +85,7 @@ void usage() {
  */
 TraceReader* AllocTraceReader(const char* traceReader) {
     if (strcmp(traceReader, "sinuca3") == 0)
-        return new tracer::SinucaTraceReader;
+        return new sinucaTracer::SinucaTraceReader;
     else
         return NULL;
 }

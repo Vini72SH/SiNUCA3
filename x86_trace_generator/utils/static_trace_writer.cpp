@@ -23,20 +23,21 @@
 #include "static_trace_writer.hpp"
 
 #include <cassert>
+#include <sinuca3.hpp>
 #include <string>
 
-#include "../../src/utils/logging.hpp"
 extern "C" {
 #include <alloca.h>
 }
 
-tracer::traceGenerator::StaticTraceFile::StaticTraceFile(const char* source,
-                                                        const char* img) {
-    unsigned long bufferSize = tracer::GetPathTidOutSize(source, "static", img);
+sinucaTracer::StaticTraceFile::StaticTraceFile(const char* source,
+                                               const char* img) {
+    unsigned long bufferSize =
+        sinucaTracer::GetPathTidOutSize(source, "static", img);
     char* path = (char*)alloca(bufferSize);
     FormatPathTidOut(path, source, "static", img, bufferSize);
 
-    this->::tracer::TraceFileWriter::UseFile(path);
+    this->::sinucaTracer::TraceFileWriter::UseFile(path);
 
     this->threadCount = 0;
     this->bblCount = 0;
@@ -49,7 +50,7 @@ tracer::traceGenerator::StaticTraceFile::StaticTraceFile(const char* source,
     fseek(this->tf.file, 3 * sizeof(unsigned int), SEEK_SET);
 }
 
-tracer::traceGenerator::StaticTraceFile::~StaticTraceFile() {
+sinucaTracer::StaticTraceFile::~StaticTraceFile() {
     this->FlushBuffer();
     rewind(this->tf.file);
     fwrite(&this->threadCount, sizeof(this->threadCount), 1, this->tf.file);
@@ -57,7 +58,7 @@ tracer::traceGenerator::StaticTraceFile::~StaticTraceFile() {
     fwrite(&this->instCount, sizeof(this->instCount), 1, this->tf.file);
 }
 
-void tracer::traceGenerator::StaticTraceFile::PrepareDataINS(const INS* ins) {
+void sinucaTracer::StaticTraceFile::PrepareDataINS(const INS* ins) {
     std::string insName = INS_Mnemonic(*ins);
     unsigned long nameSize = insName.size();
     if (nameSize >= MAX_INSTRUCTION_NAME_LENGTH) {
@@ -77,24 +78,23 @@ void tracer::traceGenerator::StaticTraceFile::PrepareDataINS(const INS* ins) {
     this->FillRegs(ins);
 }
 
-void tracer::traceGenerator::StaticTraceFile::AppendToBufferDataINS() {
+void sinucaTracer::StaticTraceFile::AppendToBufferDataINS() {
     this->StaticAppendToBuffer(&this->data, sizeof(this->data));
 }
 
-void tracer::traceGenerator::StaticTraceFile::AppendToBufferNumIns(
-    unsigned int numIns) {
+void sinucaTracer::StaticTraceFile::AppendToBufferNumIns(unsigned int numIns) {
     this->StaticAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
 }
 
-void tracer::traceGenerator::StaticTraceFile::StaticAppendToBuffer(
-    void* ptr, unsigned long len) {
+void sinucaTracer::StaticTraceFile::StaticAppendToBuffer(void* ptr,
+                                                         unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushBuffer();
         this->AppendToBuffer(ptr, len);
     }
 }
 
-void tracer::traceGenerator::StaticTraceFile::ResetFlags() {
+void sinucaTracer::StaticTraceFile::ResetFlags() {
     this->data.isControlFlow = 0;
     this->data.isPredicated = 0;
     this->data.isPrefetch = 0;
@@ -105,7 +105,7 @@ void tracer::traceGenerator::StaticTraceFile::ResetFlags() {
     this->data.isWrite = 0;
 }
 
-void tracer::traceGenerator::StaticTraceFile::SetFlags(const INS* ins) {
+void sinucaTracer::StaticTraceFile::SetFlags(const INS* ins) {
     if (INS_IsPredicated(*ins)) {
         this->data.isPredicated = 1;
     }
@@ -132,7 +132,7 @@ void tracer::traceGenerator::StaticTraceFile::SetFlags(const INS* ins) {
     }
 }
 
-void tracer::traceGenerator::StaticTraceFile::SetBranchFields(const INS* ins) {
+void sinucaTracer::StaticTraceFile::SetBranchFields(const INS* ins) {
     bool isSyscall = INS_IsSyscall(*ins);
     bool isControlFlow = INS_IsControlFlow(*ins) || isSyscall;
 
@@ -155,7 +155,7 @@ void tracer::traceGenerator::StaticTraceFile::SetBranchFields(const INS* ins) {
     }
 }
 
-void tracer::traceGenerator::StaticTraceFile::FillRegs(const INS* ins) {
+void sinucaTracer::StaticTraceFile::FillRegs(const INS* ins) {
     unsigned int operandCount = INS_OperandCount(*ins);
     this->data.numReadRegs = this->data.numWriteRegs = 0;
     for (unsigned int i = 0; i < operandCount; ++i) {

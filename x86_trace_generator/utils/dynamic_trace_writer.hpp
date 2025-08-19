@@ -28,11 +28,11 @@
  * deals with buffering/flushing the data.
  */
 
-#include "../../src/tracer/x86/x86_file_handler.hpp"
-#include "pin.H"
+#include <pin.H>
 
-namespace tracer {
-namespace traceGenerator {
+#include <tracer/sinuca/file_handler.hpp>
+
+namespace sinucaTracer {
 
 class DynamicTraceFile : public TraceFileWriter {
   private:
@@ -47,9 +47,8 @@ class DynamicTraceFile : public TraceFileWriter {
     void IncTotalExecInst(int ins);
     void AppendToBufferId();
     ~DynamicTraceFile();
-  };
+};
 
-}  // namespace traceGenerator
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif

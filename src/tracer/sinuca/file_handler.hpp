@@ -33,15 +33,13 @@
 
 #include <cstdio>
 #include <cstring>
-
-#include "sinuca3.hpp"
-#include "utils/logging.hpp"
+#include <sinuca3.hpp>
 
 extern "C" {
 #include <errno.h>
 }
 
-namespace tracer {
+namespace sinucaTracer {
 
 typedef unsigned int BBLID;
 typedef unsigned int THREADID;
@@ -259,6 +257,6 @@ unsigned long GetPathTidOutSize(const char *sourceDir, const char *prefix,
 void FormatPathTidOut(char *dest, const char *sourceDir, const char *prefix,
                       const char *imageName, long destSize);
 
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif

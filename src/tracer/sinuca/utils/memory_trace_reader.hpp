@@ -27,10 +27,10 @@
  * this value in the file before each buffer flush.
  */
 
-#include "../x86_file_handler.hpp"
-#include "sinuca3.hpp"
+#include <sinuca3.hpp>
+#include <tracer/sinuca/file_handler.hpp>
 
-namespace tracer {
+namespace sinucaTracer {
 
 class MemoryTraceFile : public TraceFileReader {
   private:
@@ -61,6 +61,6 @@ class MemoryTraceFile : public TraceFileReader {
                            DynamicInstructionInfo *dynInfo);
 };
 
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif

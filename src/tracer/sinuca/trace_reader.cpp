@@ -19,15 +19,14 @@
  * @file x86_trace_reader.cpp
  */
 
-#include "x86_trace_reader.hpp"
+#include "trace_reader.hpp"
 
 #include <cassert>
+#include <sinuca3.hpp>
+#include <tracer/trace_reader.hpp>
 
-#include "sinuca3.hpp"
-#include "tracer/trace_reader.hpp"
-
-int tracer::SinucaTraceReader::OpenTrace(const char *imageName,
-                                         const char *sourceDir) {
+int sinucaTracer::SinucaTraceReader::OpenTrace(const char *imageName,
+                                               const char *sourceDir) {
     StaticTraceFile staticFile(sourceDir, imageName);
     if (!staticFile.Valid()) return 1;
 
@@ -49,14 +48,15 @@ int tracer::SinucaTraceReader::OpenTrace(const char *imageName,
     return 0;
 }
 
-void tracer::SinucaTraceReader::CloseTrace() {
+void sinucaTracer::SinucaTraceReader::CloseTrace() {
     delete[] this->thrsInfo;
     delete[] this->binaryBBLsSize;
     delete[] this->pool;
     delete[] this->binaryDict;
 }
 
-int tracer::SinucaTraceReader::GenerateBinaryDict(StaticTraceFile *stFile) {
+int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
+    StaticTraceFile *stFile) {
     InstructionInfo *instInfoPtr;
     unsigned long poolOffset;
     unsigned int bblSize;
@@ -87,7 +87,8 @@ int tracer::SinucaTraceReader::GenerateBinaryDict(StaticTraceFile *stFile) {
     return 0;
 }
 
-FetchResult tracer::SinucaTraceReader::Fetch(InstructionPacket *ret, int tid) {
+FetchResult sinucaTracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
+                                                   int tid) {
     InstructionInfo *packageInfo;
 
     if (!this->thrsInfo[tid].isInsideBBL) {
@@ -119,34 +120,37 @@ FetchResult tracer::SinucaTraceReader::Fetch(InstructionPacket *ret, int tid) {
     return FetchResultOk;  // Maybe this is not suitable for multiple threads
 }
 
-int tracer::SinucaTraceReader::GetTotalThreads() { return this->totalThreads; }
+int sinucaTracer::SinucaTraceReader::GetTotalThreads() {
+    return this->totalThreads;
+}
 
-unsigned long tracer::SinucaTraceReader::GetTotalBBLs() {
+unsigned long sinucaTracer::SinucaTraceReader::GetTotalBBLs() {
     return this->binaryTotalBBLs;
 }
 
-unsigned long tracer::SinucaTraceReader::GetNumberOfFetchedInst(int tid) {
+unsigned long sinucaTracer::SinucaTraceReader::GetNumberOfFetchedInst(int tid) {
     return this->thrsInfo[tid].fetchedInst;
 }
 
-unsigned long tracer::SinucaTraceReader::GetTotalInstToBeFetched(int tid) {
+unsigned long sinucaTracer::SinucaTraceReader::GetTotalInstToBeFetched(
+    int tid) {
     return this->thrsInfo[tid].dynFile->GetTotalExecInst();
 }
 
-void tracer::SinucaTraceReader::PrintStatistics() {
+void sinucaTracer::SinucaTraceReader::PrintStatistics() {
     SINUCA3_LOG_PRINTF("###########################\n");
     SINUCA3_LOG_PRINTF("Sinuca3 Trace Reader\n");
     // SINUCA3_LOG_PRINTF("Fetch Instructions:%lu\n", this->fetchInstructions);
     SINUCA3_LOG_PRINTF("###########################\n");
 }
 
-tracer::ThrInfo::ThrInfo() {
+sinucaTracer::ThrInfo::ThrInfo() {
     this->isInsideBBL = false;
     this->fetchedInst = 0;
 }
 
-int tracer::ThrInfo::Allocate(const char *sourceDir, const char *imageName,
-                              int tid) {
+int sinucaTracer::ThrInfo::Allocate(const char *sourceDir,
+                                    const char *imageName, int tid) {
     this->dynFile = new DynamicTraceFile(sourceDir, imageName, tid);
     if (!this->dynFile->Valid()) return 1;
     this->memFile = new MemoryTraceFile(sourceDir, imageName, tid);
@@ -154,22 +158,7 @@ int tracer::ThrInfo::Allocate(const char *sourceDir, const char *imageName,
     return 0;
 }
 
-tracer::ThrInfo::~ThrInfo() {
+sinucaTracer::ThrInfo::~ThrInfo() {
     delete this->memFile;
     delete this->dynFile;
 }
-
-#ifdef TEST_MAIN
-int main() {
-    InstructionPacket instInfo;
-    FetchResult ret;
-    TraceReader *tracer = new tracer::SinucaTraceReader();
-    tracer->OpenTrace("factorials", "");
-
-    do {
-        ret = tracer->Fetch(&instInfo, 0);
-    } while (ret == FetchResultOk);
-
-    delete tracer;
-}
-#endif

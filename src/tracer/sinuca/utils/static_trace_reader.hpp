@@ -42,10 +42,10 @@
  * did it this way).
  */
 
-#include "../x86_file_handler.hpp"
-#include "sinuca3.hpp"
+#include <sinuca3.hpp>
+#include <tracer/sinuca/file_handler.hpp>
 
-namespace tracer {
+namespace sinucaTracer {
 
 class StaticTraceFile {
   private:
@@ -92,6 +92,6 @@ class StaticTraceFile {
     ~StaticTraceFile();
 };
 
-}  // namespace tracer
+}  // namespace sinucaTracer
 
 #endif

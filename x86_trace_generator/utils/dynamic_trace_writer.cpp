@@ -29,10 +29,11 @@ extern "C" {
 #include <alloca.h>
 }
 
-tracer::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
-                                                          const char* img,
-                                                          THREADID tid) {
-    unsigned long bufferSize = tracer::GetPathTidInSize(source, "dynamic", img);
+sinucaTracer::DynamicTraceFile::DynamicTraceFile(const char* source,
+                                                 const char* img,
+                                                 THREADID tid) {
+    unsigned long bufferSize =
+        sinucaTracer::GetPathTidInSize(source, "dynamic", img);
     char* path = (char*)alloca(bufferSize);
 
     FormatPathTidIn(path, source, "dynamic", img, tid, bufferSize);
@@ -46,7 +47,7 @@ tracer::traceGenerator::DynamicTraceFile::DynamicTraceFile(const char* source,
     fseek(this->tf.file, 1 * sizeof(this->totalExecInst), SEEK_SET);
 }
 
-tracer::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
+sinucaTracer::DynamicTraceFile::~DynamicTraceFile() {
     SINUCA3_DEBUG_PRINTF("Last DynamicTraceFile flush\n");
     if (this->tf.offsetInBytes > 0) {
         this->FlushBuffer();
@@ -57,20 +58,18 @@ tracer::traceGenerator::DynamicTraceFile::~DynamicTraceFile() {
     SINUCA3_DEBUG_PRINTF("totalExecInst [%lu]\n", this->totalExecInst);
 }
 
-void tracer::traceGenerator::DynamicTraceFile::PrepareId(BBLID id) {
-    this->bblId = id;
-}
+void sinucaTracer::DynamicTraceFile::PrepareId(BBLID id) { this->bblId = id; }
 
-void tracer::traceGenerator::DynamicTraceFile::IncTotalExecInst(int ins) {
+void sinucaTracer::DynamicTraceFile::IncTotalExecInst(int ins) {
     this->totalExecInst += ins;
 }
 
-void tracer::traceGenerator::DynamicTraceFile::AppendToBufferId() {
+void sinucaTracer::DynamicTraceFile::AppendToBufferId() {
     this->DynamicAppendToBuffer(&this->bblId, sizeof(this->bblId));
 }
 
-void tracer::traceGenerator::DynamicTraceFile::DynamicAppendToBuffer(
-    void* ptr, unsigned long len) {
+void sinucaTracer::DynamicTraceFile::DynamicAppendToBuffer(void* ptr,
+                                                           unsigned long len) {
     if (this->AppendToBuffer(ptr, len)) {
         this->FlushBuffer();
         this->AppendToBuffer(ptr, len);

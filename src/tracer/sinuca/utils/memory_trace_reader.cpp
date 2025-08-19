@@ -28,8 +28,8 @@ extern "C" {
 #include <alloca.h>
 }
 
-tracer::MemoryTraceFile::MemoryTraceFile(const char *folderPath,
-                                         const char *img, THREADID tid) {
+sinucaTracer::MemoryTraceFile::MemoryTraceFile(const char *folderPath,
+                                               const char *img, THREADID tid) {
     unsigned long bufferSize = GetPathTidInSize(folderPath, "memory", img);
     char *path = (char *)alloca(bufferSize);
     FormatPathTidIn(path, folderPath, "memory", img, tid, bufferSize);
@@ -44,12 +44,12 @@ tracer::MemoryTraceFile::MemoryTraceFile(const char *folderPath,
     this->isValid = true;
 }
 
-void tracer::MemoryTraceFile::MemRetrieveBuffer() {
+void sinucaTracer::MemoryTraceFile::MemRetrieveBuffer() {
     this->RetrieveLenBytes(&this->bufActiveSize, sizeof(unsigned long));
     this->RetrieveBuffer();
 }
 
-unsigned short tracer::MemoryTraceFile::GetNumOps() {
+unsigned short sinucaTracer::MemoryTraceFile::GetNumOps() {
     unsigned short numOps;
 
     numOps = *(unsigned short *)this->GetData(SIZE_NUM_MEM_R_W);
@@ -59,7 +59,8 @@ unsigned short tracer::MemoryTraceFile::GetNumOps() {
     return numOps;
 }
 
-tracer::DataMEM *tracer::MemoryTraceFile::GetDataMemArr(unsigned short len) {
+sinucaTracer::DataMEM *sinucaTracer::MemoryTraceFile::GetDataMemArr(
+    unsigned short len) {
     DataMEM *arrPtr;
 
     arrPtr = (DataMEM *)(this->GetData(len * sizeof(DataMEM)));
@@ -69,7 +70,7 @@ tracer::DataMEM *tracer::MemoryTraceFile::GetDataMemArr(unsigned short len) {
     return arrPtr;
 }
 
-void tracer::MemoryTraceFile::ReadNextMemAccess(
+void sinucaTracer::MemoryTraceFile::ReadNextMemAccess(
     InstructionInfo *insInfo, DynamicInstructionInfo *dynInfo) {
     DataMEM *writeOps;
     DataMEM *readOps;

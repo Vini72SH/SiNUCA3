@@ -24,15 +24,15 @@
 
 #include <cstdio>
 #include <cstring>
-#include "utils/logging.hpp"
+#include <sinuca3.hpp>
 
 extern "C" {
 #include <alloca.h>
 }
 
-tracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath,
-                                           const char *imageName,
-                                           THREADID tid) {
+sinucaTracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath,
+                                                 const char *imageName,
+                                                 THREADID tid) {
     unsigned long bufferSize =
         GetPathTidInSize(folderPath, "dynamic", imageName);
     char *path = (char *)alloca(bufferSize);
@@ -56,7 +56,7 @@ tracer::DynamicTraceFile::DynamicTraceFile(const char *folderPath,
     this->isValid = true;
 }
 
-int tracer::DynamicTraceFile::ReadNextBBl(BBLID *bbl) {
+int sinucaTracer::DynamicTraceFile::ReadNextBBl(BBLID *bbl) {
     if (this->eofFound && this->tf.offsetInBytes == this->eofLocation) {
         return 1;
     }
