@@ -94,7 +94,7 @@ void sinucaTracer::StaticTraceFile::ReadNextInstruction(InstructionInfo *info) {
 int sinucaTracer::StaticTraceFile::GetNewBBLSize(unsigned int *size) {
     if (this->instLeftInBBL > 0) return 1;
     *size = *(unsigned int *)(this->GetData(SIZE_NUM_BBL_INS));
-    instLeftInBBL = *size;
+    this->instLeftInBBL = *size;
     return 0;
 }
 
