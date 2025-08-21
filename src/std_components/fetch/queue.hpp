@@ -25,9 +25,6 @@
  * component that instantiates this template class to use it.
  */
 
-#include "../../sinuca3.hpp"
-#include "../../utils/logging.hpp"
-
 /**
  * @brief Queue is a template class for creating fetching queues.
  * @details The queue uses the connection ones creates to it as buffer. Thus,
