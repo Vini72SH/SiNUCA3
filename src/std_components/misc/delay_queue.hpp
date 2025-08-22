@@ -62,7 +62,8 @@ class DelayQueue : public Component<Type> {
 };
 
 template <typename Type>
-DelayQueue<Type>::DelayQueue() : sendTo(NULL), cyclesClock(0), occupation(0), throughput(0), delay(0) {}
+DelayQueue<Type>::DelayQueue()
+    : sendTo(NULL), cyclesClock(0), occupation(0), throughput(0), delay(0) {}
 
 template <typename Type>
 DelayQueue<Type>::~DelayQueue() {

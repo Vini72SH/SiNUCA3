@@ -19,6 +19,7 @@
  */
 
 #include "delay_queue.hpp"
+
 #include "config/config.hpp"
 #include "queue.hpp"
 
