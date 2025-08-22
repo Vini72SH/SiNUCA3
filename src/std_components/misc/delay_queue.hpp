@@ -31,7 +31,7 @@
  * clock #3: component 3 receives message
  *
  * The delay queue allows messages from multiple components to be received, but
- * any request that exceeds the total capacity of the queue mau be  discarded,
+ * any request that exceeds the total capacity of the queue will be discarded,
  * so the `throughput` parameter must be set carefully.
  */
 
@@ -191,15 +191,20 @@ void DelayQueue<Type>::Clock() {
     if (this->cyclesClock + (unsigned long)this->delay == (unsigned long)~0) {
         SINUCA3_ERROR_PRINTF(
             "Congratulations! You've achieved something deemed impossible "
-            "[%lu] cycles\n",
+            "[%lu] cycles in delay queue\n",
             this->cyclesClock);
     }
 
+    long requests(0);
     if (this->delay == 0) {
         Type elem;
         for (long i = 0; i < totalConnections; i++) {
             while (!this->ReceiveRequestFromConnection(i, &elem)) {
-                if (this->sendTo->SendRequest(sendToId, &elem)) return;
+                if (requests >= this->throughput) {
+                    break;
+                }
+                this->sendTo->SendRequest(sendToId, &elem);
+                requests++;
             }
         }
         return;
@@ -213,7 +218,11 @@ void DelayQueue<Type>::Clock() {
     for (long i = 0; i < totalConnections; i++) {
         while (
             !this->ReceiveRequestFromConnection(i, &this->elemToInsert.elem)) {
-            if (this->Enqueue()) return;
+            if (requests >= this->throughput) {
+                break;
+            }
+            this->Enqueue();
+            requests++;
         }
     }
 }
