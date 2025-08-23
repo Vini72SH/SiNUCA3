@@ -174,7 +174,6 @@ template <typename Type>
 int DelayQueue<Type>::FinishSetup() {
     assert(this->sendTo != NULL);
     assert(this->throughput > 0);
-
     this->sendToId = this->sendTo->Connect(this->throughput);
     this->CalculateDelayBufferSize();
     if (this->delayBufferSize > 0) {
@@ -185,22 +184,17 @@ int DelayQueue<Type>::FinishSetup() {
 
 template <typename Type>
 void DelayQueue<Type>::Clock() {
-    assert(this->throughput > 0);
-    assert(this->sendTo != NULL);
     assert(this->cyclesClock + this->delay != (unsigned long)~0);
 
     this->cyclesClock++;
 
     long totalConnections = this->GetNumberOfConnections();
 
-    unsigned long requests(0);
     if (this->delay == 0) {
         Type elem;
         for (long i = 0; i < totalConnections; i++) {
             while (!this->ReceiveRequestFromConnection(i, &elem)) {
-                if (requests >= this->throughput) return;
-                this->sendTo->SendRequest(sendToId, &elem);
-                requests++;
+                if (this->sendTo->SendRequest(sendToId, &elem)) return;
             }
         }
         return;
@@ -210,6 +204,7 @@ void DelayQueue<Type>::Clock() {
         this->sendTo->SendRequest(sendToId, &this->elemToRemove.elem);
     }
 
+    unsigned long requests(0);
     for (long i = 0; i < totalConnections; i++) {
         while (
             !this->ReceiveRequestFromConnection(i, &this->elemToInsert.elem)) {
