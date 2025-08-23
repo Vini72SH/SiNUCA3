@@ -27,84 +27,146 @@
 
 #ifndef NDEBUG
 
-const long pipelineDelay = 2;
-const long delay = 3 - pipelineDelay;
-const long throughput = 4;
+const long inherentDelay = 2;
+const long delay = 3 - inherentDelay;
 
 int TestDelayQueue() {
-    DelayQueue<long> dq;
-    QueueTester component;
+    DelayQueue<long> dq1;
+    QueueTester component1;
 
-    dq.SetConfigParameter("delay", ConfigValue((long)delay));
-    dq.SetConfigParameter("throughput", ConfigValue((long)throughput));
-    dq.SetConfigParameter("sendTo", ConfigValue(&component));
-    dq.FinishSetup();
+    dq1.SetConfigParameter("delay", ConfigValue((long)delay));
+    dq1.SetConfigParameter("throughput", ConfigValue((long)4));
+    dq1.SetConfigParameter("sendTo", ConfigValue(&component1));
+    dq1.FinishSetup();
 
-    long id = dq.Connect(throughput);
+    long id = dq1.Connect(4);
     long msg1 = 0xcafeefac;
     long msg2 = 0xdeaddaed;
     long msg3 = 0xb16b00b5;
     long msg4 = 0xbaaddaab;
 
-    dq.SendRequest(id, &msg1);
-    dq.SendRequest(id, &msg2);
-    dq.SendRequest(id, &msg3);
-    dq.SendRequest(id, &msg4);
+    dq1.SendRequest(id, &msg1);
+    dq1.SendRequest(id, &msg2);
+    dq1.SendRequest(id, &msg3);
+    dq1.SendRequest(id, &msg4);
 
-    dq.Clock();
-    component.Clock();
-    dq.PosClock();
-    component.PosClock();
-    if (component.GetMessage() != 0) {
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
+    if (component1.GetMessage() != 0) {
         SINUCA3_ERROR_PRINTF("DelayQueue %s:%d was not expecting a message.\n",
                              __FILE__, __LINE__);
         return 1;
     }
     // 1
-    dq.Clock();
-    component.Clock();
-    dq.PosClock();
-    component.PosClock();
-    if (component.GetMessage() != 0) {
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
+    if (component1.GetMessage() != 0) {
         SINUCA3_ERROR_PRINTF("DelayQueue %s:%d was not expecting a message.\n",
                              __FILE__, __LINE__);
         return 1;
     }
     // 2
-    dq.Clock();
-    component.Clock();
-    dq.PosClock();
-    component.PosClock();
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
     // 3
-    dq.Clock();
+    dq1.Clock();
 
-    long msg = component.GetMessage();
+    long msg = component1.GetMessage();
     if (msg != msg1) {
         SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg1 is %ld\n", __FILE__,
                              __LINE__, msg);
         return 1;
     }
-    msg = component.GetMessage();
+    msg = component1.GetMessage();
     if (msg != msg2) {
-        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg1 is %ld\n", __FILE__,
+        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg2 is %ld\n", __FILE__,
                              __LINE__, msg);
         return 1;
     }
-    msg = component.GetMessage();
+    msg = component1.GetMessage();
     if (msg != msg3) {
-        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg1 is %ld\n", __FILE__,
+        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg3 is %ld\n", __FILE__,
                              __LINE__, msg);
         return 1;
     }
-    msg = component.GetMessage();
+    msg = component1.GetMessage();
     if (msg != msg4) {
-        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg1 is %ld\n", __FILE__,
+        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg4 is %ld\n", __FILE__,
                              __LINE__, msg);
         return 1;
     }
 
-    dq.PosClock();
-    component.PosClock();
+    dq1.PosClock();
+    component1.PosClock();
+
+    long msg5 = 0xfefefe;
+    dq1.SendRequest(id, &msg5);
+
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
+
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
+
+    dq1.Clock();
+    component1.Clock();
+    dq1.PosClock();
+    component1.PosClock();
+
+    dq1.Clock();
+
+    msg = component1.GetMessage();
+    if (msg != msg5) {
+        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg5 is %ld\n", __FILE__,
+                             __LINE__, msg);
+        return 1;
+    }
+
+    dq1.PosClock();
+    component1.PosClock();
+
+    DelayQueue<long> dq2;
+    QueueTester component2;
+    dq2.SetConfigParameter("delay", ConfigValue((long)0)); // Zero delay
+    dq2.SetConfigParameter("throughput", ConfigValue((long)1));
+    dq2.SetConfigParameter("sendTo", ConfigValue(&component2));
+    dq2.FinishSetup();
+    id = dq2.Connect(1);
+
+    long msg8 = 0xb00b1e;
+    dq2.SendRequest(id, &msg8);
+
+    dq2.Clock();
+    component2.Clock();
+    dq2.PosClock();
+    component2.PosClock();
+
+    dq2.Clock();
+    component2.Clock();
+    dq2.PosClock();
+    component2.PosClock();
+
+    dq2.Clock();
+
+    msg = component2.GetMessage();
+    if (msg != msg8) {
+        SINUCA3_ERROR_PRINTF("DelayQueue %s:%d msg8 is %ld\n", __FILE__,
+                             __LINE__, msg);
+        return 1;
+    }
+
+    dq2.PosClock();
+    component2.PosClock();
 
     return 0;
 }
