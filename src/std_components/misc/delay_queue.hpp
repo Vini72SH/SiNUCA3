@@ -45,14 +45,11 @@ class DelayQueue : public Component<Type> {
   private:
     struct Input {
         Type elem;
-        unsigned long removeAt; /**<Cycles until removal> */
+        unsigned long removeAt; /**<Cycle of removal> */
         void SetRemoval(unsigned long l) { this->removeAt = l; }
     };
 
     Input queueFirst;           /**<Oldest input in the delay buffer> */
-    Input elemToInsert;         /**<Input to be inserted in delay buffer> */
-    Input elemToRemove;         /**<Input removed from delay buffer> */
-
     CircularBuffer delayBuffer; /**<Used if delay >= 1 */
     Component<Type>* sendTo;
     unsigned long cyclesClock; /**<A cycles clock> */
@@ -64,18 +61,18 @@ class DelayQueue : public Component<Type> {
 
     inline bool IsEmpty() { return !this->occupation; }
     inline bool IsFull() { return this->delayBuffer.IsFull(); }
-    void CalculateDelayBufferSize();
+    inline bool UseDelayBuffer() { return this->delay >= 1; }
     /**
      * @brief No insertion if full. If empty, the queueFirst is set with new
      * elemToInsert. Otherwise, it is inserted in delay buffer.
      */
-    int Enqueue();
+    int Enqueue(Input* elem);
     /**
      * @brief No removal if empty or not time to remove queueFirst. Else,
      * elemToRemove receives queueFirst and if occupation is greater than one,
      * queueFirst receives the oldest input from delay buffer.
      */
-    int Dequeue();
+    int Dequeue(Input* elem);
 
   public:
     DelayQueue();
@@ -96,34 +93,29 @@ DelayQueue<Type>::~DelayQueue() {
 }
 
 template <typename Type>
-void DelayQueue<Type>::CalculateDelayBufferSize() {
-    this->delayBufferSize = this->delay * this->throughput;
-}
-
-template <typename Type>
-int DelayQueue<Type>::Enqueue() {
+int DelayQueue<Type>::Enqueue(Input* elem) {
     if (this->IsFull()) {
         return 1;
     }
-    this->elemToInsert.SetRemoval(this->cyclesClock + this->delay);
+    elem->SetRemoval(this->cyclesClock + this->delay);
     if (this->IsEmpty()) {
-        this->queueFirst = this->elemToInsert;
+        this->queueFirst = *elem;
     } else {
-        this->delayBuffer.Enqueue(&this->elemToInsert);
+        this->delayBuffer.Enqueue(elem);
     }
     this->occupation++;
     return 0;
 }
 
 template <typename Type>
-int DelayQueue<Type>::Dequeue() {
+int DelayQueue<Type>::Dequeue(Input* elem) {
     if (this->IsEmpty()) {
         return 1;
     }
     if (this->queueFirst.removeAt > this->cyclesClock) {
         return 1;  // Not yet time to remove
     }
-    this->elemToRemove = this->queueFirst;
+    *elem = this->queueFirst;
     if (this->occupation > 1) {
         this->delayBuffer.Dequeue(&this->queueFirst);
     }
@@ -175,7 +167,7 @@ int DelayQueue<Type>::FinishSetup() {
     assert(this->sendTo != NULL);
     assert(this->throughput > 0);
     this->sendToId = this->sendTo->Connect(this->throughput);
-    this->CalculateDelayBufferSize();
+    this->delayBufferSize = this->delay * this->throughput;
     if (this->delayBufferSize > 0) {
         this->delayBuffer.Allocate(this->delayBufferSize, sizeof(Input));
     }
@@ -188,29 +180,20 @@ void DelayQueue<Type>::Clock() {
 
     this->cyclesClock++;
 
-    long totalConnections = this->GetNumberOfConnections();
-
-    if (this->delay == 0) {
-        Type elem;
-        for (long i = 0; i < totalConnections; i++) {
-            while (!this->ReceiveRequestFromConnection(i, &elem)) {
-                if (this->sendTo->SendRequest(sendToId, &elem)) return;
-            }
+    Input input;
+    if (this->UseDelayBuffer()) {
+        while (this->Dequeue(&input) == 0) {
+            this->sendTo->SendRequest(sendToId, &input.elem);
         }
-        return;
     }
-
-    while (!this->Dequeue()) {
-        this->sendTo->SendRequest(sendToId, &this->elemToRemove.elem);
-    }
-
-    unsigned long requests(0);
+    long totalConnections = this->GetNumberOfConnections();
     for (long i = 0; i < totalConnections; i++) {
-        while (
-            !this->ReceiveRequestFromConnection(i, &this->elemToInsert.elem)) {
-            if (requests >= this->throughput) return;
-            this->Enqueue();
-            requests++;
+        while (this->ReceiveRequestFromConnection(i, &input.elem) == 0) {
+            if (this->UseDelayBuffer()) {
+                if (this->Enqueue(&input)) return;
+            } else {
+                if (this->sendTo->SendRequest(sendToId, &input.elem)) return;
+            }
         }
     }
 }
