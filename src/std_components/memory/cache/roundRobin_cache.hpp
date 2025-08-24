@@ -42,7 +42,7 @@ class RoundRobinCache : public Component<MemoryPacket> {
                                    ConfigValue value);
 
   private:
-    Cache c;
+    Cache cache;
     unsigned long numberOfRequests;
 
 };

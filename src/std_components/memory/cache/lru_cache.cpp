@@ -28,16 +28,7 @@
 #include "../../../utils/logging.hpp"
 #include "cache.hpp"
 
-LRUCache::LRUCache() : numberOfRequests(0) {
-    this->WayUsageCounters = new unsigned int*[this->c.numSets];
-    int n = this->c.numSets * this->c.numWays;
-    this->WayUsageCounters[0] = new unsigned int[n];
-    memset(this->WayUsageCounters[0], 0, n * sizeof(unsigned int));
-    for (int i = 1; i < this->c.numSets; ++i) {
-        this->WayUsageCounters[i] = this->WayUsageCounters[0] +
-                                    (i * this->c.numWays * sizeof(unsigned int));
-    }
-}
+LRUCache::LRUCache() : numberOfRequests(0) {}
 
 LRUCache::~LRUCache() {
     delete[] this->WayUsageCounters[0];
@@ -45,7 +36,7 @@ LRUCache::~LRUCache() {
 }
 
 bool LRUCache::Read(unsigned long addr, CacheEntry** result) {
-    bool exist = this->c.GetEntry(addr, result);
+    bool exist = this->cache.GetEntry(addr, result);
     this->WayUsageCounters[(*result)->i][(*result)->j] += 1;
     return exist;
 }
@@ -53,13 +44,13 @@ bool LRUCache::Read(unsigned long addr, CacheEntry** result) {
 void LRUCache::Write(unsigned long addr, unsigned long value) {
     CacheEntry* lruEntry = NULL;
     unsigned long oldestTime = ~0UL;  // Max value
-    unsigned long tag = this->c.GetTag(addr);
-    unsigned long index = this->c.GetIndex(addr);
+    unsigned long tag = this->cache.GetTag(addr);
+    unsigned long set = this->cache.GetIndex(addr);
     int i;
     int j;
 
-    for (int way = 0; way < this->c.numWays; ++way) {
-        CacheEntry* entry = &this->c.entries[index][way];
+    for (int way = 0; way < this->cache.numWays; ++way) {
+        CacheEntry* entry = &this->cache.entries[set][way];
 
         if (!entry->isValid) {
             lruEntry = entry;
@@ -73,9 +64,29 @@ void LRUCache::Write(unsigned long addr, unsigned long value) {
         }
     }
 
-    CacheEntry newEntry = {tag, index, true, i, j, value};
-    *lruEntry = newEntry;
+    *lruEntry = CacheEntry(lruEntry, tag, set, value);
 }
+
+int LRUCache::FinishSetup(){
+    if(this->cache.FinishSetup())
+        return 1;
+
+    this->WayUsageCounters = new unsigned int*[this->cache.numSets];
+    int n = this->cache.numSets * this->cache.numWays;
+    this->WayUsageCounters[0] = new unsigned int[n];
+    memset(this->WayUsageCounters[0], 0, n * sizeof(unsigned int));
+    for (int i = 1; i < this->cache.numSets; ++i) {
+        this->WayUsageCounters[i] = this->WayUsageCounters[0] +
+                                    (i * this->cache.numWays);
+    }
+
+    return 0;
+}
+
+int LRUCache::SetConfigParameter(const char *parameter,
+                               ConfigValue value){
+                                   return this->cache.SetConfigParameter(parameter, value);
+                               }
 
 void LRUCache::Clock() {
     SINUCA3_DEBUG_PRINTF("%p: LRUCache Clock!\n", this);
@@ -111,12 +122,3 @@ void LRUCache::Clock() {
 void LRUCache::Flush(){}
 
 void LRUCache::PrintStatistics(){}
-
-int LRUCache::FinishSetup(){
-    return this->c.FinishSetup();
-}
-
-int LRUCache::SetConfigParameter(const char *parameter,
-                               ConfigValue value){
-                                   return this->c.SetConfigParameter(parameter, value);
-                               }

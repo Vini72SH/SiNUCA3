@@ -42,7 +42,7 @@ class LRUCache : public Component<MemoryPacket> {
                                    ConfigValue value);
 
   private:
-    Cache c;
+    Cache cache;
     unsigned int **WayUsageCounters;
     unsigned long numberOfRequests;
 };

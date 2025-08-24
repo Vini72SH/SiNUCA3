@@ -28,41 +28,7 @@
 #include "../../../utils/logging.hpp"
 #include "cache.hpp"
 
-PseudoLRUCache::PseudoLRUCache() : numberOfRequests(0) {
-    this->plruTree = new struct plruNode *[this->c.numSets];
-    int n = this->c.numSets * (this->c.numWays - 1);
-    this->plruTree[0] = new struct plruNode[n];
-    memset(this->plruTree[0], 0, n * sizeof(struct plruNode));
-    for (int i = 1; i < this->c.numSets; ++i) {
-        this->plruTree[i] =
-            this->plruTree[0] + (i * this->c.numWays * sizeof(struct plruNode));
-    }
-
-    // Inicialize tree node's range
-    int nodeCount = this->c.numWays - 1;
-    int leafNodeCount = this->c.numWays / 2;
-    int internalNodeCount = leafNodeCount - 1;
-    for (int i = 0; i < this->c.numSets; ++i) {
-        this->plruTree[i][0].l = 0;
-        this->plruTree[i][0].r = this->c.numWays - 1;
-
-        struct plruNode *nodes = this->plruTree[i];
-        for (int j = 0; j < internalNodeCount; ++j) {
-            int mid = (nodes[j].l + nodes[j].r) / 2;
-
-            int leftChild = 2 * j + 1;
-            int rightChild = 2 * j + 2;
-            if (leftChild < nodeCount) {
-                nodes[leftChild].l = nodes[j].l;
-                nodes[leftChild].r = mid;
-            }
-            if (rightChild < nodeCount) {
-                nodes[rightChild].l = mid + 1;
-                nodes[rightChild].r = nodes[j].r;
-            }
-        }
-    }
-}
+PseudoLRUCache::PseudoLRUCache() : numberOfRequests(0) {}
 
 PseudoLRUCache::~PseudoLRUCache() {
     delete[] this->plruTree[0];
@@ -71,7 +37,7 @@ PseudoLRUCache::~PseudoLRUCache() {
 
 bool PseudoLRUCache::Read(unsigned long addr, CacheEntry **result) {
     // Get entry early to find set and way.
-    int exist = this->c.GetEntry(addr, result);
+    int exist = this->cache.GetEntry(addr, result);
     int set = (*result)->i;
     int way = (*result)->j;
 
@@ -95,10 +61,17 @@ bool PseudoLRUCache::Read(unsigned long addr, CacheEntry **result) {
 }
 
 void PseudoLRUCache::Write(unsigned long addr, unsigned long value) {
-    unsigned long tag = this->c.GetTag(addr);
-    unsigned long set = this->c.GetIndex(addr);
+    unsigned long tag = this->cache.GetTag(addr);
+    unsigned long set = this->cache.GetIndex(addr);
     int j = 0;
-    while (j < this->c.numWays - 1) {
+
+    CacheEntry *entry;
+    if(this->cache.FindEmptyEntry(addr, &entry)){
+        *entry = CacheEntry(entry, tag, set, value);
+        return;
+    }
+
+    while (j < this->cache.numWays - 1) {
         unsigned char old_direction =
             this->plruTree[set][j].direction;  // 0 is left, 1 is right
         this->plruTree[set][j].direction =
@@ -107,10 +80,9 @@ void PseudoLRUCache::Write(unsigned long addr, unsigned long value) {
         j = 2 * j + 1 + old_direction;
     }
 
-    int way = j - (this->c.numWays - 1);
-    CacheEntry *plruEntry = &this->c.entries[set][way];
-    CacheEntry newEntry = {tag, set, true, plruEntry->i, plruEntry->j, value};
-    *plruEntry = newEntry;
+    int way = j - (this->cache.numWays - 1);
+    CacheEntry *plruEntry = &this->cache.entries[set][way];
+    *plruEntry = CacheEntry(plruEntry, tag, set, value);
 }
 
 void PseudoLRUCache::Clock() {
@@ -149,17 +121,55 @@ void PseudoLRUCache::Flush(){}
 void PseudoLRUCache::PrintStatistics(){}
 
 int PseudoLRUCache::FinishSetup() {
-    if (!(this->c.numWays % 2)) {
+    if (!(this->cache.numWays % 2)) {
         SINUCA3_ERROR_PRINTF(
             "Pseudo LRU Cache with an odd quantity of ways is not implemented "
             "yet.\n");
         return 1;
     }
-    return this->c.FinishSetup();
+
+    if(this->cache.FinishSetup())
+        return 1;
+
+    this->plruTree = new struct plruNode *[this->cache.numSets];
+    int n = this->cache.numSets * (this->cache.numWays - 1);
+    this->plruTree[0] = new struct plruNode[n];
+    memset(this->plruTree[0], 0, n * sizeof(struct plruNode));
+    for (int i = 1; i < this->cache.numSets; ++i) {
+        this->plruTree[i] =
+            this->plruTree[0] + (i * this->cache.numWays);
+    }
+
+    // Inicialize tree node's range
+    int nodeCount = this->cache.numWays - 1;
+    int leafNodeCount = this->cache.numWays / 2;
+    int internalNodeCount = leafNodeCount - 1;
+    for (int i = 0; i < this->cache.numSets; ++i) {
+        this->plruTree[i][0].l = 0;
+        this->plruTree[i][0].r = this->cache.numWays - 1;
+
+        struct plruNode *nodes = this->plruTree[i];
+        for (int j = 0; j < internalNodeCount; ++j) {
+            int mid = (nodes[j].l + nodes[j].r) / 2;
+
+            int leftChild = 2 * j + 1;
+            int rightChild = 2 * j + 2;
+            if (leftChild < nodeCount) {
+                nodes[leftChild].l = nodes[j].l;
+                nodes[leftChild].r = mid;
+            }
+            if (rightChild < nodeCount) {
+                nodes[rightChild].l = mid + 1;
+                nodes[rightChild].r = nodes[j].r;
+            }
+        }
+    }
+
+    return 0;
 }
 
 
 int PseudoLRUCache::SetConfigParameter(const char *parameter,
                                ConfigValue value){
-                                   return this->c.SetConfigParameter(parameter, value);
+                                   return this->cache.SetConfigParameter(parameter, value);
                                }

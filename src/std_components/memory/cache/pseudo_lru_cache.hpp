@@ -48,7 +48,7 @@ class PseudoLRUCache : public Component<MemoryPacket> {
                                    ConfigValue value);
 
   private:
-    Cache c;
+    Cache cache;
     struct plruNode **plruTree;
     unsigned long numberOfRequests;
 };

@@ -71,10 +71,10 @@ void RoundRobinCache::Flush(){}
 void RoundRobinCache::PrintStatistics(){}
 
 int RoundRobinCache::FinishSetup(){
-    return this->c.FinishSetup();
+    return this->cache.FinishSetup();
 }
 
 int RoundRobinCache::SetConfigParameter(const char *parameter,
                                ConfigValue value){
-                                   return this->c.SetConfigParameter(parameter, value);
+                                   return this->cache.SetConfigParameter(parameter, value);
                                }

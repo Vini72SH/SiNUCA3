@@ -33,6 +33,14 @@ struct CacheEntry {
     bool isValid;
     int i, j;
     unsigned long value;  // Value Storaged in this entry
+
+    CacheEntry() {};
+
+    inline CacheEntry(int i, int j, unsigned long tag, unsigned long index, unsigned long value)
+    : tag(tag), index(index), isValid(false), i(i), j(j), value(value) {};
+
+    inline CacheEntry(CacheEntry *entry, unsigned long tag, unsigned long index, unsigned long value)
+    : tag(tag), index(index), isValid(true), i(entry->i), j(entry->j), value(value) {};
 };
 
 class Cache {
@@ -40,10 +48,10 @@ class Cache {
     inline Cache()
         : numSets(0), numWays(0), entries(NULL) {};
     virtual ~Cache();
+
     int FinishSetup();
     int SetConfigParameter(const char *parameter,
                                    ConfigValue value);
-    void Clock();
 
     int numSets;
     int numWays;
@@ -52,10 +60,26 @@ class Cache {
 
     unsigned long GetIndex(unsigned long addr) const;
     unsigned long GetTag(unsigned long addr) const;
+
+    // Find the entry for a addr.
+    // If it returns true,
+
+    /**
+     * @brief Find the entry for a addr.
+     * @param addr Address to look for.
+     * @param result Pointer to store search result.
+     * @return True if found, false otherwise.
+     */
     bool GetEntry(unsigned long addr, CacheEntry **result) const;
 
-    // virtual bool Read(unsigned long addr, CacheEntry **result) = 0;
-    // virtual void Write(unsigned long addr, unsigned long value) = 0;
+    /**
+     * @brief Can be used to find a entry that is not valid yet.
+     * @detail  If no victim is found, a replacement algorithm must choose which items to discard to make room for new data.
+     * @param addr Address to look for.
+     * @param result Pointer to store result.
+     * @return True if victim is found, false otherwise.
+     */
+    bool FindEmptyEntry(unsigned long addr, CacheEntry **result) const;
 };
 
 #endif

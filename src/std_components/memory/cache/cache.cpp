@@ -56,6 +56,19 @@ bool Cache::GetEntry(unsigned long addr, CacheEntry **result) const {
     return false;
 }
 
+bool Cache::FindEmptyEntry(unsigned long addr, CacheEntry **result) const{
+    unsigned long index = this->GetIndex(addr);
+    for (int way = 0; way < this->numWays; ++way) {
+        CacheEntry *entry = &this->entries[index][way];
+
+        if (!entry->isValid) {
+            *result = entry;
+            return true;
+        }
+    }
+    return false;
+}
+
 Cache::~Cache() {
     if (this->entries) {
         delete[] this->entries[0];
