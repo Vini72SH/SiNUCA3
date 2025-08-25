@@ -43,6 +43,7 @@
 #include <engine/component.hpp>
 #include <sinuca3.hpp>
 #include <utils/circular_buffer.hpp>
+
 #include "utils/logging.hpp"
 
 template <typename Type>
@@ -67,6 +68,10 @@ class DelayQueue : public Component<Type> {
     inline bool IsEmpty() { return !this->occupation; }
     inline bool IsFull() { return this->delayBuffer.IsFull(); }
     inline bool UseDelayBuffer() { return this->delay >= 1; }
+    inline void SetDelayBufferSize() {
+        this->delayBufferSize =
+            this->delay * this->throughput + this->throughput - 1;
+    }
     /**
      * @brief No insertion if full. If empty, the queueFirst is set with new
      * elemToInsert. Otherwise, it is inserted in delay buffer.
@@ -179,8 +184,8 @@ int DelayQueue<Type>::FinishSetup() {
     }
 
     this->sendToId = this->sendTo->Connect(this->throughput);
-    this->delayBufferSize = this->delay * this->throughput;
     if (this->UseDelayBuffer()) {
+        this->SetDelayBufferSize();
         this->delayBuffer.Allocate(this->delayBufferSize, sizeof(Input));
     }
     return 0;
@@ -188,7 +193,6 @@ int DelayQueue<Type>::FinishSetup() {
 
 template <typename Type>
 void DelayQueue<Type>::Clock() {
-
     this->cyclesClock++;
 
     Input input;
