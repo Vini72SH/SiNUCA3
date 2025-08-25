@@ -43,6 +43,7 @@ class RoundRobinCache : public Component<MemoryPacket> {
 
   private:
     Cache cache;
+    int *rrIndex;
     unsigned long numberOfRequests;
 
 };

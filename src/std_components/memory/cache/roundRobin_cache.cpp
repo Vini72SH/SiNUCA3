@@ -23,6 +23,7 @@
 #include "roundRobin_cache.hpp"
 
 #include <cassert>
+#include <cstring>
 
 #include "../../../utils/logging.hpp"
 #include "cache.hpp"
@@ -31,12 +32,29 @@ RoundRobinCache::RoundRobinCache() : numberOfRequests(0) {}
 
 RoundRobinCache::~RoundRobinCache() {}
 
-bool RoundRobinCache::Read(unsigned long addr, CacheEntry **result) {}
+bool RoundRobinCache::Read(unsigned long addr, CacheEntry **result) {
+    return this->cache.GetEntry(addr, result);
+}
 
-void RoundRobinCache::Write(unsigned long addr, unsigned long value) {}
+void RoundRobinCache::Write(unsigned long addr, unsigned long value) {
+    unsigned long tag = this->cache.GetTag(addr);
+    unsigned long set = this->cache.GetIndex(addr);
+
+    CacheEntry *entry;
+    if(this->cache.FindEmptyEntry(addr, &entry)){
+        *entry = CacheEntry(entry, tag, set, value);
+        return;
+    }
+
+    int rr = this->rrIndex[set];
+    this->rrIndex[set] = (this->rrIndex[set] + 1) % this->cache.numWays;
+    entry = &this->cache.entries[set][rr];
+    *entry = CacheEntry(entry, tag, set, value);
+    return;
+}
 
 void RoundRobinCache::Clock() {
-    SINUCA3_DEBUG_PRINTF("%p: CacheNWay Clock!\n", this);
+    SINUCA3_DEBUG_PRINTF("%p: RoundRobinCache Clock!\n", this);
     long numberOfConnections = this->GetNumberOfConnections();
     MemoryPacket packet;
     for (long i = 0; i < numberOfConnections; ++i) {
@@ -71,7 +89,13 @@ void RoundRobinCache::Flush(){}
 void RoundRobinCache::PrintStatistics(){}
 
 int RoundRobinCache::FinishSetup(){
-    return this->cache.FinishSetup();
+    if(this->cache.FinishSetup())
+        return 1;
+
+    this->rrIndex = new int[this->cache.numSets];
+    memset(this->rrIndex, 0, sizeof(int) * this->cache.numSets);
+
+    return 0;
 }
 
 int RoundRobinCache::SetConfigParameter(const char *parameter,
