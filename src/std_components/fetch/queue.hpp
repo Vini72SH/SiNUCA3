@@ -25,9 +25,6 @@
  * component that instantiates this template class to use it.
  */
 
-#include "../../sinuca3.hpp"
-#include "../../utils/logging.hpp"
-
 /**
  * @brief Queue is a template class for creating fetching queues.
  * @details The queue uses the connection ones creates to it as buffer. Thus,
@@ -58,7 +55,6 @@ class Queue : public Component<Type> {
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
-    virtual void Flush();
     virtual void PrintStatistics();
     virtual ~Queue();
 };
@@ -120,9 +116,6 @@ void Queue<Type>::Clock() {
         }
     }
 }
-
-template <typename Type>
-void Queue<Type>::Flush() {}
 
 template <typename Type>
 void Queue<Type>::PrintStatistics() {}

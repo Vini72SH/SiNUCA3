@@ -25,7 +25,7 @@
 
 #include <ctime>
 #include <engine/component.hpp>
-#include <trace_reader/trace_reader.hpp>
+#include <tracer/trace_reader.hpp>
 
 /**
  * @brief The engine itself.
@@ -47,18 +47,20 @@ class Engine : public Component<FetchPacket> {
     unsigned long totalCycles; /** @brief Counter of cycles. */
     unsigned long
         fetchedInstructions; /** @brief Counter of instructions fetched. */
+    unsigned long traceSize; /** @brief The total amount of instructions to be
+                                executed. */
 
-    /**
-     * @brief This variable tells wether a flush should occur in the beggining
-     * of the next clock.
-     */
-    bool flush;
     /**
      * @brief Will be one when there's no more instructions in the trace file.
      */
     bool end;
     /** @brief Will be set if the traceReader returns an error. */
     bool error;
+
+    /**
+     * @brief Returns the number of instructions to be executed.
+     */
+    unsigned long GetTraceSize();
 
     /**
      * @brief Prints the estimated remaining simulation time.
@@ -82,7 +84,6 @@ class Engine : public Component<FetchPacket> {
           numberOfFetchers(0),
           totalCycles(0),
           fetchedInstructions(0),
-          flush(false),
           end(false),
           error(false) {}
 
@@ -102,7 +103,6 @@ class Engine : public Component<FetchPacket> {
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
-    virtual void Flush();
     virtual void PrintStatistics();
 
     virtual ~Engine();

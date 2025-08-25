@@ -88,18 +88,22 @@ void Engine::Clock() {
     }
 }
 
-void Engine::Flush() { this->flush = true; }
-
 void Engine::PrintStatistics() {
     SINUCA3_LOG_PRINTF("engine: Cycled %lu times.\n", this->totalCycles);
     SINUCA3_LOG_PRINTF("engine: Fetched %lu instructions.\n",
                        this->fetchedInstructions);
 }
 
+unsigned long Engine::GetTraceSize() {
+    unsigned long size = 0;
+    for (int i = 0; i < this->traceReader->GetTotalThreads(); ++i) {
+        size += this->traceReader->GetTotalInstToBeFetched(i);
+    }
+    return size;
+}
+
 void Engine::PrintTime(time_t start, unsigned long cycle) {
-    const unsigned long traceSize = this->traceReader->GetTraceSize();
-    const unsigned long remaining =
-        traceSize - this->traceReader->GetNumberOfFetchedInstructions();
+    const unsigned long remaining = this->traceSize - this->fetchedInstructions;
 
     SINUCA3_LOG_PRINTF("engine: Heartbeat at cycle %ld.\n", cycle);
     SINUCA3_LOG_PRINTF("engine: Remaining instructions: %ld.\n", remaining - 1);
@@ -132,23 +136,16 @@ int Engine::Simulate(TraceReader* traceReader) {
         return 1;
     }
 
+    this->traceSize = this->GetTraceSize();
+
     const time_t start = time(NULL);
 
     SINUCA3_LOG_PRINTF("engine: Simulation started at %s", ctime(&start));
-    SINUCA3_LOG_PRINTF("engine: Total instructions: %ld.\n",
-                       traceReader->GetTraceSize());
+    SINUCA3_LOG_PRINTF("engine: Total instructions: %ld.\n", this->traceSize);
 
     while (!this->end && !this->error) {
         if ((this->totalCycles + 1) % (1 << 8) == 0)
             this->PrintTime(start, this->totalCycles + 1);
-
-        if (this->flush) {
-            for (long i = 0; i < this->numberOfComponents; ++i) {
-                this->components[i]->Flush();
-                this->components[i]->LinkableFlush();
-            }
-            this->flush = false;
-        }
 
         for (long i = 0; i < this->numberOfComponents; ++i)
             this->components[i]->Clock();
