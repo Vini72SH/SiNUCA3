@@ -33,12 +33,17 @@
  * The delay queue allows messages from multiple components to be received, but
  * any request that exceeds the total capacity of the queue will be discarded,
  * so the `throughput` parameter must be set carefully.
+ *
+ * This component uses a cycles counter to set and track the age of the elements
+ * enqueued. If the trace being simulated runs for more cycles than 2^64 - 1 -
+ * `delay`, the queue may not work properly.
  */
 
 #include <cassert>
 #include <engine/component.hpp>
 #include <sinuca3.hpp>
 #include <utils/circular_buffer.hpp>
+#include "utils/logging.hpp"
 
 template <typename Type>
 class DelayQueue : public Component<Type> {
@@ -164,11 +169,18 @@ int DelayQueue<Type>::SetConfigParameter(const char* param, ConfigValue val) {
 
 template <typename Type>
 int DelayQueue<Type>::FinishSetup() {
-    assert(this->sendTo != NULL);
-    assert(this->throughput > 0);
+    if (this->sendTo == NULL) {
+        SINUCA3_ERROR_PRINTF("DelayQueue sendTo param not set.\n");
+        return 1;
+    }
+    if (this->throughput == 0) {
+        SINUCA3_ERROR_PRINTF("DelayQueue throughput param not set.\n");
+        return 1;
+    }
+
     this->sendToId = this->sendTo->Connect(this->throughput);
     this->delayBufferSize = this->delay * this->throughput;
-    if (this->delayBufferSize > 0) {
+    if (this->UseDelayBuffer()) {
         this->delayBuffer.Allocate(this->delayBufferSize, sizeof(Input));
     }
     return 0;
@@ -176,7 +188,6 @@ int DelayQueue<Type>::FinishSetup() {
 
 template <typename Type>
 void DelayQueue<Type>::Clock() {
-    assert(this->cyclesClock + this->delay != (unsigned long)~0);
 
     this->cyclesClock++;
 
