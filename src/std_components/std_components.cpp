@@ -34,10 +34,6 @@
 #include "predictors/hardwired_predictor.hpp"
 #include "predictors/interleavedBTB.hpp"
 #include "predictors/ras.hpp"
-#include "memory/cache/lru_cache.hpp"
-#include "memory/cache/pseudo_lru_cache.hpp"
-#include "memory/cache/random_cache.hpp"
-#include "memory/cache/roundRobin_cache.hpp"
 
 Linkable* CreateDefaultComponentByClass(const char* name) {
 #ifndef NDEBUG
@@ -55,8 +51,6 @@ Linkable* CreateDefaultComponentByClass(const char* name) {
     COMPONENT(Fetcher);
     COMPONENT(SimpleExecutionUnit);
     COMPONENT(HardwiredPredictor);
-    COMPONENT(LRUCache);
-    COMPONENT(PseudoLRUCache);
 
     return NULL;
 }

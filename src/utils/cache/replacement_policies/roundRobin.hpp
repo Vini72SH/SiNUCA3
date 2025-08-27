@@ -24,26 +24,23 @@
  */
 
 #include <sinuca3.hpp>
-#include <utils/cache.hpp>
+#include <utils/cache/cache.hpp>
+#include <utils/cache/replacement_policy.hpp>
 
-class RoundRobinCache : public Component<MemoryPacket> {
+namespace ReplacementPolicies {
+
+class RoundRobin : public ReplacementPolicy {
   public:
-    RoundRobinCache();
-    virtual ~RoundRobinCache();
+    RoundRobin(int numSets, int numWays);
+    virtual ~RoundRobin();
 
-    virtual bool Read(unsigned long addr, CacheEntry **result);
-    virtual void Write(unsigned long addr, unsigned long value);
-
-    virtual void Clock();
-    virtual void Flush();
-    virtual void PrintStatistics();
-    virtual int FinishSetup();
-    virtual int SetConfigParameter(const char *parameter, ConfigValue value);
+    virtual void Acess(CacheEntry *entry);
+    virtual void SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay);
 
   private:
-    Cache cache;
     int *rrIndex;
-    unsigned long numberOfRequests;
 };
+
+}
 
 #endif

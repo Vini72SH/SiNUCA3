@@ -1,6 +1,3 @@
-#ifndef SINUCA3_LRU_CACHE_HPP_
-#define SINUCA3_LRU_CACHE_HPP_
-
 //
 // Copyright (C) 2024  HiPES - Universidade Federal do Paraná
 //
@@ -19,31 +16,32 @@
 //
 
 /**
- * @file lru_cache.hpp
- * @details WP! A cache using LRU as replacement policy.
+ * @file random_cache.cpp
+ * @brief Implementation of a cache using Random as replacement policy.
  */
 
-#include <sinuca3.hpp>
-#include <utils/cache.hpp>
+#include "random.hpp"
 
-class LRUCache : public Component<MemoryPacket> {
-  public:
-    LRUCache();
-    virtual ~LRUCache();
+#include <cassert>
+#include <cstdlib>
+#include <utils/cache/cache.hpp>
+#include <utils/logging.hpp>
 
-    virtual bool Read(unsigned long addr, CacheEntry **result);
-    virtual void Write(unsigned long addr, unsigned long value);
+namespace ReplacementPolicies {
 
-    virtual void Clock();
-    virtual void Flush();
-    virtual void PrintStatistics();
-    virtual int FinishSetup();
-    virtual int SetConfigParameter(const char *parameter, ConfigValue value);
-
-  private:
-    Cache cache;
-    unsigned int **WayUsageCounters;
-    unsigned long numberOfRequests;
+Random::Random(int numSets, int numWays) : ReplacementPolicy(numSets, numWays){
+    srand(SEED);
 };
 
-#endif
+void Random::Acess(CacheEntry *entry){
+    (void)entry;
+}
+
+void Random::SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay){
+    (void)tag;
+    int random = rand() % this->numWays;
+    *resultSet = index;
+    *resultWay = random;
+}
+
+}

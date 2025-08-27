@@ -26,41 +26,45 @@
 #include <cstddef>
 #include <sinuca3.hpp>
 
+#include "replacement_policy.hpp"
+
+enum ReplacementPoliciesID {
+  LruID = 0,
+  RandomID = 1,
+  RoundRobinID = 2
+};
+
 struct CacheEntry {
     unsigned long tag;
     unsigned long index;
     bool isValid;
+
+    // This is the position of this entry in the entries matrix.
+    // It can be useful for organizing other matrices.
     int i, j;
-    unsigned long value;  // Value Storaged in this entry
 
     CacheEntry() {};
 
-    inline CacheEntry(int i, int j, unsigned long tag, unsigned long index,
-                      unsigned long value)
-        : tag(tag), index(index), isValid(false), i(i), j(j), value(value) {};
+    inline CacheEntry(int i, int j, unsigned long tag, unsigned long index)
+        : tag(tag), index(index), isValid(false), i(i), j(j) {};
 
-    inline CacheEntry(CacheEntry *entry, unsigned long tag, unsigned long index,
-                      unsigned long value)
+    inline CacheEntry(CacheEntry *entry, unsigned long tag, unsigned long index)
         : tag(tag),
           index(index),
           isValid(true),
           i(entry->i),
-          j(entry->j),
-          value(value) {};
+          j(entry->j){};
 };
 
 class Cache {
   public:
-    inline Cache() : numSets(0), numWays(0), entries(NULL) {};
+    inline Cache() : numSets(0), numWays(0), entries(NULL), policy(NULL) {};
     virtual ~Cache();
 
     int FinishSetup();
     int SetConfigParameter(const char *parameter, ConfigValue value);
 
-    int numSets;
-    int numWays;
-
-    CacheEntry **entries;  // matrix [sets x ways]
+    bool SetReplacementPolicy(ReplacementPoliciesID id);
 
     unsigned long GetIndex(unsigned long addr) const;
     unsigned long GetTag(unsigned long addr) const;
@@ -85,6 +89,13 @@ class Cache {
      * @return True if victim is found, false otherwise.
      */
     bool FindEmptyEntry(unsigned long addr, CacheEntry **result) const;
+
+    int numSets;
+    int numWays;
+    CacheEntry **entries;  // matrix [sets x ways]
+
+    private:
+        ReplacementPolicy *policy;
 };
 
 #endif

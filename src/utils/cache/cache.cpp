@@ -25,6 +25,9 @@
 // words... how large is one page in memory. Idealy, we import this information
 // from elsewhere. But I will leave as global constants for now.
 #include <cstddef>
+#include "utils/cache/replacement_policies/lru.hpp"
+#include "utils/cache/replacement_policies/random.hpp"
+#include "utils/cache/replacement_policies/roundRobin.hpp"
 unsigned long offsetBitsMask = 12;
 unsigned long indexBitsMask = 6;
 unsigned long tagBitsMask = 46;
@@ -32,7 +35,17 @@ unsigned long tagBitsMask = 46;
 #include <cassert>
 #include <utils/logging.hpp>
 
+
 #include "cache.hpp"
+#include "replacement_policy.hpp"
+
+Cache::~Cache() {
+    if (this->entries) {
+        delete[] this->entries[0];
+        delete[] this->entries;
+    }
+    delete this->policy;
+}
 
 unsigned long Cache::GetIndex(unsigned long addr) const {
     return (addr & indexBitsMask) >> offsetBitsMask;
@@ -69,13 +82,6 @@ bool Cache::FindEmptyEntry(unsigned long addr, CacheEntry **result) const {
     return false;
 }
 
-Cache::~Cache() {
-    if (this->entries) {
-        delete[] this->entries[0];
-        delete[] this->entries;
-    }
-}
-
 int Cache::FinishSetup() {
     if (this->numSets == 0) {
         SINUCA3_ERROR_PRINTF(
@@ -110,16 +116,26 @@ int Cache::FinishSetup() {
 int Cache::SetConfigParameter(const char *parameter, ConfigValue value) {
     bool isSets = (strcmp(parameter, "sets") == 0);
     bool isWays = (strcmp(parameter, "ways") == 0);
+    bool isPolicy = (strcmp(parameter, "policy") == 0);
 
-    if (!isSets && !isWays) {
+    if (!isSets && !isWays && !isPolicy) {
         SINUCA3_ERROR_PRINTF("Cache received an unkown parameter: %s.\n",
                              parameter);
         return 1;
     }
 
-    if ((isSets || isWays) && value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("Cache parameter \"%s\" is not an integer.\n",
-                             isSets ? "sets" : "ways");
+    if(isSets && value.type != ConfigValueTypeInteger){
+        SINUCA3_ERROR_PRINTF("Cache parameter \"sets\" is not an integer.\n");
+        return 1;
+    }
+
+    if(isWays && value.type != ConfigValueTypeInteger){
+        SINUCA3_ERROR_PRINTF("Cache parameter \"ways\" is not an integer.\n");
+        return 1;
+    }
+
+    if(isPolicy && value.type != ConfigValueTypeInteger){
+        SINUCA3_ERROR_PRINTF("Cache parameter \"policy\" is not an integer.\n");
         return 1;
     }
 
@@ -143,5 +159,33 @@ int Cache::SetConfigParameter(const char *parameter, ConfigValue value) {
         this->numWays = v;
     }
 
+    if(isPolicy){
+        const ReplacementPoliciesID v = static_cast<ReplacementPoliciesID>(value.value.integer);
+        if(SetReplacementPolicy(v)){
+            SINUCA3_ERROR_PRINTF(
+                "Invalid value for Cache parameter \"policy\": should be a value from enum ReplacementPoliciesID.");
+            return 1;
+        }
+    }
+
     return 0;
+}
+
+bool Cache::SetReplacementPolicy(ReplacementPoliciesID id){
+    switch (id) {
+        case LruID:
+        this->policy = new ReplacementPolicies::LRU(this->numSets, this->numWays);
+        return 0;
+
+        case RandomID:
+        this->policy = new ReplacementPolicies::Random(this->numSets, this->numWays);
+        return 0;
+
+        case RoundRobinID:
+        this->policy = new ReplacementPolicies::RoundRobin(this->numSets, this->numWays);
+        return 0;
+
+        default:
+        return 1;
+    }
 }
