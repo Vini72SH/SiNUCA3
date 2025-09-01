@@ -29,12 +29,12 @@
 
 namespace ReplacementPolicies {
 
-LRU::LRU(int numSets, int numWays) : ReplacementPolicy(numSets, numWays){
-    this->WayUsageCounters = new unsigned int*[this->numSets];
+LRU::LRU(int numSets, int numWays) : ReplacementPolicy(numSets, numWays) {
+    this->WayUsageCounters = new unsigned int *[this->numSets];
     int n = this->numSets * this->numWays;
     this->WayUsageCounters[0] = new unsigned int[n];
     memset(this->WayUsageCounters[0], 0, n * sizeof(unsigned int));
-    for (int i = 1; i < this->numSets; ++i) {
+    for (int i = 1; i < this->numSets; i++) {
         this->WayUsageCounters[i] =
             this->WayUsageCounters[0] + (i * this->numWays);
     }
@@ -45,15 +45,16 @@ LRU::~LRU() {
     delete[] this->WayUsageCounters;
 }
 
-void LRU::Acess(CacheEntry *entry){
+void LRU::Acess(CacheEntry *entry) {
     for (int way = 0; way < this->numWays; ++way) {
-         this->WayUsageCounters[entry->i][way] += 1;
+        this->WayUsageCounters[entry->i][way] += 1;
     }
     this->WayUsageCounters[entry->i][entry->j] = 0;
 }
 
-void LRU::SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay)  {
-    (void) tag;
+void LRU::SelectVictim(unsigned long tag, unsigned long index, int *resultSet,
+                       int *resultWay) {
+    (void)tag;
     long lruMaxCount = -1;  // Max value
     *resultSet = index;
     for (int way = 0; way < this->numWays; ++way) {
@@ -64,4 +65,4 @@ void LRU::SelectVictim(unsigned long tag, unsigned long index, int *resultSet, i
     }
 }
 
-}
+}  // namespace ReplacementPolicies

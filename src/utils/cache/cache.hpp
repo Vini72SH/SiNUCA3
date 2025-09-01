@@ -28,7 +28,12 @@
 
 #include "replacement_policy.hpp"
 
-enum ReplacementPoliciesID { LruID = 0, RandomID = 1, RoundRobinID = 2 };
+enum ReplacementPoliciesID {
+    Unset = -1,
+    LruID = 0,
+    RandomID = 1,
+    RoundRobinID = 2
+};
 
 struct CacheEntry {
     unsigned long tag;
@@ -56,7 +61,8 @@ class Cache {
           lineSize(0),
           numWays(-1),
           entries(NULL),
-          policy(NULL) {};
+          policy(NULL),
+          policyID(Unset) {};
     virtual ~Cache();
 
     int FinishSetup();
@@ -131,6 +137,7 @@ class Cache {
     CacheEntry **entries;  // matrix [sets x ways]
 
     ReplacementPolicy *policy;
+    ReplacementPoliciesID policyID;
 };
 
 #endif

@@ -57,7 +57,7 @@ bool Cache::Read(MemoryPacket addr) {
     CacheEntry *result;
 
     exist = this->GetEntry(addr, &result);
-    this->policy->Acess(result);
+    if (exist) this->policy->Acess(result);
 
     return exist;
 }
@@ -126,12 +126,6 @@ void Cache::setAddrSizeBits(unsigned int addrSizeBits) {
 }
 
 int Cache::FinishSetup() {
-    if (this->policy == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache didn't received obrigatory parameter \"policy\"\n");
-        return 1;
-    }
-
     if (this->cacheSize == 0) {
         SINUCA3_ERROR_PRINTF(
             "Cache didn't received obrigatory parameter \"cacheSize\"\n");
@@ -195,6 +189,14 @@ int Cache::FinishSetup() {
             this->entries[i][j].j = j;
         }
     }
+
+    if (this->policyID == Unset) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache didn't received obrigatory parameter \"policy\"\n");
+        return 1;
+    }
+
+    this->SetReplacementPolicy(this->policyID);
 
     return 0;
 }
@@ -271,12 +273,7 @@ int Cache::SetConfigParameter(const char *parameter, ConfigValue value) {
     if (isPolicy) {
         const ReplacementPoliciesID v =
             static_cast<ReplacementPoliciesID>(value.value.integer);
-        if (SetReplacementPolicy(v)) {
-            SINUCA3_ERROR_PRINTF(
-                "Invalid value for Cache parameter \"policy\": should be a "
-                "value from enum ReplacementPoliciesID.");
-            return 1;
-        }
+        this->policyID = v;
     }
 
     return 0;
