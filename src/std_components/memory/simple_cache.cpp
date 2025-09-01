@@ -20,19 +20,18 @@
  * @brief Implementation of the SimpleCache.
  */
 
- #include <sinuca3.hpp>
- #include "simple_cache.hpp"
+#include "simple_cache.hpp"
 
-int SimpleCache::FinishSetup(){
-    if(this->cache.FinishSetup())
-        return 1;
+#include <sinuca3.hpp>
+
+int SimpleCache::FinishSetup() {
+    if (this->cache.FinishSetup()) return 1;
 
     return 0;
 }
 
-int SimpleCache::SetConfigParameter(const char* parameter, ConfigValue value){
-    if(this->cache.SetConfigParameter(parameter, value))
-        return 1;
+int SimpleCache::SetConfigParameter(const char* parameter, ConfigValue value) {
+    if (this->cache.SetConfigParameter(parameter, value)) return 1;
 
     return 0;
 }
@@ -49,16 +48,20 @@ void SimpleCache::Clock() {
             // MemoryPacket is send back to to signal
             // that the cache's operation has been completed.
 
+            SINUCA3_DEBUG_PRINTF("%p: SimpleCache Message (%lu) Received!\n",
+                                 this, packet);
+
             // Read() returns true if it was hit.
             if (this->cache.Read(packet)) {
-                this->SendResponseToConnection(i, &packet);
+                SINUCA3_DEBUG_PRINTF("%p: SimpleCache HIT!\n", this);
             } else {
+                SINUCA3_DEBUG_PRINTF("%p: SimpleCache MISS!\n", this);
                 this->cache.Write(packet);
             }
+
+            this->SendResponseToConnection(i, &packet);
         }
     }
 }
 
-void SimpleCache::PrintStatistics(){
-
-}
+void SimpleCache::PrintStatistics() {}
