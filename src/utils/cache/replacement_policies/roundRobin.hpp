@@ -24,7 +24,7 @@
  */
 
 #include <sinuca3.hpp>
-#include <utils/cache/cache.hpp>
+#include <utils/cache/cacheMemory.hpp>
 #include <utils/cache/replacement_policy.hpp>
 
 namespace ReplacementPolicies {
@@ -34,13 +34,14 @@ class RoundRobin : public ReplacementPolicy {
     RoundRobin(int numSets, int numWays);
     virtual ~RoundRobin();
 
-    virtual void Acess(CacheEntry *entry);
-    virtual void SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay);
+    virtual void Acess(CacheLine *entry);
+    virtual void SelectVictim(unsigned long tag, unsigned long index,
+                              int *resultSet, int *resultWay);
 
   private:
     int *rrIndex;
 };
 
-}
+}  // namespace ReplacementPolicies
 
 #endif

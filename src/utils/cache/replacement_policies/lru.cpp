@@ -24,7 +24,7 @@
 
 #include <cassert>
 #include <cstring>
-#include <utils/cache/cache.hpp>
+#include <utils/cache/cacheMemory.hpp>
 #include <utils/logging.hpp>
 
 namespace ReplacementPolicies {
@@ -45,7 +45,7 @@ LRU::~LRU() {
     delete[] this->WayUsageCounters;
 }
 
-void LRU::Acess(CacheEntry *entry) {
+void LRU::Acess(CacheLine *entry) {
     for (int way = 0; way < this->numWays; ++way) {
         this->WayUsageCounters[entry->i][way] += 1;
     }

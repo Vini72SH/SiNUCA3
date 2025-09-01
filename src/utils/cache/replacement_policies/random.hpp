@@ -24,7 +24,7 @@
  */
 
 #include <sinuca3.hpp>
-#include <utils/cache/cache.hpp>
+#include <utils/cache/cacheMemory.hpp>
 #include <utils/cache/replacement_policy.hpp>
 
 namespace ReplacementPolicies {
@@ -34,12 +34,13 @@ const unsigned int SEED = 0;
 class Random : public ReplacementPolicy {
   public:
     Random(int numSets, int numWays);
-    virtual ~Random(){};
+    virtual ~Random() {};
 
-    virtual void Acess(CacheEntry *entry);
-    virtual void SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay);
+    virtual void Acess(CacheLine *entry);
+    virtual void SelectVictim(unsigned long tag, unsigned long index,
+                              int *resultSet, int *resultWay);
 };
 
-}
+}  // namespace ReplacementPolicies
 
 #endif

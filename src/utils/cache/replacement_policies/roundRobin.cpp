@@ -24,25 +24,23 @@
 
 #include <cassert>
 #include <cstring>
-#include <utils/cache/cache.hpp>
+#include <utils/cache/cacheMemory.hpp>
 #include <utils/logging.hpp>
 
 namespace ReplacementPolicies {
 
-RoundRobin::RoundRobin(int numSets, int numWays) : ReplacementPolicy(numSets, numWays){
+RoundRobin::RoundRobin(int numSets, int numWays)
+    : ReplacementPolicy(numSets, numWays) {
     this->rrIndex = new int[this->numSets];
     memset(this->rrIndex, 0, sizeof(int) * this->numSets);
 };
 
-RoundRobin::~RoundRobin(){
-    delete this->rrIndex;
-}
+RoundRobin::~RoundRobin() { delete this->rrIndex; }
 
-void RoundRobin::Acess(CacheEntry *entry){
-    (void)entry;
-}
+void RoundRobin::Acess(CacheLine *entry) { (void)entry; }
 
-void RoundRobin::SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay){
+void RoundRobin::SelectVictim(unsigned long tag, unsigned long index,
+                              int *resultSet, int *resultWay) {
     (void)tag;
     int rr = this->rrIndex[index];
     this->rrIndex[index] = (this->rrIndex[index] + 1) % this->numWays;
@@ -50,4 +48,4 @@ void RoundRobin::SelectVictim(unsigned long tag, unsigned long index, int *resul
     *resultWay = rr;
 }
 
-}
+}  // namespace ReplacementPolicies

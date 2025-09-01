@@ -24,24 +24,23 @@
 
 #include <cassert>
 #include <cstdlib>
-#include <utils/cache/cache.hpp>
+#include <utils/cache/cacheMemory.hpp>
 #include <utils/logging.hpp>
 
 namespace ReplacementPolicies {
 
-Random::Random(int numSets, int numWays) : ReplacementPolicy(numSets, numWays){
+Random::Random(int numSets, int numWays) : ReplacementPolicy(numSets, numWays) {
     srand(SEED);
 };
 
-void Random::Acess(CacheEntry *entry){
-    (void)entry;
-}
+void Random::Acess(CacheLine *entry) { (void)entry; }
 
-void Random::SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay){
+void Random::SelectVictim(unsigned long tag, unsigned long index,
+                          int *resultSet, int *resultWay) {
     (void)tag;
     int random = rand() % this->numWays;
     *resultSet = index;
     *resultWay = random;
 }
 
-}
+}  // namespace ReplacementPolicies

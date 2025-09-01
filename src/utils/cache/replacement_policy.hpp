@@ -21,8 +21,8 @@
 #include <sinuca3.hpp>
 
 // Foward Declaration
-struct CacheEntry;
-class Cache;
+struct CacheLine;
+class CacheMemory;
 
 class ReplacementPolicy {
   public:
@@ -30,7 +30,7 @@ class ReplacementPolicy {
         : numSets(numSets), numWays(numWays) {};
     virtual ~ReplacementPolicy() {};
 
-    virtual void Acess(CacheEntry *entry) = 0;
+    virtual void Acess(CacheLine *entry) = 0;
     virtual void SelectVictim(unsigned long tag, unsigned long index,
                               int *resultSet, int *resultWay) = 0;
 

@@ -35,7 +35,7 @@ enum ReplacementPoliciesID {
     RoundRobinID = 2
 };
 
-struct CacheEntry {
+struct CacheLine {
     unsigned long tag;
     unsigned long index;
     bool isValid;
@@ -44,18 +44,18 @@ struct CacheEntry {
     // It can be useful for organizing other matrices.
     int i, j;
 
-    CacheEntry() {};
+    CacheLine() {};
 
-    inline CacheEntry(int i, int j, unsigned long tag, unsigned long index)
+    inline CacheLine(int i, int j, unsigned long tag, unsigned long index)
         : tag(tag), index(index), isValid(false), i(i), j(j) {};
 
-    inline CacheEntry(CacheEntry *entry, unsigned long tag, unsigned long index)
+    inline CacheLine(CacheLine *entry, unsigned long tag, unsigned long index)
         : tag(tag), index(index), isValid(true), i(entry->i), j(entry->j) {};
 };
 
-class Cache {
+class CacheMemory {
   public:
-    inline Cache()
+    inline CacheMemory()
         : addrSizeBits(64),
           cacheSize(0),
           lineSize(0),
@@ -63,7 +63,7 @@ class Cache {
           entries(NULL),
           policy(NULL),
           policyID(Unset) {};
-    virtual ~Cache();
+    virtual ~CacheMemory();
 
     int FinishSetup();
     int SetConfigParameter(const char *parameter, ConfigValue value);
@@ -99,7 +99,7 @@ class Cache {
      * @param result Pointer to store search result.
      * @return True if found, false otherwise.
      */
-    bool GetEntry(unsigned long addr, CacheEntry **result) const;
+    bool GetEntry(unsigned long addr, CacheLine **result) const;
 
     /**
      * @brief Can be used to find a entry that is not valid.
@@ -107,7 +107,7 @@ class Cache {
      * @param result Pointer to store result.
      * @return True if victim is found, false otherwise.
      */
-    bool FindEmptyEntry(unsigned long addr, CacheEntry **result) const;
+    bool FindEmptyEntry(unsigned long addr, CacheLine **result) const;
 
     void setAddrSizeBits(unsigned int addrSizeBits);
 
@@ -134,7 +134,7 @@ class Cache {
     unsigned long indexMask;
     unsigned long tagMask;
 
-    CacheEntry **entries;  // matrix [sets x ways]
+    CacheLine **entries;  // matrix [sets x ways]
 
     ReplacementPolicy *policy;
     ReplacementPoliciesID policyID;

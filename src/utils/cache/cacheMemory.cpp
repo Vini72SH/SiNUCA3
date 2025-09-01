@@ -24,7 +24,7 @@
 // We need to know how many bits are going to be used as offset... in other
 // words... how large is one page in memory. Idealy, we import this information
 // from elsewhere. But I will leave as global constants for now.
-#include "cache.hpp"
+#include "cacheMemory.hpp"
 
 #include <cassert>
 #include <cmath>
@@ -44,7 +44,7 @@ static bool checkIfPowerOfTwo(unsigned long x) {
     return (x & (x - 1)) == 0;
 }
 
-Cache::~Cache() {
+CacheMemory::~CacheMemory() {
     if (this->entries) {
         delete[] this->entries[0];
         delete[] this->entries;
@@ -52,9 +52,9 @@ Cache::~Cache() {
     delete this->policy;
 }
 
-bool Cache::Read(MemoryPacket addr) {
+bool CacheMemory::Read(MemoryPacket addr) {
     bool exist;
-    CacheEntry *result;
+    CacheLine *result;
 
     exist = this->GetEntry(addr, &result);
     if (exist) this->policy->Acess(result);
@@ -62,13 +62,13 @@ bool Cache::Read(MemoryPacket addr) {
     return exist;
 }
 
-void Cache::Write(MemoryPacket addr) {
-    CacheEntry *victim;
+void CacheMemory::Write(MemoryPacket addr) {
+    CacheLine *victim;
     unsigned long tag = GetTag(addr);
     unsigned long index = GetIndex(addr);
 
     if (FindEmptyEntry(addr, &victim)) {
-        *victim = CacheEntry(victim, tag, index);
+        *victim = CacheLine(victim, tag, index);
         this->policy->Acess(victim);
         return;
     }
@@ -77,28 +77,28 @@ void Cache::Write(MemoryPacket addr) {
     this->policy->SelectVictim(tag, index, &set, &way);
     victim = &this->entries[set][way];
 
-    *victim = CacheEntry(victim, tag, index);
+    *victim = CacheLine(victim, tag, index);
     this->policy->Acess(victim);
     return;
 }
 
-unsigned long Cache::GetOffset(unsigned long addr) const {
+unsigned long CacheMemory::GetOffset(unsigned long addr) const {
     return addr & this->offsetMask;
 }
 
-unsigned long Cache::GetIndex(unsigned long addr) const {
+unsigned long CacheMemory::GetIndex(unsigned long addr) const {
     return (addr & this->indexMask) >> this->offsetBits;
 }
 
-unsigned long Cache::GetTag(unsigned long addr) const {
+unsigned long CacheMemory::GetTag(unsigned long addr) const {
     return (addr & this->tagMask) >> (this->offsetBits + this->indexBits);
 }
 
-bool Cache::GetEntry(unsigned long addr, CacheEntry **result) const {
+bool CacheMemory::GetEntry(unsigned long addr, CacheLine **result) const {
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
-        CacheEntry *entry = &this->entries[index][way];
+        CacheLine *entry = &this->entries[index][way];
 
         if (entry->isValid && entry->tag == tag) {
             *result = entry;
@@ -108,10 +108,10 @@ bool Cache::GetEntry(unsigned long addr, CacheEntry **result) const {
     return false;
 }
 
-bool Cache::FindEmptyEntry(unsigned long addr, CacheEntry **result) const {
+bool CacheMemory::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
-        CacheEntry *entry = &this->entries[index][way];
+        CacheLine *entry = &this->entries[index][way];
 
         if (!entry->isValid) {
             *result = entry;
@@ -121,11 +121,11 @@ bool Cache::FindEmptyEntry(unsigned long addr, CacheEntry **result) const {
     return false;
 }
 
-void Cache::setAddrSizeBits(unsigned int addrSizeBits) {
+void CacheMemory::setAddrSizeBits(unsigned int addrSizeBits) {
     this->addrSizeBits = addrSizeBits;
 }
 
-int Cache::FinishSetup() {
+int CacheMemory::FinishSetup() {
     if (this->cacheSize == 0) {
         SINUCA3_ERROR_PRINTF(
             "Cache didn't received obrigatory parameter \"cacheSize\"\n");
@@ -176,9 +176,9 @@ int Cache::FinishSetup() {
     this->tagMask = ((1UL << tagBits) - 1) << (offsetBits + indexBits);
 
     size_t n = this->numSets * this->numWays;
-    this->entries = new CacheEntry *[this->numSets];
-    this->entries[0] = new CacheEntry[n];
-    memset(this->entries[0], 0, n * sizeof(CacheEntry));
+    this->entries = new CacheLine *[this->numSets];
+    this->entries[0] = new CacheLine[n];
+    memset(this->entries[0], 0, n * sizeof(CacheLine));
     for (int i = 1; i < this->numSets; ++i) {
         this->entries[i] = this->entries[0] + (i * this->numWays);
     }
@@ -201,7 +201,7 @@ int Cache::FinishSetup() {
     return 0;
 }
 
-int Cache::SetConfigParameter(const char *parameter, ConfigValue value) {
+int CacheMemory::SetConfigParameter(const char *parameter, ConfigValue value) {
     bool isCacheSize = (strcmp(parameter, "cacheSize") == 0);
     bool isLineSize = (strcmp(parameter, "lineSize") == 0);
     bool isAssociativity = (strcmp(parameter, "associativity") == 0);
@@ -279,7 +279,7 @@ int Cache::SetConfigParameter(const char *parameter, ConfigValue value) {
     return 0;
 }
 
-bool Cache::SetReplacementPolicy(ReplacementPoliciesID id) {
+bool CacheMemory::SetReplacementPolicy(ReplacementPoliciesID id) {
     switch (id) {
         case LruID:
             this->policy =

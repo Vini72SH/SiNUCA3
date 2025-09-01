@@ -25,10 +25,10 @@
  */
 
 #include <sinuca3.hpp>
+#include <utils/cache/cacheMemory.hpp>
 
 #include "engine/component.hpp"
 #include "engine/default_packets.hpp"
-#include "utils/cache/cache.hpp"
 
 class SimpleCache : public Component<MemoryPacket> {
   public:
@@ -41,7 +41,7 @@ class SimpleCache : public Component<MemoryPacket> {
     virtual void PrintStatistics();
 
   private:
-    Cache cache;
+    CacheMemory cache;
     unsigned int numberOfRequests;
 };
 
