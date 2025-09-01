@@ -25,16 +25,18 @@ struct CacheEntry;
 class Cache;
 
 class ReplacementPolicy {
-    public:
-        ReplacementPolicy(int numSets, int numWays) : numSets(numSets), numWays(numWays){};
-        virtual ~ReplacementPolicy();
+  public:
+    ReplacementPolicy(int numSets, int numWays)
+        : numSets(numSets), numWays(numWays) {};
+    virtual ~ReplacementPolicy() {};
 
-        virtual void Acess(CacheEntry *entry) = 0;
-        virtual void SelectVictim(unsigned long tag, unsigned long index, int *resultSet, int *resultWay) = 0;
+    virtual void Acess(CacheEntry *entry) = 0;
+    virtual void SelectVictim(unsigned long tag, unsigned long index,
+                              int *resultSet, int *resultWay) = 0;
 
-    protected:
-        int numSets;
-        int numWays;
+  protected:
+    int numSets;
+    int numWays;
 };
 
 #endif
