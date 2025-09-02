@@ -20,13 +20,16 @@
  * @details Implementation of a generic bimodal predictor.
  */
 
+const bool NTAKEN = 0;
+const bool TAKEN = 1;
+
 #include "bimodal_counter.hpp"
 
-BimodalPredictor::BimodalPredictor() : prediction(2) {}
+BimodalCounter::BimodalCounter() : prediction(2) {}
 
-bool BimodalPredictor::GetPrediction() { return (this->prediction >> 1); }
+bool BimodalCounter::GetPrediction() { return (this->prediction >> 1); }
 
-void BimodalPredictor::UpdatePrediction(bool branchTaken) {
+void BimodalCounter::UpdatePrediction(bool branchTaken) {
     if ((branchTaken == TAKEN) && (this->prediction < 3)) {
         this->prediction++;
 
@@ -40,4 +43,4 @@ void BimodalPredictor::UpdatePrediction(bool branchTaken) {
     }
 }
 
-BimodalPredictor::~BimodalPredictor() {}
+BimodalCounter::~BimodalCounter() {}

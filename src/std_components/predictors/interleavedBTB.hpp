@@ -102,7 +102,7 @@ struct BTBEntry {
     unsigned long entryTag;            /**<The entry tag. */
     unsigned long* targetArray;        /**<The target address array. */
     BranchType* branchTypes;           /**<The branch types array. */
-    BimodalPredictor* predictorsArray; /**<The array of predictors. */
+    BimodalCounter* predictorsArray; /**<The array of predictors. */
 
   public:
     BTBEntry();

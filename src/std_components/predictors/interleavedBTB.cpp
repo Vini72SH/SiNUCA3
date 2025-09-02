@@ -42,7 +42,7 @@ int BTBEntry::Allocate(unsigned int numBanks) {
         return 1;
     }
 
-    this->predictorsArray = new BimodalPredictor[numBanks];
+    this->predictorsArray = new BimodalCounter[numBanks];
     if (!(this->predictorsArray)) {
         delete[] this->targetArray;
         delete[] this->branchTypes;

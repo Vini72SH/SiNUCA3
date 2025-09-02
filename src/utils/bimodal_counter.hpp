@@ -23,15 +23,12 @@
  * @brief Public API of a generic bimodal predictor.
  */
 
-const bool NTAKEN = 0;
-const bool TAKEN = 1;
-
-class BimodalPredictor {
+class BimodalCounter {
   private:
     unsigned char prediction; /**< The prediction bits. */
 
   public:
-    BimodalPredictor();
+    BimodalCounter();
 
     /**
      * @brief get the current prediction.
@@ -45,7 +42,7 @@ class BimodalPredictor {
      */
     void UpdatePrediction(bool branchTaken);
 
-    ~BimodalPredictor();
+    ~BimodalCounter();
 };
 
 #endif
