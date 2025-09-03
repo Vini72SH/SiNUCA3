@@ -48,9 +48,8 @@ inline void Ras::RequestQuery(InstructionPacket instruction, int connectionID) {
     response.data.targetResponse.instruction = instruction;
     response.data.targetResponse.target = prediction;
 
-    if (this->sendTo == NULL) {
-        this->SendResponseToConnection(connectionID, &response);
-    } else {
+    this->SendResponseToConnection(connectionID, &response);
+    if (this->sendTo != NULL) {
         this->sendTo->SendRequest(this->forwardToID, &response);
     }
 }
