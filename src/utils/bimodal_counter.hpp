@@ -19,7 +19,7 @@
 //
 
 /**
- * @file bimodal_predictor.hpp
+ * @file bimodal_counter.hpp
  * @brief Public API of a generic bimodal predictor.
  */
 

@@ -16,7 +16,7 @@
 //
 
 /**
- * @file bimodal_predictor.cpp
+ * @file bimodal_counter.cpp
  * @details Implementation of a generic bimodal predictor.
  */
 

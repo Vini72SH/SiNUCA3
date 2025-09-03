@@ -1,4 +1,19 @@
-
+//
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program.  If not, see <https://www.gnu.org/licenses/>.
+//
 
 #include "gshare_predictor.hpp"
 
@@ -13,7 +28,7 @@ GsharePredictor::GsharePredictor()
       globalBranchHistReg(0),
       numberOfEntries(0),
       numberOfPredictions(0),
-      numberOfWrongpredictions(0),
+      numberOfWrongPredictions(0),
       indexQueueSize(0),
       indexBitsSize(0) {}
 
@@ -70,7 +85,7 @@ int GsharePredictor::DequeueIndex() {
 void GsharePredictor::UpdateEntry() {
     bool pred = this->entries[this->currentIndex].GetPrediction();
     if (pred != this->directionTaken) {
-        this->numberOfWrongpredictions++;
+        this->numberOfWrongPredictions++;
     }
     this->entries[this->currentIndex].UpdatePrediction(this->directionTaken);
 }
@@ -118,7 +133,7 @@ int GsharePredictor::SetConfigParameter(const char* parameter,
 
 void GsharePredictor::PrintStatistics() {
     double percentage =
-        (double)this->numberOfWrongpredictions / this->numberOfPredictions;
+        (double)this->numberOfWrongPredictions / this->numberOfPredictions;
     SINUCA3_DEBUG_PRINTF(
         "Gshare table size [%lu] & number of index bits [%u]\n",
         this->numberOfEntries, this->indexBitsSize);
