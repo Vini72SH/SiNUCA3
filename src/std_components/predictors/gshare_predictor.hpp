@@ -82,4 +82,8 @@ class GsharePredictor : public Component<PredictorPacket> {
     virtual ~GsharePredictor();
 };
 
+#ifndef NDEBUG
+int TestGshare();
+#endif
+
 #endif  // SINUCA3_GSHARE_PREDICTOR

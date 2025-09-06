@@ -18,6 +18,11 @@
 #include "gshare_predictor.hpp"
 
 #include <cmath>
+
+#include "config/config.hpp"
+#include "engine/component.hpp"
+#include "engine/default_packets.hpp"
+#include "std_components/misc/delay_queue.hpp"
 #include "utils/logging.hpp"
 
 GsharePredictor::GsharePredictor()
@@ -124,6 +129,18 @@ int GsharePredictor::SetConfigParameter(const char* parameter,
         this->indexQueueSize = value.value.integer;
         return 0;
     }
+    if (strcmp(parameter, "sendTo")) {
+        if (value.type != ConfigValueTypeComponentReference) {
+            return 1;
+        }
+        Component<PredictorPacket>* comp =
+            dynamic_cast<Component<PredictorPacket>*>(
+                value.value.componentReference);
+        if (comp == NULL) {
+            return 1;
+        }
+        this->sendTo = comp;
+    }
     SINUCA3_ERROR_PRINTF("Gshare predictor got unkown parameter\n");
     return 1;
 }
@@ -148,6 +165,7 @@ int GsharePredictor::FinishSetup() {
     if (this->Allocate()) {
         return 1;
     }
+    this->sendToId = this->sendTo->Connect(0);
     return 0;
 }
 
@@ -181,3 +199,11 @@ void GsharePredictor::Clock() {
         }
     }
 }
+
+#ifndef NDEBUG
+int TestDelayQueue() {
+    GsharePredictor predictor;
+
+    return 0;
+}
+#endif
