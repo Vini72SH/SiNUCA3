@@ -19,12 +19,6 @@
 
 #include <cmath>
 
-#include "config/config.hpp"
-#include "engine/component.hpp"
-#include "engine/default_packets.hpp"
-#include "std_components/misc/delay_queue.hpp"
-#include "utils/logging.hpp"
-
 GsharePredictor::GsharePredictor()
     : entries(NULL),
       globalBranchHistReg(0),
@@ -77,11 +71,19 @@ void GsharePredictor::ReadPacket(PredictorPacket* pkt) {
 }
 
 int GsharePredictor::EnqueueIndex() {
-    return this->indexQueue.Enqueue(&this->currentIndex);
+    bool ret = this->indexQueue.Enqueue(&this->currentIndex);
+#ifndef NDEBUG
+    SINUCA3_LOG_PRINTF("ENQ [%ld]\n", this->currentIndex);
+#endif
+    return ret;
 }
 
 int GsharePredictor::DequeueIndex() {
-    return this->indexQueue.Dequeue(&this->currentIndex);
+    bool ret = this->indexQueue.Dequeue(&this->currentIndex);
+#ifndef NDEBUG
+    SINUCA3_LOG_PRINTF("DEQ [%ld]\n", this->currentIndex);
+#endif
+    return ret;
 }
 
 void GsharePredictor::UpdateEntry() {
@@ -97,6 +99,9 @@ void GsharePredictor::UpdateGlobBranchHistReg() {
     if (this->directionTaken == TAKEN) {
         this->globalBranchHistReg |= 1;
     }
+#ifndef NDEBUG
+    SINUCA3_LOG_PRINTF("GBHR [%ld]\n", this->globalBranchHistReg);
+#endif
 }
 
 void GsharePredictor::QueryEntry() {
@@ -108,6 +113,9 @@ void GsharePredictor::QueryEntry() {
 void GsharePredictor::CalculateIndex(unsigned long addr) {
     unsigned long mask = (1 << this->indexBitsSize) - 1;
     this->currentIndex = (this->globalBranchHistReg ^ addr) & mask;
+#ifndef NDEBUG
+    SINUCA3_LOG_PRINTF("IDX [%ld]\n", this->currentIndex);
+#endif
 }
 
 int GsharePredictor::SetConfigParameter(const char* parameter,
@@ -207,8 +215,44 @@ void GsharePredictor::Clock() {
 #ifndef NDEBUG
 int TestGshare() {
     GsharePredictor predictor;
+    PredictorPacket packet[2];
+    StaticInstructionInfo ins[2];
+    const char* names[] = {"a", "b"};
+    const long addrs[] = {0x1, 0x2};
+    const bool direc[] = {TAKEN, NTAKEN};
 
+    for (int i = 0; i < 2; i++) {
+        packet[i].data.requestQuery.staticInfo = &ins[i];
+        ins[i].opcodeAssembly[0] = '\0';
+        strcpy(ins[i].opcodeAssembly, names[i]);
+        ins[i].opcodeAddress = addrs[i];
+    }
 
+    predictor.SetConfigParameter("numberOfEntries", (long)2);
+    int id = predictor.Connect(1);
+
+    /* Wrong prediction */
+    for (int i = 0; i < 2; i++) {
+        packet[i].type = PredictorPacketTypeRequestQuery;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        packet[i].type = PredictorPacketTypeRequestUpdate;
+    }
+
+    /* Right prediction */
+    for (int i = 0; i < 2; i++) {
+        packet[i].type = PredictorPacketTypeRequestQuery;
+    }
+
+    for (int i = 0; i < 2; i++) {
+        packet[i].type = PredictorPacketTypeRequestUpdate;
+    }
+
+    /* Right prediction */
+    for (int i = 0; i < 2; i++) {
+        packet[i].type = PredictorPacketTypeRequestQuery;
+    }
 
     return 0;
 }
