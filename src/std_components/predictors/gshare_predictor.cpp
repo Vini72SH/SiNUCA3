@@ -19,6 +19,7 @@
 
 #include <cmath>
 
+#include "config/config.hpp"
 #include "engine/default_packets.hpp"
 #include "utils/logging.hpp"
 
@@ -70,7 +71,7 @@ void GsharePredictor::PreparePacket(PredictorPacket* pkt) {
 }
 
 void GsharePredictor::ReadPacket(PredictorPacket* pkt) {
-    this->directionTaken = pkt->data.DirectionUpdate.direction;
+    this->directionTaken = pkt->data.directionUpdate.direction;
 }
 
 int GsharePredictor::EnqueueIndex() {
@@ -151,6 +152,7 @@ int GsharePredictor::SetConfigParameter(const char* parameter,
             return 1;
         }
         this->sendTo = comp;
+        return 0;
     }
     SINUCA3_ERROR_PRINTF("Gshare predictor got unkown parameter\n");
     return 1;
@@ -192,15 +194,15 @@ void GsharePredictor::Clock() {
                 addr = packet.data.requestQuery.staticInfo->opcodeAddress;
                 this->CalculateIndex(addr);
                 this->QueryEntry();
-                if (this->EnqueueIndex()) {
-                    SINUCA3_WARNING_PRINTF("Gshare index buffer full\n");
-                }
                 this->PreparePacket(&packet);
+                if (this->EnqueueIndex()) {
+                    SINUCA3_WARNING_PRINTF("Gshare index queue full\n");
+                }
                 if (this->sendTo == NULL) {
                     this->SendResponseToConnection(i, &packet);
-                    return;
+                } else {
+                    this->sendTo->SendRequest(sendToId, &packet);
                 }
-                this->sendTo->SendRequest(sendToId, &packet);
             }
             if (packet.type == PredictorPacketTypeRequestUpdate) {
                 if (this->DequeueIndex()) {
@@ -216,79 +218,72 @@ void GsharePredictor::Clock() {
 }
 
 #ifndef NDEBUG
-void PrepareQuery(PredictorPacket* pkt, StaticInstructionInfo* ins) {
-    pkt->type = PredictorPacketTypeRequestQuery;
-    pkt->data.requestQuery.staticInfo = ins;
-}
-
-void PrepareUpdateRequest(PredictorPacket* pkt, bool direc) {
-    pkt->type = PredictorPacketTypeRequestUpdate;
-    pkt->data.DirectionUpdate.direction = direc;
-}
-
 int TestGshare() {
     GsharePredictor predictor;
-    PredictorPacket packet[2];
+    PredictorPacket packet[6];
     StaticInstructionInfo ins[2];
     const long addrs[] = {0x1, 0x2};
     const bool direc[] = {NTAKEN, TAKEN};
 
     ins[0].opcodeAddress = addrs[0];
     ins[1].opcodeAddress = addrs[1];
+    packet[0].data.requestQuery.staticInfo = &ins[0];
+    packet[1].data.requestQuery.staticInfo = &ins[1];
+    packet[0].type = PredictorPacketTypeRequestQuery;
+    packet[1].type = PredictorPacketTypeRequestQuery;
+    packet[4].type = PredictorPacketTypeRequestUpdate;
+    packet[5].type = PredictorPacketTypeRequestUpdate;
 
-    predictor.SetConfigParameter("numberOfEntries", (long)2);
+    predictor.SetConfigParameter("numberOfEntries", ConfigValue((long)2));
     int id = predictor.Connect(2);
 
-    /* clock 1 */
-    PrepareQuery(&packet[0], &ins[0]);
+    // clock 1
     predictor.SendRequest(id, &packet[0]);
-    PrepareQuery(&packet[1], &ins[1]);
     predictor.SendRequest(id, &packet[1]);
     predictor.Clock();
     predictor.PosClock();
 
-    /* clock 2 */
-    predictor.Clock();
-    predictor.PosClock();
-
-    /* clock 3 */
-    predictor.ReceiveResponse(id, &packet[0]);
-    predictor.ReceiveResponse(id, &packet[1]);
-    if (packet[0].type != packet[1].type) {
-        SINUCA3_ERROR_PRINTF("Gshare returned different predictions\n");
+    // clock 2
+    if (predictor.ReceiveResponse(id, &packet[2])) {
+        SINUCA3_ERROR_PRINTF("Gshare got unexpected response [1]\n");
         return 1;
     }
+    predictor.Clock();
+    predictor.PosClock();
 
-    PrepareUpdateRequest(&packet[0], direc[0]);
+    // clock 3
+    predictor.ReceiveResponse(id, &packet[2]);
+    predictor.ReceiveResponse(id, &packet[3]);
+    SINUCA3_DEBUG_PRINTF("Gshare predicted [1 / %d]\n", packet[2].type);
+    SINUCA3_DEBUG_PRINTF("Gshare predicted [2 / %d]\n", packet[3].type);
+    packet[4].data.directionUpdate.direction = direc[0];
+    packet[5].data.directionUpdate.direction = direc[1];
+    predictor.SendRequest(id, &packet[4]);
+    predictor.SendRequest(id, &packet[5]);
+    predictor.Clock();
+    predictor.PosClock();
+
+    // clock 4
     predictor.SendRequest(id, &packet[0]);
-    PrepareUpdateRequest(&packet[1], direc[1]);
     predictor.SendRequest(id, &packet[1]);
     predictor.Clock();
     predictor.PosClock();
 
-    /* clock 4 */
+    // clock 5
+    if (predictor.ReceiveResponse(id, &packet[2])) {
+        SINUCA3_ERROR_PRINTF("Gshare got unexpected response [2]\n");
+        return 1;
+    }
     predictor.Clock();
     predictor.PosClock();
 
-    /* clock 6 */
-    PrepareQuery(&packet[0], &ins[0]);
-    predictor.SendRequest(id, &packet[0]);
-    PrepareQuery(&packet[1], &ins[1]);
-    predictor.SendRequest(id, &packet[1]);
-    predictor.Clock();
-    predictor.PosClock();
-
-    /* clock 7 */
-    predictor.Clock();
-    predictor.PosClock();
-
-    /* clock 8 */
-    predictor.ReceiveResponse(id, &packet[0]);
+    // clock 6
+    predictor.ReceiveResponse(id, &packet[2]);
     SINUCA3_DEBUG_PRINTF("Gshare predicted [%d] for [%ld] addr\n",
-                         packet[0].type, addrs[0]);
-    predictor.ReceiveResponse(id, &packet[1]);
+                         packet[2].type, addrs[0]);
+    predictor.ReceiveResponse(id, &packet[3]);
     SINUCA3_DEBUG_PRINTF("Gshare predicted [%d] for [%ld] addr\n",
-                         packet[1].type, addrs[1]);
+                         packet[3].type, addrs[1]);
 
     return 0;
 }

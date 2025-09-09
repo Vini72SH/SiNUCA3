@@ -20,8 +20,18 @@
 
 /**
  * @file gshare_predictor.hpp
- * @brief
- * @details
+ * @brief Implementation of gshare predictor.
+ * @details The gshare predictor uses a table of bimodal counters to make
+ * predictions on the direction the flow of execution will take. The table is
+ * indexed by hashing the instruction address and the value stored in the
+ * globalBranchHistReg attribute. The latter can store information of the
+ * direction taken by up to 64 instructions. When instantiating the gshare, it
+ * will round the number of entries to the greatest power of 2 less than the
+ * number requested, in such a way that bitwise operations can be used to
+ * calculate the index.
+ *
+ * Note that when queried, this component stores the calculated index in a
+ * queue to later update the right positions in the bimodal counter table.
  */
 
 #include <sinuca3.hpp>
@@ -31,15 +41,15 @@
 /** @brief Refer to gshare_predictor.hpp documentation for details */
 class GsharePredictor : public Component<PredictorPacket> {
   private:
-    BimodalCounter* entries;           /**< */
-    CircularBuffer indexQueue;         /**< */
-    unsigned long globalBranchHistReg; /**< */
-    unsigned long numberOfEntries;
-    unsigned long numberOfPredictions;
-    unsigned long numberOfWrongPredictions;
-    unsigned long currentIndex;  /**< */
-    unsigned int indexQueueSize; /**<Queue size. Default value is 0> */
-    unsigned int indexBitsSize;  /**< */
+    BimodalCounter* entries; /**<Bimodal counter table> */
+    CircularBuffer indexQueue;
+    unsigned long globalBranchHistReg;
+    unsigned long numberOfEntries;          /**<Size of table> */
+    unsigned long numberOfPredictions;      /**<Used for statistics> */
+    unsigned long numberOfWrongPredictions; /**<Used for statistics> */
+    unsigned long currentIndex;
+    unsigned int indexQueueSize; /**<Queue size. Default is unlimited size> */
+    unsigned int indexBitsSize;  /**<Number of bits used to address table> */
     bool directionPredicted;
     bool directionTaken;
 
@@ -49,29 +59,34 @@ class GsharePredictor : public Component<PredictorPacket> {
     int Allocate();
     void Deallocate();
     /**
-     * @brief
+     * @brief Round the number of entries to the greatest power of 2 less than
+     * the value in requestedSize.
      */
     int RoundNumberOfEntries(unsigned long requestedSize);
     /**
-     * @brief
+     * @brief Fill response packet with predicted direction of execution.
      */
     void PreparePacket(PredictorPacket* pkt);
     /**
-     * @brief
+     * @brief Read from incoming packet the actual direction of execution.
      */
     void ReadPacket(PredictorPacket* pkt);
-    int EnqueueIndex();
-    int DequeueIndex();
-    /**
-     * @brief
-     */
-    void CalculateIndex(unsigned long addr);
-    void UpdateEntry();
     void UpdateGlobBranchHistReg();
+    void UpdateEntry();
     /**
-     * @brief
+     * @brief Since this predictor does not have a tag in each entry, when
+     * queried, it will always output a valid answer.
      */
     void QueryEntry();
+    void CalculateIndex(unsigned long addr);
+    /**
+     * @return 0 if successfuly, 1 otherwise.
+     */
+    int EnqueueIndex();
+    /**
+     * @return 0 if successfuly, 1 otherwise.
+     */
+    int DequeueIndex();
 
   public:
     GsharePredictor();

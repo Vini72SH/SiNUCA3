@@ -161,19 +161,19 @@ struct PredictorPacket {
         struct {
             InstructionPacket instruction; /** @brief The instruction. */
             bool direction;                /** @brief It's target. */
-        } DirectionUpdate; /** @brief A request to update the direction of an
+        } directionUpdate; /** @brief A request to update the direction of an
                                 instruction. */
 
         struct {
             InstructionPacket instruction; /** @brief The instruction. */
             unsigned long target;          /** @brief It's target. */
-        } TargetUpdate; /** @brief A request to update the target of an
+        } targetUpdate; /** @brief A request to update the target of an
                             instruction. */
 
         struct {
             InstructionPacket instruction; /** @brief The instruction. */
             unsigned long target;          /** @brief It's target. */
-        } TargetResponse;                  /** @brief Data of response types. */
+        } targetResponse;                  /** @brief Data of response types. */
     } data;                                /** @brief The data. */
     PredictorPacketType type;              /** @brief The tag. */
 };
