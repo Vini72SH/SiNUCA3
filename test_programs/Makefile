@@ -13,7 +13,7 @@ endif
 
 CFLAGS = -Wall -Wextra -std=c99 -O3 -I../x86_trace_generator/
 
-all: factorials
+all: factorials intrinsics
 
 %: %.c
 	$(CC) $(CFLAGS) -o $@ $^
