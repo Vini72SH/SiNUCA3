@@ -11,9 +11,15 @@ ifndef CC
   endif
 endif
 
-CFLAGS = -Wall -Wextra -std=c99 -O3 -I../x86_trace_generator/
+CFLAGS = -Wall -Wextra -std=c99 -O3 -I../x86_trace_generator/ -g
+LOPENMP = -fopenmp
+SRCS = $(shell find -name "*.c")
+EXEC = $(SRCS:.c=)
 
-all: factorials
+all: $(EXEC)
 
 %: %.c
-	$(CC) $(CFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^ $(LOPENMP)
+
+clean:
+	rm -f $(EXEC)
