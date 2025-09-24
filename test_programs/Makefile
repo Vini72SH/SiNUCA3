@@ -12,14 +12,17 @@ ifndef CC
 endif
 
 CFLAGS = -Wall -Wextra -std=c99 -O3 -I../x86_trace_generator/ -g
-LOPENMP = -fopenmp
-SRCS = $(shell find -name "*.c")
+OPENMP = -static -fopenmp
+SRCS = $(shell find *.c)
 EXEC = $(SRCS:.c=)
 
 all: $(EXEC)
 
-%: %.c
-	$(CC) $(CFLAGS) -o $@ $^ $(LOPENMP)
+%_mthr: %_mthr.c
+	$(CC) $(CFLAGS) -o $@ $^ $(OPENMP)
+
+%_seq: %_seq.c
+	$(CC) $(CFLAGS) -o $@ $^
 
 clean:
 	rm -f $(EXEC)
