@@ -64,7 +64,8 @@ sinucaTracer::StaticTraceFile::~StaticTraceFile() {
 
 void sinucaTracer::StaticTraceFile::PrepareDataIntrinsic(
     const INS* originalCall, const char* name, unsigned long nameSize,
-    REG baseReg, REG indexReg) {
+    bool read, bool read2, bool write, REG* readRegs, unsigned char numReadRegs,
+    REG* writeRegs, unsigned char numWriteRegs) {
     memset(&this->data, 0, sizeof(this->data));
 
     // Must record here that I hate doing this silent failure but it is what
@@ -77,8 +78,16 @@ void sinucaTracer::StaticTraceFile::PrepareDataIntrinsic(
 
     this->data.addr = INS_Address(*originalCall);
     this->data.size = INS_Size(*originalCall);
-    this->data.baseReg = baseReg;
-    this->data.indexReg = indexReg;
+    this->data.baseReg = REG_INVALID();
+    this->data.indexReg = REG_INVALID();
+    this->data.isRead = read;
+    this->data.isRead2 = read2;
+    this->data.isWrite = write;
+
+    memcpy(this->data.readRegs, readRegs, numReadRegs);
+    memcpy(this->data.writeRegs, writeRegs, numWriteRegs);
+    this->data.numReadRegs = numReadRegs;
+    this->data.numWriteRegs = numWriteRegs;
 }
 
 void sinucaTracer::StaticTraceFile::PrepareDataINS(const INS* ins) {
