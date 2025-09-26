@@ -50,7 +50,7 @@ int sinucaTracer::DynamicTraceFile::ReadHeaderFromFile() {
     return size != sizeof(header);
 }
 
-int sinucaTracer::DynamicTraceFile::ReadRecordFromFile() {
+int sinucaTracer::DynamicTraceFile::ReadDynamicRecordFromFile() {
     if (this->file == NULL) return 1;
     unsigned long size = fread(&record, sizeof(record), 1, this->file);
     return size != sizeof(record);

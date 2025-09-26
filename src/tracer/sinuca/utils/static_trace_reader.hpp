@@ -56,7 +56,7 @@ class StaticTraceFile {
     FileHeader header;
     BasicBlock* basicBlock;
 
-    void ConvertInstructionFormat(StaticInstructionInfo *inst);
+    void ConvertInstructionFormat(StaticInstructionInfo *inst, unsigned short* memReadOps, unsigned short* memWriteOps);
     /**
      * @brief Returns pointer to generic data and updates mmapOffset value.
      * @param len Number of bytes read.

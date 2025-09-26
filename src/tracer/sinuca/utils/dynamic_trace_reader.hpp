@@ -44,8 +44,8 @@ class DynamicTraceFile {
     }
     int OpenFile(const char* sourceDir, const char* imgName, THREADID tid);
     int ReadHeaderFromFile();
-    int ReadRecordFromFile();
-    inline int GetRecordType() { return this->record.recordType; }
+    int ReadDynamicRecordFromFile();
+    inline int GetDynamicRecordType() { return this->record.recordType; }
     inline unsigned int GetBasicBlockIdentifier() {
         return this->record.data.basicBlockIdentifier;
     }

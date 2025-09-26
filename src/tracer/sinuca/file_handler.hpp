@@ -31,7 +31,6 @@
  * coexist.
  */
 
-#include <cstdio>
 #include <cstring>
 #include <sinuca3.hpp>
 #include "engine/default_packets.hpp"
@@ -50,8 +49,12 @@ const int MAX_ROUTINE_NAME_LENGTH = 16;
 const unsigned long MAX_IMAGE_NAME_SIZE = 255;
 const unsigned long MAX_REG_OPERANDS = 8;
 
-const int STD_ACCESS_WRITE = 1;
-const int STD_ACCESS_READ = 2;
+const short NON_STD_HEADER_TYPE = 1;
+const short MEM_OPERATION_TYPE = 2;
+const short MEM_READ_TYPE = 3;
+const short MEM_WRITE_TYPE = 4;
+const short BBL_IDENTIFIER_TYPE = 5;
+const short RTN_NAME_TYPE = 6;
 
 const unsigned char BRANCH_CALL = 1;
 const unsigned char BRANCH_COND = 2;
@@ -59,7 +62,7 @@ const unsigned char BRANCH_UNCOND = 3;
 const unsigned char BRANCH_SYSCALL = 4;
 const unsigned char BRANCH_RETURN = 5;
 
-/** @brief Written to static trace file. */
+/** @brief Written to static trace file. Condensed instruction info. */
 struct Instruction {
     char name[MAX_INSTRUCTION_NAME_LENGTH];
     unsigned short int readRegs[MAX_REG_OPERANDS];
@@ -70,6 +73,8 @@ struct Instruction {
     unsigned char size;
     unsigned char numReadRegs;
     unsigned char numWriteRegs;
+    unsigned char numStdMemReadOps;
+    unsigned char numStdMemWriteOps;
     unsigned char branchType;
     unsigned char isPredicated : 1;
     unsigned char isPrefetch : 1;
@@ -89,7 +94,7 @@ struct BasicBlock {
 
 /** @brief Written to dynamic trace file. */
 struct ExecutionRecord {
-    int recordType;
+    short recordType;
     union {
         unsigned int basicBlockIdentifier;
         char routineName[MAX_ROUTINE_NAME_LENGTH];
@@ -97,20 +102,19 @@ struct ExecutionRecord {
 } __attribute__((packed));
 
 /** @brief Written to memory trace file. */
-struct StandardMemoryAccess {
-    unsigned long addr; /**<Virtual address accessed. */
-    unsigned int size;  /**<Size in bytes of memory read or written. */
-    unsigned int type;
-} __attribute__((packed));
-
-/** @brief Written to memory trace file. */
-struct NonStandardMemoryAccess {
-    unsigned int readOps;
-    unsigned long readAddrs[MAX_MEM_OPERATIONS];
-    unsigned int readSize[MAX_MEM_OPERATIONS];
-    unsigned int writeOps;
-    unsigned long writeAddrs[MAX_MEM_OPERATIONS];
-    unsigned int writeSize[MAX_MEM_OPERATIONS];
+struct MemoryRecord {
+    int recordType;
+    union {
+        struct {
+            unsigned long addr; /**<Virtual address accessed. */
+            unsigned int size;  /**<Size in bytes of memory read or written. */
+            unsigned int type;
+        } operation;
+        struct {
+            unsigned short nonStdReadOps;
+            unsigned short nonStdWriteOps;
+        } nonStdHeader;
+    } data;
 } __attribute__((packed));
 
 /** @brief General usage. */

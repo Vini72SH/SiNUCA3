@@ -77,10 +77,10 @@ struct StaticInstructionInfo {
  * instructions, such as vgather and vscatter.
  */
 struct DynamicInstructionInfo {
-    long readsAddr[MAX_MEM_OPERATIONS];
-    long writesAddr[MAX_MEM_OPERATIONS];
-    int readsSize[MAX_MEM_OPERATIONS];
-    int writesSize[MAX_MEM_OPERATIONS];
+    unsigned long readsAddr[MAX_MEM_OPERATIONS];
+    unsigned long writesAddr[MAX_MEM_OPERATIONS];
+    unsigned int readsSize[MAX_MEM_OPERATIONS];
+    unsigned int writesSize[MAX_MEM_OPERATIONS];
     unsigned short numReadings;
     unsigned short numWritings;
 };

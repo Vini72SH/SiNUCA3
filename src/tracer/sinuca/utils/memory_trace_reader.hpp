@@ -35,41 +35,20 @@ namespace sinucaTracer {
 class MemoryTraceFile {
   private:
     FILE* file;
-    StandardMemoryAccess stdAccess;
-    NonStandardMemoryAccess nonStdAccess;
+    MemoryRecord record;
 
   public:
-    inline MemoryTraceFile() : file(NULL){};
+    inline MemoryTraceFile() : file(NULL) {};
     inline ~MemoryTraceFile() {
         if (file) fclose(this->file);
     }
     int OpenFile(const char* sourceDir, const char* imgName, THREADID tid);
-    int ReadStandardMemoryAccess();
-    int ReadNonStandardMemoryAccess();
-    inline unsigned long GetAddressStdAccess() { return this->stdAccess.addr; }
-    inline unsigned int GetSizeStdAccess() { return this->stdAccess.size; }
-    inline int GetTypeStdAccess() { return this->stdAccess.type; }
-    inline unsigned int GetReadOpsNonStdAcc() {
-        return this->nonStdAccess.readOps;
-    }
-    inline unsigned int GetWriteOpsNonStdAcc() {
-        return this->nonStdAccess.writeOps;
-    }
-    inline const unsigned long* GetReadAddrArrayNonStdAcc(unsigned long *s) {
-        *s = sizeof(this->nonStdAccess.readAddrs);
-        return this->nonStdAccess.readAddrs;
-    }
-    inline const unsigned long* GetWriteAddrArrayNonStdAcc(unsigned long *s) {
-        *s = sizeof(this->nonStdAccess.writeAddrs);
-        return this->nonStdAccess.writeAddrs;
-    }
-    inline const unsigned int* GetReadSizeArrayNonStdAcc(unsigned long *s) {
-        *s = sizeof(this->nonStdAccess.readSize);
-        return this->nonStdAccess.readSize;
-    }
-    inline const unsigned int* GetWriteSizeArrayNonStdAcc(unsigned long *s) {
-        *s = sizeof(this->nonStdAccess.writeSize);
-        return this->nonStdAccess.writeSize;
+    int ReadMemoryRecordFromFile();
+    void ExtractMemoryOperation(unsigned long* addr, unsigned int* size);
+    void ExtractNonStdHeader(unsigned short* readOps, unsigned short* writeOps);
+    inline int GetMemoryRecordType() { return this->record.recordType; }
+    inline int GetMemoryOperationType() {
+        return this->record.data.operation.type;
     }
 };
 

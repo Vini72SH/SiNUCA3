@@ -28,29 +28,36 @@ extern "C" {
 #include <alloca.h>
 }
 
-int sinucaTracer::MemoryTraceFile::OpenFile(const char *sourceDir,
-                                            const char *imgName, THREADID tid) {
+int sinucaTracer::MemoryTraceFile::OpenFile(const char* sourceDir,
+                                            const char* imgName, THREADID tid) {
     unsigned long bufferSize;
-    char *path;
+    char* path;
 
     bufferSize = GetPathTidInSize(sourceDir, "memory", imgName);
-    path = (char *)alloca(bufferSize);
+    path = (char*)alloca(bufferSize);
     FormatPathTidIn(path, sourceDir, "memory", imgName, tid, bufferSize);
     this->file = fopen(path, "rb");
 
     return !this->file;
 }
 
-int sinucaTracer::MemoryTraceFile::ReadStandardMemoryAccess() {
+int sinucaTracer::MemoryTraceFile::ReadMemoryRecordFromFile() {
     if (this->file == NULL) return 1;
     unsigned long size =
-        fread(&this->stdAccess, sizeof(this->stdAccess), 1, this->file);
-    return size != sizeof(this->stdAccess);
+        fread(&this->record, sizeof(this->record), 1, this->file);
+    return size != sizeof(this->record);
 }
 
-int sinucaTracer::MemoryTraceFile::ReadNonStandardMemoryAccess() {
-    if (this->file == NULL) return 1;
-    unsigned long size =
-        fread(&this->nonStdAccess, sizeof(this->nonStdAccess), 1, this->file);
-    return size != sizeof(this->nonStdAccess);
+void sinucaTracer::MemoryTraceFile::ExtractMemoryOperation(unsigned long* addr,
+                                                           unsigned int* size) {
+    if (addr == NULL || size == NULL) return;
+    *addr = this->record.data.operation.addr;
+    *size = this->record.data.operation.size;
+}
+
+void sinucaTracer::MemoryTraceFile::ExtractNonStdHeader(
+    unsigned short* readOps, unsigned short* writeOps) {
+    if (readOps == NULL || writeOps == NULL) return;
+    *readOps = this->record.data.nonStdHeader.nonStdReadOps;
+    *writeOps = this->record.data.nonStdHeader.nonStdWriteOps;
 }

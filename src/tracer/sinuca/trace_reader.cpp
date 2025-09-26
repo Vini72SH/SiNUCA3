@@ -27,6 +27,7 @@
 
 #include "engine/default_packets.hpp"
 #include "tracer/sinuca/file_handler.hpp"
+#include "utils/logging.hpp"
 
 int sinucaTracer::SinucaTraceReader::OpenTrace(const char *imageName,
                                                const char *sourceDir) {
@@ -96,7 +97,7 @@ FetchResult sinucaTracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
     InstructionInfo *packageInfo;
 
     if (!this->thrsInfo[tid].isInsideBBL) {
-        if (this->thrsInfo[tid].dynFile->ReadRecordFromFile()) {
+        if (this->thrsInfo[tid].dynFile->ReadDynamicRecordFromFile()) {
             return FetchResultEnd;
         }
         /* deal with record types */
@@ -106,7 +107,10 @@ FetchResult sinucaTracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
 
     packageInfo = &this->binaryDict[this->thrsInfo[tid].currentBBL]
                                    [this->thrsInfo[tid].currentOpcode];
-    this->CopyMemoryOperations(ret, packageInfo, &this->thrsInfo[tid]);
+    if (this->CopyMemoryOperations(ret, packageInfo, &this->thrsInfo[tid])) {
+        SINUCA3_ERROR_PRINTF("Tracer failed to copy memory operations");
+        return FetchResultError;
+    }
 
     this->thrsInfo[tid].currentOpcode++;
     if (this->thrsInfo[tid].currentOpcode >=
@@ -154,52 +158,43 @@ int sinucaTracer::ThrInfo::Allocate(const char *sourceDir,
     return 0;
 }
 
-void sinucaTracer::SinucaTraceReader::CopyMemoryOperations(
+int sinucaTracer::SinucaTraceReader::CopyMemoryOperations(
     InstructionPacket *instPkt, InstructionInfo *instInfo, ThrInfo *thrInfo) {
-    const unsigned long *addrs;
-    const unsigned int *sizes;
-    unsigned long arraySize;
-    int accessType;
-    short totalStdOps;
-
+    int memRecordType;
+    int memOpType;
+    short totalOps;
     if (instInfo->staticInfo.isNonStdMemOp) {
-        thrInfo->memFile->ReadNonStandardMemoryAccess();
-
-        instPkt->dynamicInfo.numReadings =
-            thrInfo->memFile->GetReadOpsNonStdAcc();
-        addrs = thrInfo->memFile->GetReadAddrArrayNonStdAcc(&arraySize);
-        memcpy(instPkt->dynamicInfo.readsAddr, addrs, arraySize);
-        sizes = thrInfo->memFile->GetReadSizeArrayNonStdAcc(&arraySize);
-        memcpy(instPkt->dynamicInfo.readsSize, sizes, arraySize);
-
-        instPkt->dynamicInfo.numWritings =
-            thrInfo->memFile->GetWriteOpsNonStdAcc();
-        addrs = thrInfo->memFile->GetWriteAddrArrayNonStdAcc(&arraySize);
-        memcpy(instPkt->dynamicInfo.writesAddr, addrs, arraySize);
-        sizes = thrInfo->memFile->GetWriteSizeArrayNonStdAcc(&arraySize);
-        memcpy(instPkt->dynamicInfo.writesSize, sizes, arraySize);
+        if (thrInfo->memFile->ReadMemoryRecordFromFile()) return 1;
+        memRecordType = thrInfo->memFile->GetMemoryRecordType();
+        if (memRecordType != NON_STD_HEADER_TYPE) return 1;
+        thrInfo->memFile->ExtractNonStdHeader(
+            &instPkt->dynamicInfo.numReadings,
+            &instPkt->dynamicInfo.numWritings);
     } else {
-        thrInfo->memFile->ReadStandardMemoryAccess();
-
         instPkt->dynamicInfo.numReadings = instInfo->staticNumReadings;
         instPkt->dynamicInfo.numWritings = instInfo->staticNumWritings;
-        totalStdOps =
-            instPkt->dynamicInfo.numReadings + instPkt->dynamicInfo.numWritings;
-        for (int i = 0, r = 0, w = 0; i < totalStdOps; i++) {
-            accessType = thrInfo->memFile->GetTypeStdAccess();
-            if (accessType == STD_ACCESS_READ) {
-                instPkt->dynamicInfo.readsAddr[r] =
-                    thrInfo->memFile->GetAddressStdAccess();
-                instPkt->dynamicInfo.readsSize[r] =
-                    thrInfo->memFile->GetSizeStdAccess();
-                r++;
-            } else if (accessType == STD_ACCESS_WRITE) {
-                instPkt->dynamicInfo.writesAddr[w] =
-                    thrInfo->memFile->GetAddressStdAccess();
-                instPkt->dynamicInfo.writesSize[w] =
-                    thrInfo->memFile->GetSizeStdAccess();
-                w++;
-            }
+    }
+    totalOps =
+        instPkt->dynamicInfo.numWritings + instPkt->dynamicInfo.numReadings;
+    for (short i = 0, rIdx = 0, wIdx = 0; i < totalOps; ++i) {
+        if (thrInfo->memFile->ReadMemoryRecordFromFile()) return 1;
+        memRecordType = thrInfo->memFile->GetMemoryRecordType();
+        if (memRecordType != MEM_OPERATION_TYPE) return 1;
+        memOpType = thrInfo->memFile->GetMemoryOperationType();
+        if (memOpType == MEM_READ_TYPE) {
+            if (rIdx >= instPkt->dynamicInfo.numReadings) return 1;
+            thrInfo->memFile->ExtractMemoryOperation(
+                &instPkt->dynamicInfo.readsAddr[rIdx],
+                &instPkt->dynamicInfo.readsSize[rIdx]);
+            rIdx++;
+        } else if (memOpType == MEM_WRITE_TYPE) {
+            if (wIdx >= instPkt->dynamicInfo.numReadings) return 1;
+            thrInfo->memFile->ExtractMemoryOperation(
+                &instPkt->dynamicInfo.writesAddr[wIdx],
+                &instPkt->dynamicInfo.writesSize[wIdx]);
+            wIdx++;
         }
     }
+
+    return 0;
 }

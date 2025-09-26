@@ -100,16 +100,21 @@ int sinucaTracer::StaticTraceFile::ReadBasicBlock() {
 
 int sinucaTracer::StaticTraceFile::GetInstruction(InstructionInfo *inst) {
     if (this->instructionIndex >= this->basicBlock->basicBlockSize) return 1;
-    this->ConvertInstructionFormat(&inst->staticInfo);
+    this->ConvertInstructionFormat(&inst->staticInfo, &inst->staticNumReadings, &inst->staticNumWritings);
     this->instructionIndex++;
     return 0;
 }
 
 void sinucaTracer::StaticTraceFile::ConvertInstructionFormat(
-    StaticInstructionInfo *inst) {
+    StaticInstructionInfo *inst, unsigned short* memReadOps, unsigned short* memWriteOps) {
     Instruction *instInRawFormat;
 
     instInRawFormat = &this->basicBlock->instructions[this->instructionIndex];
+
+    /* info ignored if inst performs non std mem access */
+    *memWriteOps = instInRawFormat->numStdMemWriteOps;
+    *memReadOps = instInRawFormat->numStdMemReadOps;
+    /* copy inst name */
     strncpy(inst->opcodeAssembly, instInRawFormat->name, TRACE_LINE_SIZE - 1);
     inst->numReadRegs = instInRawFormat->numReadRegs;
     inst->numWriteRegs = instInRawFormat->numWriteRegs;

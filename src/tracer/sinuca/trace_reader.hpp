@@ -71,8 +71,8 @@ class SinucaTraceReader : public TraceReader {
      * @return 1 on failure, 0 otherwise.
      */
     int GenerateBinaryDict(StaticTraceFile *stFile);
-    void CopyMemoryOperations(InstructionPacket *instPkt,
-                              InstructionInfo *instInfo, ThrInfo *thrInfo);
+    int CopyMemoryOperations(InstructionPacket *instPkt,
+                             InstructionInfo *instInfo, ThrInfo *thrInfo);
 
   public:
     virtual int OpenTrace(const char *imageName, const char *sourceDir);
