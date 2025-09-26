@@ -25,85 +25,40 @@
 #include <cassert>
 #include <cstddef>
 
-#include "../../src/utils/logging.hpp"
+#include <logging.hpp>
 extern "C" {
 #include <alloca.h>
 }
 
-sinucaTracer::MemoryTraceFile::MemoryTraceFile(const char* source,
-                                               const char* img, THREADID tid) {
-    unsigned long bufferSize =
-        sinucaTracer::GetPathTidInSize(source, "memory", img);
+int sinucaTracer::MemoryTraceFile::OpenFile(const char* sourceDir,
+                                            const char* imgName, THREADID tid) {
+    unsigned long bufferSize;
+
+    bufferSize = sinucaTracer::GetPathTidInSize(sourceDir, "memory", imgName);
     char* path = (char*)alloca(bufferSize);
-    FormatPathTidIn(path, source, "memory", img, tid, bufferSize);
+    FormatPathTidIn(path, sourceDir, "memory", imgName, tid, bufferSize);
+    this->file = fopen(path, "wb");
 
-    this->::sinucaTracer::TraceFileWriter::UseFile(path);
+    return this->file == NULL;
 }
 
-sinucaTracer::MemoryTraceFile::~MemoryTraceFile() {
-    SINUCA3_DEBUG_PRINTF("Last MemoryTraceFile flush\n");
-    if (this->tf.offsetInBytes > 0) {
-        this->FlushLenBytes(&this->tf.offsetInBytes,
-                            sizeof(this->tf.offsetInBytes));
-        this->FlushBuffer();
-    }
+int sinucaTracer::MemoryTraceFile::WriteMemoryRecordToFile() {
+    if (this->file == NULL) return 1;
+    unsigned long written =
+        fwrite(&this->record, sizeof(this->record), 1, this->file);
+    return written != sizeof(this->record);
 }
 
-void sinucaTracer::MemoryTraceFile::PrepareDataNonStdAccess(
-    PIN_MULTI_MEM_ACCESS_INFO* pinNonStdInfo) {
-    this->numReadOps = 0;
-    this->numWriteOps = 0;
-
-    for (unsigned int it = 0; it < pinNonStdInfo->numberOfMemops; ++it) {
-        if (pinNonStdInfo->memop[it].memopType == PIN_MEMOP_LOAD) {
-            this->readOps[this->numReadOps].addr =
-                pinNonStdInfo->memop[it].memoryAddress;
-            this->readOps[this->numReadOps].size =
-                pinNonStdInfo->memop[it].bytesAccessed;
-            this->numReadOps++;
-        } else {
-            this->readOps[this->numReadOps].addr =
-                pinNonStdInfo->memop[it].memoryAddress;
-            this->writeOps[this->numWriteOps].size =
-                pinNonStdInfo->memop[it].bytesAccessed;
-            this->numWriteOps++;
-        }
-    }
-    // This variable is checked in AppendToBufferLastMemoryAccess
-    this->wasLastOperationStd = false;
+void sinucaTracer::MemoryTraceFile::SetMemoryRecordOperation(unsigned long addr,
+                                                             unsigned int size,
+                                                             short type) {
+    this->record.data.operation.addr = addr;
+    this->record.data.operation.size = size;
+    this->record.data.operation.type = type;
 }
 
-void sinucaTracer::MemoryTraceFile::PrepareDataStdMemAccess(
-    unsigned long addr, unsigned int opSize) {
-    this->stdAccessOp.addr = addr;
-    this->stdAccessOp.size = opSize;
-    // This variable is checked in AppendToBufferLastMemoryAccess
-    this->wasLastOperationStd = true;
-}
-
-void sinucaTracer::MemoryTraceFile::AppendToBufferLastMemoryAccess() {
-    if (this->wasLastOperationStd) {
-        this->MemoryAppendToBuffer(&this->stdAccessOp,
-                                   sizeof(this->stdAccessOp));
-    } else {
-        // Append number of read operations
-        this->MemoryAppendToBuffer(&this->numReadOps, SIZE_NUM_MEM_R_W);
-        // Append number of write operations
-        this->MemoryAppendToBuffer(&this->numWriteOps, SIZE_NUM_MEM_R_W);
-        // Append read operations' buffer
-        this->MemoryAppendToBuffer(this->readOps,
-                                   this->numReadOps * sizeof(*this->readOps));
-        // Append write operations' buffer
-        this->MemoryAppendToBuffer(this->writeOps,
-                                   this->numWriteOps * sizeof(*this->writeOps));
-    }
-}
-
-void sinucaTracer::MemoryTraceFile::MemoryAppendToBuffer(void* ptr,
-                                                         size_t len) {
-    if (this->AppendToBuffer(ptr, len)) {
-        this->FlushLenBytes(&this->tf.offsetInBytes, sizeof(unsigned long));
-        this->FlushBuffer();
-        this->AppendToBuffer(ptr, len);
-    }
+void sinucaTracer::MemoryTraceFile::SetMemoryRecordNonStdHeader(
+    unsigned short nonStdReadOps, unsigned short nonStdWriteOps) {
+    this->record.data.nonStdHeader.nonStdReadOps = nonStdReadOps;
+    this->record.data.nonStdHeader.nonStdWriteOps = nonStdWriteOps;
 }

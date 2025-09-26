@@ -33,9 +33,9 @@ namespace sinucaTracer {
 struct ThrInfo {
     DynamicTraceFile *dynFile;
     MemoryTraceFile *memFile;
-    unsigned int currentBBL;    /**<Index of basic block. */
-    unsigned int currentOpcode; /**<Index of instruction inside basic block. */
-    unsigned long fetchedInst;  /**<Number of instructions fetched */
+    unsigned long currentBBL;    /**<Index of basic block. */
+    unsigned long currentOpcode; /**<Index of instruction inside basic block. */
+    unsigned long fetchedInst;   /**<Number of instructions fetched */
     bool isInsideBBL;
     int Allocate(const char *sourceDir, const char *imageName, int tid);
 
@@ -55,7 +55,7 @@ class SinucaTraceReader : public TraceReader {
 
     int totalThreads;
 
-    unsigned int binaryTotalBBLs; /**<Number of basic blocks in static file. */
+    unsigned long binaryTotalBBLs; /**<Number of basic blocks in static file. */
     unsigned int *binaryBBLsSize; /**<Number of instructions per basic block. */
     InstructionInfo **binaryDict; /**<Array containing all instructions. */
     InstructionInfo *pool;        /**<Pool used for more efficient allocation.*/

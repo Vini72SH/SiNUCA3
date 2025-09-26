@@ -32,28 +32,46 @@
 
 #include <tracer/sinuca/file_handler.hpp>
 
+extern "C" {
+#include <stdlib.h>
+}
+
 namespace sinucaTracer {
 
-class StaticTraceFile : public TraceFileWriter {
+class StaticTraceFile {
   private:
-    struct DataINS data;
+    FILE* file;
+    FileHeader header;
+    BasicBlock* basicBlock;
+    unsigned int instIndex;
+    unsigned int basicBlockSize;
+    unsigned long basicBlockInstCapacity;
 
-    void ResetFlags();
-    void SetFlags(const INS *pinInstruction);
-    void SetBranchFields(const INS *pinInstruction);
-    void FillRegs(const INS *pinInstruction);
-    void StaticAppendToBuffer(void *ptr, unsigned long len);
+    int AllocBasicBlock();
+    int ReallocBasicBlock(unsigned long cap);
 
   public:
-    StaticTraceFile(const char *source, const char *img);
-    ~StaticTraceFile();
-    void PrepareDataINS(const INS *pinInstruction);
-    void AppendToBufferDataINS();
-    void AppendToBufferNumIns(unsigned int numIns);
-    inline void IncBBlCount() { this->bblCount++; }
-    inline void IncInstCount() { this->instCount++; }
-    inline void IncThreadCount() { this->threadCount++; }
-    inline unsigned int GetBBlCount() { return this->bblCount; }
+    inline StaticTraceFile() : file(NULL), instIndex(0), basicBlockSize(0) {};
+    inline ~StaticTraceFile() {
+        if (file == NULL) fclose(this->file);
+    }
+    int OpenFile(const char* sourceDir, const char* imgName);
+    void InitializeHeader();
+    int WriteBasicBlockToFile();
+    int WriteHeaderToFile();
+    void AddInstructionToBasicBlock(const INS* pinInstruction);
+    inline void IncBasicBlockCount() {
+        this->header.data.staticHeader.bblCount++;
+    }
+    inline void IncStaticInstructionCount() {
+        this->header.data.staticHeader.instCount++;
+    }
+    inline void IncThreadCount() {
+        this->header.data.staticHeader.threadCount++;
+    }
+    inline unsigned int GetBBlCount() {
+        return this->header.data.staticHeader.bblCount;
+    }
 };
 
 }  // namespace sinucaTracer

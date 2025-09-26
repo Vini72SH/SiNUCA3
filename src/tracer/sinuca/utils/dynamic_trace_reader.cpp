@@ -41,7 +41,7 @@ int sinucaTracer::DynamicTraceFile::OpenFile(const char *sourceDir,
     FormatPathTidIn(path, sourceDir, "dynamic", imgName, tid, bufferSize);
     this->file = fopen(path, "rb");
 
-    return !this->file;
+    return this->file == NULL;
 }
 
 int sinucaTracer::DynamicTraceFile::ReadHeaderFromFile() {

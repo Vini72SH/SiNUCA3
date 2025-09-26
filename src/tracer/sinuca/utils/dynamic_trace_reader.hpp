@@ -38,7 +38,7 @@ class DynamicTraceFile {
     ExecutionRecord record;
 
   public:
-    inline DynamicTraceFile() : file(NULL){};
+    inline DynamicTraceFile() : file(NULL) {};
     inline ~DynamicTraceFile() {
         if (file) fclose(this->file);
     }
@@ -46,7 +46,7 @@ class DynamicTraceFile {
     int ReadHeaderFromFile();
     int ReadDynamicRecordFromFile();
     inline int GetDynamicRecordType() { return this->record.recordType; }
-    inline unsigned int GetBasicBlockIdentifier() {
+    inline unsigned long GetBasicBlockIdentifier() {
         return this->record.data.basicBlockIdentifier;
     }
     inline const char* GetRoutineName() {

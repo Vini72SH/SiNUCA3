@@ -88,10 +88,10 @@ class StaticTraceFile {
     inline int GetBasicBlockSize() {
         return this->basicBlock->basicBlockSize;
     }
-    inline unsigned int GetTotalBasicBlocks() {
+    inline unsigned long GetTotalBasicBlocks() {
         return this->header.data.staticHeader.bblCount;
     }
-    inline unsigned int GetTotalInstructionsInStaticTrace() {
+    inline unsigned long GetTotalInstructionsInStaticTrace() {
         return this->header.data.staticHeader.instCount;
     }
     inline unsigned int GetNumThreads() {

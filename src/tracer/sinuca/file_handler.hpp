@@ -81,9 +81,6 @@ struct Instruction {
     unsigned char isControlFlow : 1;
     unsigned char isIndirectControlFlow : 1;
     unsigned char isNonStandardMemOp : 1;
-    unsigned char isRead : 1;
-    unsigned char isRead2 : 1;
-    unsigned char isWrite : 1;
 } __attribute__((packed));
 
 /** @brief Written to static trace file. */
@@ -96,19 +93,19 @@ struct BasicBlock {
 struct ExecutionRecord {
     short recordType;
     union {
-        unsigned int basicBlockIdentifier;
+        unsigned long basicBlockIdentifier;
         char routineName[MAX_ROUTINE_NAME_LENGTH];
     } data;
 } __attribute__((packed));
 
 /** @brief Written to memory trace file. */
 struct MemoryRecord {
-    int recordType;
+    short recordType;
     union {
         struct {
             unsigned long addr; /**<Virtual address accessed. */
             unsigned int size;  /**<Size in bytes of memory read or written. */
-            unsigned int type;
+            short type;
         } operation;
         struct {
             unsigned short nonStdReadOps;
@@ -122,8 +119,8 @@ struct FileHeader {
     union {
         struct {
             unsigned int threadCount;
-            unsigned int bblCount;
-            unsigned int instCount;
+            unsigned long bblCount;
+            unsigned long instCount;
         } staticHeader;
         struct {
             unsigned long totalExecutedInstructions;

@@ -38,7 +38,7 @@ int sinucaTracer::MemoryTraceFile::OpenFile(const char* sourceDir,
     FormatPathTidIn(path, sourceDir, "memory", imgName, tid, bufferSize);
     this->file = fopen(path, "rb");
 
-    return !this->file;
+    return this->file == NULL;
 }
 
 int sinucaTracer::MemoryTraceFile::ReadMemoryRecordFromFile() {

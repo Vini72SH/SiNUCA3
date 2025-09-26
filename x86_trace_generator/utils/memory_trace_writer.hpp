@@ -28,32 +28,32 @@
  * deals with buffering/flushing the data.
  */
 
+#include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
 
 #include "pin.H"
 
 namespace sinucaTracer {
 
-// Set to be equal to same constant declared in default_packets.hpp
-const unsigned int MAX_MEM_OPERATIONS = 16;
-
-class MemoryTraceFile : public TraceFileWriter {
+class MemoryTraceFile {
   private:
-    struct DataMEM readOps[MAX_MEM_OPERATIONS];
-    struct DataMEM writeOps[MAX_MEM_OPERATIONS];
-    struct DataMEM stdAccessOp;
-    unsigned int numReadOps;
-    unsigned int numWriteOps;
-    bool wasLastOperationStd;
-
-    void MemoryAppendToBuffer(void *ptr, unsigned long len);
+    FILE* file;
+    MemoryRecord record;
 
   public:
-    MemoryTraceFile(const char *source, const char *img, THREADID tid);
-    ~MemoryTraceFile();
-    void PrepareDataNonStdAccess(PIN_MULTI_MEM_ACCESS_INFO *pinNonStdInfo);
-    void PrepareDataStdMemAccess(unsigned long addr, unsigned int opSize);
-    void AppendToBufferLastMemoryAccess();
+    MemoryTraceFile() : file(NULL) {}
+    inline ~MemoryTraceFile() {
+        if (this->file) fclose(this->file);
+    };
+    int OpenFile(const char* sourceDir, const char* imgName, THREADID tid);
+    int WriteMemoryRecordToFile();
+    void SetMemoryRecordOperation(unsigned long addr, unsigned int size,
+                                  short type);
+    void SetMemoryRecordNonStdHeader(unsigned short nonStdReadOps,
+                                     unsigned short nonStdWriteOps);
+    inline void SetMemoryRecordType(short type) {
+        this->record.recordType = type;
+    }
 };
 
 }  // namespace sinucaTracer

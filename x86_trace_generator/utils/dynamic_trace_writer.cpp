@@ -24,54 +24,38 @@
 
 #include <cassert>
 
-#include "../../src/utils/logging.hpp"
+#include <logging.hpp>
 extern "C" {
 #include <alloca.h>
 }
 
-sinucaTracer::DynamicTraceFile::DynamicTraceFile(const char* source,
-                                                 const char* img,
-                                                 THREADID tid) {
-    unsigned long bufferSize =
-        sinucaTracer::GetPathTidInSize(source, "dynamic", img);
-    char* path = (char*)alloca(bufferSize);
-
-    FormatPathTidIn(path, source, "dynamic", img, tid, bufferSize);
-    this->UseFile(path);
-
-    this->totalExecInst = 0;
-    /*
-     * This space will be used to store the total of instruction executed per
-     * thread.
-     */
-    fseek(this->tf.file, 1 * sizeof(this->totalExecInst), SEEK_SET);
+void sinucaTracer::DynamicTraceFile::InitializeFileHeader() {
+    this->header.data.dynamicHeader.totalExecutedInstructions = 0;
 }
 
-sinucaTracer::DynamicTraceFile::~DynamicTraceFile() {
-    SINUCA3_DEBUG_PRINTF("Last DynamicTraceFile flush\n");
-    if (this->tf.offsetInBytes > 0) {
-        this->FlushBuffer();
-    }
+int sinucaTracer::DynamicTraceFile::OpenFile(const char *sourceDir, const char *imgName, THREADID tid) {
+    unsigned long bufferSize;
+    char* path;
 
-    rewind(this->tf.file);
-    fwrite(&this->totalExecInst, sizeof(this->totalExecInst), 1, this->tf.file);
-    SINUCA3_DEBUG_PRINTF("totalExecInst [%lu]\n", this->totalExecInst);
+    bufferSize = sinucaTracer::GetPathTidInSize(sourceDir, "dynamic", imgName);
+    path = (char *)alloca(bufferSize);
+    FormatPathTidIn(path, sourceDir, "dynamic", imgName, tid, bufferSize);
+    this->file = fopen(path, "wb");
+    if (this->file == NULL) return 1;
+    /* This space will be used to store the file header. */
+    fseek(this->file, sizeof(this->header), SEEK_SET);
+    return 0;
 }
 
-void sinucaTracer::DynamicTraceFile::PrepareId(BBLID id) { this->bblId = id; }
-
-void sinucaTracer::DynamicTraceFile::IncTotalExecInst(int ins) {
-    this->totalExecInst += ins;
+int sinucaTracer::DynamicTraceFile::WriteHeaderToFile() {
+    if (this->file == NULL) return 1;
+    rewind(this->file);
+    unsigned long written = fwrite(&this->header, sizeof(this->header), 1, this->file);
+    return written != sizeof(this->header);
 }
 
-void sinucaTracer::DynamicTraceFile::AppendToBufferId() {
-    this->DynamicAppendToBuffer(&this->bblId, sizeof(this->bblId));
-}
-
-void sinucaTracer::DynamicTraceFile::DynamicAppendToBuffer(void* ptr,
-                                                           unsigned long len) {
-    if (this->AppendToBuffer(ptr, len)) {
-        this->FlushBuffer();
-        this->AppendToBuffer(ptr, len);
-    }
+int sinucaTracer::DynamicTraceFile::WriteDynamicRecordToFile() {
+    if (this->file == NULL) return 1;
+    unsigned long written = fwrite(&this->record, sizeof(this->record), 1, this->file);
+    return written != sizeof(this->record);
 }

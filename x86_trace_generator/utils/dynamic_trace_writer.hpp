@@ -30,22 +30,37 @@
 
 #include <pin.H>
 
+#include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
 
 namespace sinucaTracer {
 
-class DynamicTraceFile : public TraceFileWriter {
+class DynamicTraceFile {
   private:
-    BBLID bblId;                 /**<Basic block identifier. */
-
-    void DynamicAppendToBuffer(void *ptr, unsigned long len);
+    FILE* file;
+    FileHeader header;
+    ExecutionRecord record;
 
   public:
-    DynamicTraceFile(const char *source, const char *img, THREADID tid);
-    void PrepareId(BBLID id);
-    void IncTotalExecInst(int ins);
-    void AppendToBufferId();
-    ~DynamicTraceFile();
+    DynamicTraceFile() : file(NULL) {};
+    inline ~DynamicTraceFile() { if (file) fclose(file); }
+    int OpenFile(const char *source, const char *img, THREADID tid);
+    void InitializeFileHeader();
+    int WriteHeaderToFile();
+    int WriteDynamicRecordToFile();
+    inline void SetDynamicRecordType(short type) {
+        this->record.recordType = type;
+    }
+    inline void SetDynamicRecordRoutineName(const char *name) {
+        strncpy(this->record.data.routineName, name,
+                sizeof(this->record.data.routineName) - 1);
+    }
+    inline void SetDynamicRecordBasicBlockId(unsigned long identifier) {
+        this->record.data.basicBlockIdentifier = identifier;
+    }
+    inline void IncTotalExecInst(int ins) {
+        this->header.data.dynamicHeader.totalExecutedInstructions += ins;
+    }
 };
 
 }  // namespace sinucaTracer

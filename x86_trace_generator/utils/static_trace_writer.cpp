@@ -23,120 +23,108 @@
 #include "static_trace_writer.hpp"
 
 #include <cassert>
+#include <cstdio>
 #include <sinuca3.hpp>
 #include <string>
+
+#include "tracer/sinuca/file_handler.hpp"
 
 extern "C" {
 #include <alloca.h>
 }
 
-sinucaTracer::StaticTraceFile::StaticTraceFile(const char* source,
-                                               const char* img) {
-    unsigned long bufferSize =
-        sinucaTracer::GetPathTidOutSize(source, "static", img);
-    char* path = (char*)alloca(bufferSize);
-    FormatPathTidOut(path, source, "static", img, bufferSize);
+int sinucaTracer::StaticTraceFile::OpenFile(const char* sourceDir,
+                                            const char* imgName) {
+    unsigned long bufferSize;
+    char* path;
 
-    this->::sinucaTracer::TraceFileWriter::UseFile(path);
-
-    this->threadCount = 0;
-    this->bblCount = 0;
-    this->instCount = 0;
-
-    /*
-     * This space will be used to store the total amount of BBLs,
-     * number of instructions, and number of threads.
-     */
-    fseek(this->tf.file, 3 * sizeof(unsigned int), SEEK_SET);
+    bufferSize = sinucaTracer::GetPathTidOutSize(sourceDir, "static", imgName);
+    path = (char*)alloca(bufferSize);
+    FormatPathTidOut(path, sourceDir, "static", imgName, bufferSize);
+    this->file = fopen(path, "wb");
+    if (this->file == NULL) return 1;
+    /* This space will be used to store the file header. */
+    fseek(this->file, sizeof(this->header), SEEK_SET);
+    return 0;
 }
 
-sinucaTracer::StaticTraceFile::~StaticTraceFile() {
-    this->FlushBuffer();
-    rewind(this->tf.file);
-    fwrite(&this->threadCount, sizeof(this->threadCount), 1, this->tf.file);
-    fwrite(&this->bblCount, sizeof(this->bblCount), 1, this->tf.file);
-    fwrite(&this->instCount, sizeof(this->instCount), 1, this->tf.file);
+int sinucaTracer::StaticTraceFile::AllocBasicBlock() {
+    this->basicBlockInstCapacity = 100; /* arbitrary choice */
+    this->basicBlock = (BasicBlock*)malloc(
+        sizeof(BasicBlock) + basicBlockInstCapacity * sizeof(Instruction));
+    return basicBlock == NULL;
 }
 
-void sinucaTracer::StaticTraceFile::PrepareDataINS(const INS* ins) {
+int sinucaTracer::StaticTraceFile::ReallocBasicBlock(unsigned long cap) {
+    this->basicBlockInstCapacity = cap;
+    this->basicBlock = (BasicBlock*)realloc(
+        this->basicBlock,
+        sizeof(BasicBlock) + basicBlockInstCapacity * sizeof(Instruction));
+    return basicBlock == NULL;
+}
+
+void sinucaTracer::StaticTraceFile::InitializeHeader() {
+    this->header.data.staticHeader.bblCount = 0;
+    this->header.data.staticHeader.instCount = 0;
+    this->header.data.staticHeader.threadCount = 0;
+}
+
+int sinucaTracer::StaticTraceFile::WriteBasicBlockToFile() {
+    if (this->file == NULL) return 1;
+    if (this->basicBlock == NULL) return 1;
+
+    unsigned long written;
+    written =
+        fwrite(this->basicBlock, sizeof(*this->basicBlock), 1, this->file);
+    if (written != sizeof(*this->basicBlock)) return 1;
+    written = fwrite(this->basicBlock->instructions,
+                     sizeof(Instruction) * this->basicBlockSize, 1, this->file);
+    if (written != sizeof(Instruction) * this->basicBlockSize) return 1;
+    this->instIndex = 0;
+    return 0;
+}
+
+int sinucaTracer::StaticTraceFile::WriteHeaderToFile() {
+    if (this->file == NULL) return 1;
+
+    unsigned long written;
+    rewind(this->file);
+    written = fwrite(&this->header, sizeof(this->header), 1, this->file);
+    return written != sizeof(this->header);
+}
+
+void sinucaTracer::StaticTraceFile::AddInstructionToBasicBlock(
+    const INS* pinInstruction) {
+    if (basicBlockInstCapacity == 0) {
+        if (this->AllocBasicBlock()) return 1;
+    }
+    Instruction* rawInst = &basicBlock->instructions[this->instIndex++];
+
+    /* fill instruction name */
     std::string insName = INS_Mnemonic(*ins);
     unsigned long nameSize = insName.size();
     if (nameSize >= MAX_INSTRUCTION_NAME_LENGTH) {
         nameSize = MAX_INSTRUCTION_NAME_LENGTH - 1;
     }
-    memcpy(this->data.name, insName.c_str(), nameSize);
-    this->data.name[nameSize] = '\0';
-
-    this->data.addr = INS_Address(*ins);
-    this->data.size = INS_Size(*ins);
-    this->data.baseReg = INS_MemoryBaseReg(*ins);
-    this->data.indexReg = INS_MemoryIndexReg(*ins);
-
-    this->ResetFlags();
-    this->SetFlags(ins);
-    this->SetBranchFields(ins);
-    this->FillRegs(ins);
-}
-
-void sinucaTracer::StaticTraceFile::AppendToBufferDataINS() {
-    this->StaticAppendToBuffer(&this->data, sizeof(this->data));
-}
-
-void sinucaTracer::StaticTraceFile::AppendToBufferNumIns(unsigned int numIns) {
-    this->StaticAppendToBuffer(&numIns, SIZE_NUM_BBL_INS);
-}
-
-void sinucaTracer::StaticTraceFile::StaticAppendToBuffer(void* ptr,
-                                                         unsigned long len) {
-    if (this->AppendToBuffer(ptr, len)) {
-        this->FlushBuffer();
-        this->AppendToBuffer(ptr, len);
+    memcpy(rawInst->name, insName.c_str(), nameSize);
+    rawInst->name[nameSize] = '\0';
+    rawInst->addr = INS_Address(*ins);
+    rawInst->size = INS_Size(*ins);
+    rawInst->baseReg = INS_MemoryBaseReg(*ins);
+    rawInst->indexReg = INS_MemoryIndexReg(*ins);
+    /* fill single bit fields */
+    rawInst->isPredicated = (INS_IsPredicated(*ins)) ? 1 : 0;
+    rawInst->isPrefetch = (INS_IsPrefetch(*ins)) ? 1 : 0;
+    rawInst->isNonStandardMemOp = (!INS_IsStandardMemop(*ins)) ? 1 : 0;
+    if (!rawInst->isNonStandardMemOp) {
+        rawInst->numStdMemReadOps = (INS_IsMemoryRead(*ins)) ? 1 : 0;
+        rawInst->numStdMemReadOps += INS_HasMemoryRead2(*ins) ? 1 : 0;
+        rawInst->numStdMemWriteOps = INS_IsMemoryWrite(*ins) ? 1 : 0;
     }
-}
-
-void sinucaTracer::StaticTraceFile::ResetFlags() {
-    this->data.isControlFlow = 0;
-    this->data.isPredicated = 0;
-    this->data.isPrefetch = 0;
-    this->data.isIndirectControlFlow = 0;
-    this->data.isNonStandardMemOp = 0;
-    this->data.isRead = 0;
-    this->data.isRead2 = 0;
-    this->data.isWrite = 0;
-}
-
-void sinucaTracer::StaticTraceFile::SetFlags(const INS* ins) {
-    if (INS_IsPredicated(*ins)) {
-        this->data.isPredicated = 1;
-    }
-    if (INS_IsPrefetch(*ins)) {
-        this->data.isPrefetch = 1;
-    }
-
-    /*
-     * INS_IsStandardMemop() returns false if this instruction has a memory
-     * operand which has unconventional meaning; returns true otherwise
-     */
-    if (!INS_IsStandardMemop(*ins)) {
-        this->data.isNonStandardMemOp = 1;
-    } else {
-        if (INS_IsMemoryRead(*ins)) {
-            this->data.isRead = 1;
-        }
-        if (INS_HasMemoryRead2(*ins)) {
-            this->data.isRead2 = 1;
-        }
-        if (INS_IsMemoryWrite(*ins)) {
-            this->data.isWrite = 1;
-        }
-    }
-}
-
-void sinucaTracer::StaticTraceFile::SetBranchFields(const INS* ins) {
+    /* fill branch related fields */
     bool isSyscall = INS_IsSyscall(*ins);
-    bool isControlFlow = INS_IsControlFlow(*ins) || isSyscall;
-
-    if (isControlFlow) {
+    rawInst->isControlFlow = (INS_IsControlFlow(*ins) || isSyscall) ? 1 : 0;
+    if (rawInst->isControlFlow) {
         if (isSyscall)
             this->data.branchType = BRANCH_SYSCALL;
         else if (INS_IsCall(*ins))
@@ -147,31 +135,21 @@ void sinucaTracer::StaticTraceFile::SetBranchFields(const INS* ins) {
             this->data.branchType = BRANCH_COND;
         else
             this->data.branchType = BRANCH_UNCOND;
-
-        this->data.isControlFlow = 1;
-        if (INS_IsIndirectControlFlow(*ins)) {
-            this->data.isIndirectControlFlow = 1;
-        }
+        rawInst->isIndirectControlFlow =
+            INS_IsIndirectControlFlow(*ins) ? 1 : 0;
     }
-}
-
-void sinucaTracer::StaticTraceFile::FillRegs(const INS* ins) {
+    /* fill used register info */
     unsigned int operandCount = INS_OperandCount(*ins);
-    this->data.numReadRegs = this->data.numWriteRegs = 0;
+    rawInst->numReadRegs = rawInst->numWriteRegs = 0;
     for (unsigned int i = 0; i < operandCount; ++i) {
-        if (!INS_OperandIsReg(*ins, i)) {
-            continue;
-        }
-
+        if (!INS_OperandIsReg(*ins, i)) continue;
         if (INS_OperandWritten(*ins, i)) {
-            assert(this->data.numWriteRegs < MAX_REG_OPERANDS &&
-                   "[FillRegs] Error");
+            if (this->data.numWriteRegs > MAX_REG_OPERANDS) return;
             this->data.writeRegs[this->data.numWriteRegs++] =
                 INS_OperandReg(*ins, i);
         }
         if (INS_OperandRead(*ins, i)) {
-            assert(this->data.numReadRegs < MAX_REG_OPERANDS &&
-                   "[FillRegs] Error");
+            if (this->data.numReadRegs > MAX_REG_OPERANDS) return;
             this->data.readRegs[this->data.numReadRegs++] =
                 INS_OperandReg(*ins, i);
         }

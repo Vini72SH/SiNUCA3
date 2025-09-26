@@ -65,7 +65,7 @@ int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
     unsigned long poolOffset;
     unsigned int bblSize;
     unsigned int instCounter;
-    unsigned int bblCounter;
+    unsigned long bblCounter;
     unsigned long totalStaticInstructions;
 
     this->binaryBBLsSize = new unsigned int[this->binaryTotalBBLs];
@@ -86,7 +86,7 @@ int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
             stFile->GetInstruction(instInfoPtr);
         }
 
-        SINUCA3_DEBUG_PRINTF("bbl [%u] size [%u]\n", bblCounter + 1, bblSize);
+        SINUCA3_DEBUG_PRINTF("bbl [%lu] size [%u]\n", bblCounter + 1, bblSize);
     }
 
     return 0;
