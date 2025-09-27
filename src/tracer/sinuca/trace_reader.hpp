@@ -43,6 +43,9 @@ struct ThrInfo {
         this->isInsideBBL = false;
         this->fetchedInst = 0;
     }
+    inline void ReadDynamicFileHeader() {
+        this->dynFile->ReadHeaderFromFile();
+    }
     inline ~ThrInfo() {
         if (this->memFile != NULL) delete this->memFile;
         if (this->dynFile != NULL) delete this->dynFile;

@@ -75,8 +75,8 @@ struct Instruction {
     unsigned char size;
     unsigned char numReadRegs;
     unsigned char numWriteRegs;
-    unsigned char numStdMemReadOps;
-    unsigned char numStdMemWriteOps;
+    unsigned char numStdMemReadOps; /**<Field ignored if non std.>*/
+    unsigned char numStdMemWriteOps; /**<Field ignored if non std.>*/
     unsigned char branchType;
     unsigned char isPredicated : 1;
     unsigned char isPrefetch : 1;

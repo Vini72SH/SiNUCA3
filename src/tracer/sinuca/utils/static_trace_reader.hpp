@@ -52,11 +52,11 @@ class StaticTraceFile {
     char *mmapPtr;
     unsigned long mmapOffset;
     unsigned long mmapSize;
-    unsigned int instructionIndex; /**<Index of instruction in basic block.> */
     FileHeader header;
-    BasicBlock* basicBlock;
+    StaticRecord record;
 
-    void ConvertInstructionFormat(StaticInstructionInfo *inst, unsigned short* memReadOps, unsigned short* memWriteOps);
+    void ConvertRawInstToSinucaInstFormat(InstructionInfo *instInfo,
+                                          Instruction *rawInst);
     /**
      * @brief Returns pointer to generic data and updates mmapOffset value.
      * @param len Number of bytes read.
@@ -75,18 +75,19 @@ class StaticTraceFile {
      */
     int ReadFileHeader();
     /**
-     * @brief Retrieves new basic block.
-     * @return 1 on failure, 0 otherwise.
+     * @brief
      */
-    int ReadBasicBlock();
-    /**
-     * @brief Fills struct with static info about the instruction.
-     * @return 1 if needs to read new basic block, 0 otherwise.
-     */
-    int GetInstruction(InstructionInfo *instInfo);
+    int ReadStaticRecordFromFile();
 
-    inline int GetBasicBlockSize() {
-        return this->basicBlock->basicBlockSize;
+    inline void GetInstructionFromRecord(InstructionInfo *instInfo) {
+        this->ConvertRawInstToSinucaInstFormat(instInfo,
+                                               &this->record.data.instruction);
+    }
+    inline short GetStaticRecordType() {
+        return this->record.recordType;
+    }
+    inline int GetBasicBlockSizeFromRecord() {
+        return this->record.data.basicBlockSize;
     }
     inline unsigned long GetTotalBasicBlocks() {
         return this->header.data.staticHeader.bblCount;

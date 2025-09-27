@@ -81,76 +81,68 @@ void *sinucaTracer::StaticTraceFile::ReadData(unsigned long len) {
 int sinucaTracer::StaticTraceFile::ReadFileHeader() {
     if (this->fileDescriptor == -1) return 1;
     void *readData = this->ReadData(sizeof(FileHeader));
+    if (readData != this->mmapPtr) {
+        SINUCA3_WARNING_PRINTF("Static trace header ptr seem wrong\n");
+    }
     if (readData == NULL) return 1;
     this->header = *(FileHeader *)(readData);
     return 0;
 }
 
-int sinucaTracer::StaticTraceFile::ReadBasicBlock() {
+int sinucaTracer::StaticTraceFile::ReadStaticRecordFromFile() {
     if (this->fileDescriptor == -1) return 1;
     void *readData;
-    readData = this->ReadData(sizeof(BasicBlock));
+    readData = this->ReadData(sizeof(this->record));
     if (readData == NULL) return 1;
-    this->basicBlock = (BasicBlock *)readData;
-    this->instructionIndex = 0;
-    /* necessary to adjust offset */
-    this->ReadData(sizeof(Instruction) * this->basicBlock->basicBlockSize);
+    this->record = *(StaticRecord *)readData;
     return 0;
 }
 
-int sinucaTracer::StaticTraceFile::GetInstruction(InstructionInfo *inst) {
-    if (this->instructionIndex >= this->basicBlock->basicBlockSize) return 1;
-    this->ConvertInstructionFormat(&inst->staticInfo, &inst->staticNumReadings, &inst->staticNumWritings);
-    this->instructionIndex++;
-    return 0;
-}
-
-void sinucaTracer::StaticTraceFile::ConvertInstructionFormat(
-    StaticInstructionInfo *inst, unsigned short* memReadOps, unsigned short* memWriteOps) {
-    Instruction *instInRawFormat;
-
-    instInRawFormat = &this->basicBlock->instructions[this->instructionIndex];
-
+void sinucaTracer::StaticTraceFile::ConvertRawInstToSinucaInstFormat(
+    InstructionInfo *instInfo, Instruction *rawInst) {
     /* info ignored if inst performs non std mem access */
-    *memWriteOps = instInRawFormat->numStdMemWriteOps;
-    *memReadOps = instInRawFormat->numStdMemReadOps;
+    instInfo->staticNumReadings = rawInst->numStdMemWriteOps;
+    instInfo->staticNumWritings = rawInst->numStdMemReadOps;
     /* copy inst name */
-    strncpy(inst->opcodeAssembly, instInRawFormat->name, TRACE_LINE_SIZE - 1);
-    inst->numReadRegs = instInRawFormat->numReadRegs;
-    inst->numWriteRegs = instInRawFormat->numWriteRegs;
+    strncpy(instInfo->staticInfo.opcodeAssembly, rawInst->name,
+            TRACE_LINE_SIZE - 1);
+    instInfo->staticInfo.numReadRegs = rawInst->numReadRegs;
+    instInfo->staticInfo.numWriteRegs = rawInst->numWriteRegs;
     /* copy registers used */
-    memcpy(inst->readRegs, instInRawFormat->readRegs,
-           sizeof(instInRawFormat->readRegs));
-    memcpy(inst->writeRegs, instInRawFormat->writeRegs,
-           sizeof(instInRawFormat->writeRegs));
-    inst->opcodeSize = instInRawFormat->size;
-    inst->baseReg = instInRawFormat->baseReg;
-    inst->indexReg = instInRawFormat->indexReg;
-    inst->opcodeAddress = instInRawFormat->addr;
+    memcpy(instInfo->staticInfo.readRegs, rawInst->readRegs,
+           sizeof(rawInst->readRegs));
+    memcpy(instInfo->staticInfo.writeRegs, rawInst->writeRegs,
+           sizeof(rawInst->writeRegs));
+    instInfo->staticInfo.opcodeSize = rawInst->size;
+    instInfo->staticInfo.baseReg = rawInst->baseReg;
+    instInfo->staticInfo.indexReg = rawInst->indexReg;
+    instInfo->staticInfo.opcodeAddress = rawInst->addr;
     /* single bit fields */
-    inst->isNonStdMemOp =
-        static_cast<bool>(instInRawFormat->isNonStandardMemOp);
-    inst->isControlFlow = static_cast<bool>(instInRawFormat->isControlFlow);
-    inst->isPredicated = static_cast<bool>(instInRawFormat->isPredicated);
-    inst->isPrefetch = static_cast<bool>(instInRawFormat->isPrefetch);
-    inst->isIndirect =
-        static_cast<bool>(instInRawFormat->isIndirectControlFlow);
+    instInfo->staticInfo.isNonStdMemOp =
+        static_cast<bool>(rawInst->isNonStandardMemOp);
+    instInfo->staticInfo.isControlFlow =
+        static_cast<bool>(rawInst->isControlFlow);
+    instInfo->staticInfo.isPredicated =
+        static_cast<bool>(rawInst->isPredicated);
+    instInfo->staticInfo.isPrefetch = static_cast<bool>(rawInst->isPrefetch);
+    instInfo->staticInfo.isIndirect =
+        static_cast<bool>(rawInst->isIndirectControlFlow);
     /* convert branch type to enum Branch */
-    switch (instInRawFormat->branchType) {
+    switch (rawInst->branchType) {
         case BRANCH_CALL:
-            inst->branchType = BranchCall;
+            instInfo->staticInfo.branchType = BranchCall;
             break;
         case BRANCH_SYSCALL:
-            inst->branchType = BranchSyscall;
+            instInfo->staticInfo.branchType = BranchSyscall;
             break;
         case BRANCH_RETURN:
-            inst->branchType = BranchReturn;
+            instInfo->staticInfo.branchType = BranchReturn;
             break;
         case BRANCH_COND:
-            inst->branchType = BranchCond;
+            instInfo->staticInfo.branchType = BranchCond;
             break;
         case BRANCH_UNCOND:
-            inst->branchType = BranchUncond;
+            instInfo->staticInfo.branchType = BranchUncond;
             break;
     }
 }

@@ -43,6 +43,7 @@ int sinucaTracer::SinucaTraceReader::OpenTrace(const char *imageName,
         if (this->thrsInfo[i].Allocate(sourceDir, imageName, i)) {
             return 1;
         }
+        this->thrsInfo[i].ReadDynamicFileHeader();
     }
     if (this->GenerateBinaryDict(&staticFile)) {
         SINUCA3_ERROR_PRINTF("Failed to generate instruction dictionary\n");
@@ -67,6 +68,7 @@ int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
     unsigned int instCounter;
     unsigned long bblCounter;
     unsigned long totalStaticInstructions;
+    short recordType;
 
     this->binaryBBLsSize = new unsigned int[this->binaryTotalBBLs];
     this->binaryDict = new InstructionInfo *[this->binaryTotalBBLs];
@@ -75,15 +77,20 @@ int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
     poolOffset = 0;
 
     for (bblCounter = 0; bblCounter < this->binaryTotalBBLs; bblCounter++) {
-        if (stFile->ReadBasicBlock()) return 1;
-        bblSize = stFile->GetBasicBlockSize();
+        if (stFile->ReadStaticRecordFromFile()) return 1;
+        recordType = stFile->GetStaticRecordType();
+        if (recordType != sinucaTracer::BBL_SIZE_TYPE) return 1;
+        bblSize = stFile->GetBasicBlockSizeFromRecord();
         this->binaryBBLsSize[bblCounter] = bblSize;
         this->binaryDict[bblCounter] = &this->pool[poolOffset];
         poolOffset += bblSize;
 
         for (instCounter = 0; instCounter < bblSize; instCounter++) {
             instInfoPtr = &this->binaryDict[bblCounter][instCounter];
-            stFile->GetInstruction(instInfoPtr);
+            stFile->ReadStaticRecordFromFile();
+            recordType = stFile->GetStaticRecordType();
+            if (recordType != sinucaTracer::INSTRUCTION_TYPE) return 1;
+            stFile->GetInstructionFromRecord(instInfoPtr);
         }
 
         SINUCA3_DEBUG_PRINTF("bbl [%lu] size [%u]\n", bblCounter + 1, bblSize);
