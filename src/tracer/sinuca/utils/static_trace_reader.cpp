@@ -24,8 +24,7 @@
 
 #include <cstring>
 
-#include "engine/default_packets.hpp"
-#include "tracer/sinuca/file_handler.hpp"
+#include <tracer/sinuca/file_handler.hpp>
 #include "utils/logging.hpp"
 
 extern "C" {
@@ -103,20 +102,24 @@ void sinucaTracer::StaticTraceFile::ConvertRawInstToSinucaInstFormat(
     /* info ignored if inst performs non std mem access */
     instInfo->staticNumReadings = rawInst->numStdMemWriteOps;
     instInfo->staticNumWritings = rawInst->numStdMemReadOps;
+
     /* copy inst name */
     strncpy(instInfo->staticInfo.opcodeAssembly, rawInst->name,
             TRACE_LINE_SIZE - 1);
+
+    /* copy registers used */
     instInfo->staticInfo.numReadRegs = rawInst->numReadRegs;
     instInfo->staticInfo.numWriteRegs = rawInst->numWriteRegs;
-    /* copy registers used */
     memcpy(instInfo->staticInfo.readRegs, rawInst->readRegs,
            sizeof(rawInst->readRegs));
     memcpy(instInfo->staticInfo.writeRegs, rawInst->writeRegs,
            sizeof(rawInst->writeRegs));
+
     instInfo->staticInfo.opcodeSize = rawInst->size;
     instInfo->staticInfo.baseReg = rawInst->baseReg;
     instInfo->staticInfo.indexReg = rawInst->indexReg;
     instInfo->staticInfo.opcodeAddress = rawInst->addr;
+
     /* single bit fields */
     instInfo->staticInfo.isNonStdMemOp =
         static_cast<bool>(rawInst->isNonStandardMemOp);
@@ -127,6 +130,7 @@ void sinucaTracer::StaticTraceFile::ConvertRawInstToSinucaInstFormat(
     instInfo->staticInfo.isPrefetch = static_cast<bool>(rawInst->isPrefetch);
     instInfo->staticInfo.isIndirect =
         static_cast<bool>(rawInst->isIndirectControlFlow);
+
     /* convert branch type to enum Branch */
     switch (rawInst->branchType) {
         case BRANCH_CALL:

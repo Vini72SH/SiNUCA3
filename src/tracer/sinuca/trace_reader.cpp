@@ -24,9 +24,8 @@
 #include <cassert>
 #include <sinuca3.hpp>
 #include <tracer/trace_reader.hpp>
+#include <tracer/sinuca/file_handler.hpp>
 
-#include "engine/default_packets.hpp"
-#include "tracer/sinuca/file_handler.hpp"
 #include "utils/logging.hpp"
 
 int sinucaTracer::SinucaTraceReader::OpenTrace(const char *imageName,
@@ -102,12 +101,16 @@ int sinucaTracer::SinucaTraceReader::GenerateBinaryDict(
 FetchResult sinucaTracer::SinucaTraceReader::Fetch(InstructionPacket *ret,
                                                    int tid) {
     InstructionInfo *packageInfo;
+    short recordType;
 
     if (!this->thrsInfo[tid].isInsideBBL) {
-        if (this->thrsInfo[tid].dynFile->ReadDynamicRecordFromFile()) {
-            return FetchResultEnd;
-        }
-        /* deal with record types */
+        do {
+            if (this->thrsInfo[tid].dynFile->ReadDynamicRecordFromFile()) {
+                return FetchResultEnd;
+            }
+            recordType = this->thrsInfo[tid].dynFile->GetDynamicRecordType();
+        } while(recordType != BBL_IDENTIFIER_TYPE);
+        this->thrsInfo[tid].currentBBL = this->thrsInfo[tid].dynFile->GetBasicBlockIdentifier();
         this->thrsInfo[tid].isInsideBBL = true;
         this->thrsInfo[tid].currentOpcode = 0;
     }
@@ -205,3 +208,9 @@ int sinucaTracer::SinucaTraceReader::CopyMemoryOperations(
 
     return 0;
 }
+
+#ifndef NDEBUG
+int TestTraceReader() {
+
+}
+#endif

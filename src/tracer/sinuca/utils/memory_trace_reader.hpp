@@ -46,7 +46,10 @@ class MemoryTraceFile {
     int ReadMemoryRecordFromFile();
     void ExtractMemoryOperation(unsigned long* addr, unsigned int* size);
     void ExtractNonStdHeader(unsigned short* readOps, unsigned short* writeOps);
-    inline int GetMemoryRecordType() { return this->record.recordType; }
+
+    inline int GetMemoryRecordType() {
+        return this->record.recordType;
+    }
     inline int GetMemoryOperationType() {
         return this->record.data.operation.type;
     }

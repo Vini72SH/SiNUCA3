@@ -31,8 +31,8 @@
 namespace sinucaTracer {
 
 struct ThrInfo {
-    DynamicTraceFile *dynFile;
-    MemoryTraceFile *memFile;
+    DynamicTraceFile* dynFile;
+    MemoryTraceFile* memFile;
     unsigned long currentBBL;    /**<Index of basic block. */
     unsigned long currentOpcode; /**<Index of instruction inside basic block. */
     unsigned long fetchedInst;   /**<Number of instructions fetched */
@@ -54,14 +54,14 @@ struct ThrInfo {
 
 class SinucaTraceReader : public TraceReader {
   private:
-    ThrInfo *thrsInfo; /**<Information specific to each thread. */
+    ThrInfo* thrsInfo; /**<Information specific to each thread. */
 
     int totalThreads;
 
     unsigned long binaryTotalBBLs; /**<Number of basic blocks in static file. */
-    unsigned int *binaryBBLsSize; /**<Number of instructions per basic block. */
-    InstructionInfo **binaryDict; /**<Array containing all instructions. */
-    InstructionInfo *pool;        /**<Pool used for more efficient allocation.*/
+    unsigned int* binaryBBLsSize; /**<Number of instructions per basic block. */
+    InstructionInfo** binaryDict; /**<Array containing all instructions. */
+    InstructionInfo* pool;        /**<Pool used for more efficient allocation.*/
 
     /**
      * @brief Fill instructions dictionary
@@ -91,5 +91,9 @@ class SinucaTraceReader : public TraceReader {
 };
 
 }  // namespace sinucaTracer
+
+#ifndef NDEBUG
+int TestTraceReader();
+#endif
 
 #endif  // SINUCA3_SINUCA_TRACER_TRACE_READER_HPP_

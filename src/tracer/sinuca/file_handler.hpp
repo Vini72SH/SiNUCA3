@@ -33,7 +33,6 @@
 
 #include <cstring>
 #include <sinuca3.hpp>
-#include "engine/default_packets.hpp"
 
 extern "C" {
 #include <errno.h>
