@@ -20,18 +20,13 @@
  * @brief Implementation of the SiNUCA3 x86_64 tracer based on Intel Pin.
  */
 
+#include <pin.H>
+
 #include <cassert>  // assert
-#include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <tracer/sinuca/file_handler.hpp>
 #include <vector>
-
-#include "pin.H"
-#include "tracer/sinuca/file_handler.hpp"
-#include "types_base.PH"
-#include "types_core.PH"
-#include "types_vmapi.PH"
-#include "utils/logging.hpp"
 
 extern "C" {
 #include <sys/stat.h>  // mkdir
@@ -117,6 +112,8 @@ KNOB<std::string> KnobIntrinsics(KNOB_MODE_APPEND, "pintool", "i", "",
 
 struct IntrinsicInfo {
     char name[sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH];
+    char loaderName[sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH +
+                    sizeof("__Loader")];  // Cache.
     REG read[sinucaTracer::MAX_REG_OPERANDS];
     REG write[sinucaTracer::MAX_REG_OPERANDS];
     unsigned char numReadRegs;
@@ -278,9 +275,8 @@ IntrinsicInfo* GetIntrinsicInfo(const INS* ins) {
     if (RTN_Valid(targetRtn)) {
         const char* targetName = RTN_Name(targetRtn).c_str();
         for (unsigned int i = 0; i < intrinsics.size(); ++i) {
-            if (strcmp(targetName, intrinsics[i].name) == 0) {
+            if (strcmp(targetName, intrinsics[i].loaderName) == 0)
                 return &intrinsics[i];
-            }
         }
     }
 
@@ -371,7 +367,7 @@ static inline int SeparateStringInSections(char* str, char separator,
 }
 
 static inline REG RegisterNameToREG(const char* name) {
-    // Probably every register used in user code.
+    // Every register we actually support.
     if (strcmp(name, "rax") == 0) return LEVEL_BASE::REG_RAX;
     if (strcmp(name, "rbx") == 0) return LEVEL_BASE::REG_RBX;
     if (strcmp(name, "rcx") == 0) return LEVEL_BASE::REG_RCX;
@@ -388,65 +384,6 @@ static inline REG RegisterNameToREG(const char* name) {
     if (strcmp(name, "r13") == 0) return LEVEL_BASE::REG_R13;
     if (strcmp(name, "r14") == 0) return LEVEL_BASE::REG_R14;
     if (strcmp(name, "r15") == 0) return LEVEL_BASE::REG_R15;
-    if (strcmp(name, "eax") == 0) return LEVEL_BASE::REG_EAX;
-    if (strcmp(name, "ebx") == 0) return LEVEL_BASE::REG_EBX;
-    if (strcmp(name, "ecx") == 0) return LEVEL_BASE::REG_ECX;
-    if (strcmp(name, "edx") == 0) return LEVEL_BASE::REG_EDX;
-    if (strcmp(name, "esi") == 0) return LEVEL_BASE::REG_ESI;
-    if (strcmp(name, "edi") == 0) return LEVEL_BASE::REG_EDI;
-    if (strcmp(name, "esp") == 0) return LEVEL_BASE::REG_ESP;
-    if (strcmp(name, "ebp") == 0) return LEVEL_BASE::REG_EBP;
-    if (strcmp(name, "r8d") == 0) return LEVEL_BASE::REG_R8D;
-    if (strcmp(name, "r9d") == 0) return LEVEL_BASE::REG_R9D;
-    if (strcmp(name, "r10d") == 0) return LEVEL_BASE::REG_R10D;
-    if (strcmp(name, "r11d") == 0) return LEVEL_BASE::REG_R11D;
-    if (strcmp(name, "r12d") == 0) return LEVEL_BASE::REG_R12D;
-    if (strcmp(name, "r13d") == 0) return LEVEL_BASE::REG_R13D;
-    if (strcmp(name, "r14d") == 0) return LEVEL_BASE::REG_R14D;
-    if (strcmp(name, "r15d") == 0) return LEVEL_BASE::REG_R15D;
-    if (strcmp(name, "ax") == 0) return LEVEL_BASE::REG_AX;
-    if (strcmp(name, "bx") == 0) return LEVEL_BASE::REG_BX;
-    if (strcmp(name, "cx") == 0) return LEVEL_BASE::REG_CX;
-    if (strcmp(name, "dx") == 0) return LEVEL_BASE::REG_DX;
-    if (strcmp(name, "si") == 0) return LEVEL_BASE::REG_SI;
-    if (strcmp(name, "di") == 0) return LEVEL_BASE::REG_DI;
-    if (strcmp(name, "sp") == 0) return LEVEL_BASE::REG_SP;
-    if (strcmp(name, "bp") == 0) return LEVEL_BASE::REG_BP;
-    if (strcmp(name, "r8w") == 0) return LEVEL_BASE::REG_R8W;
-    if (strcmp(name, "r9w") == 0) return LEVEL_BASE::REG_R9W;
-    if (strcmp(name, "r10w") == 0) return LEVEL_BASE::REG_R10W;
-    if (strcmp(name, "r11w") == 0) return LEVEL_BASE::REG_R11W;
-    if (strcmp(name, "r12w") == 0) return LEVEL_BASE::REG_R12W;
-    if (strcmp(name, "r13w") == 0) return LEVEL_BASE::REG_R13W;
-    if (strcmp(name, "r14w") == 0) return LEVEL_BASE::REG_R14W;
-    if (strcmp(name, "r15w") == 0) return LEVEL_BASE::REG_R15W;
-    if (strcmp(name, "al") == 0) return LEVEL_BASE::REG_AL;
-    if (strcmp(name, "bl") == 0) return LEVEL_BASE::REG_BL;
-    if (strcmp(name, "cl") == 0) return LEVEL_BASE::REG_CL;
-    if (strcmp(name, "dl") == 0) return LEVEL_BASE::REG_DL;
-    if (strcmp(name, "sil") == 0) return LEVEL_BASE::REG_SIL;
-    if (strcmp(name, "dil") == 0) return LEVEL_BASE::REG_DIL;
-    if (strcmp(name, "spl") == 0) return LEVEL_BASE::REG_SPL;
-    if (strcmp(name, "bpl") == 0) return LEVEL_BASE::REG_BPL;
-    if (strcmp(name, "r8b") == 0) return LEVEL_BASE::REG_R8B;
-    if (strcmp(name, "r9b") == 0) return LEVEL_BASE::REG_R9B;
-    if (strcmp(name, "r10b") == 0) return LEVEL_BASE::REG_R10B;
-    if (strcmp(name, "r11b") == 0) return LEVEL_BASE::REG_R11B;
-    if (strcmp(name, "r12b") == 0) return LEVEL_BASE::REG_R12B;
-    if (strcmp(name, "r13b") == 0) return LEVEL_BASE::REG_R13B;
-    if (strcmp(name, "r14b") == 0) return LEVEL_BASE::REG_R14B;
-    if (strcmp(name, "r15b") == 0) return LEVEL_BASE::REG_R15B;
-    if (strcmp(name, "rip") == 0) return LEVEL_BASE::REG_RIP;
-    if (strcmp(name, "eip") == 0) return LEVEL_BASE::REG_EIP;
-    if (strcmp(name, "ip") == 0) return LEVEL_BASE::REG_IP;
-    if (strcmp(name, "mm0") == 0) return LEVEL_BASE::REG_MM0;
-    if (strcmp(name, "mm1") == 0) return LEVEL_BASE::REG_MM1;
-    if (strcmp(name, "mm2") == 0) return LEVEL_BASE::REG_MM2;
-    if (strcmp(name, "mm3") == 0) return LEVEL_BASE::REG_MM3;
-    if (strcmp(name, "mm4") == 0) return LEVEL_BASE::REG_MM4;
-    if (strcmp(name, "mm5") == 0) return LEVEL_BASE::REG_MM5;
-    if (strcmp(name, "mm6") == 0) return LEVEL_BASE::REG_MM6;
-    if (strcmp(name, "mm7") == 0) return LEVEL_BASE::REG_MM7;
     if (strcmp(name, "xmm0") == 0) return LEVEL_BASE::REG_XMM0;
     if (strcmp(name, "xmm1") == 0) return LEVEL_BASE::REG_XMM1;
     if (strcmp(name, "xmm2") == 0) return LEVEL_BASE::REG_XMM2;
@@ -463,22 +400,6 @@ static inline REG RegisterNameToREG(const char* name) {
     if (strcmp(name, "xmm13") == 0) return LEVEL_BASE::REG_XMM13;
     if (strcmp(name, "xmm14") == 0) return LEVEL_BASE::REG_XMM14;
     if (strcmp(name, "xmm15") == 0) return LEVEL_BASE::REG_XMM15;
-    if (strcmp(name, "xmm16") == 0) return LEVEL_BASE::REG_XMM16;
-    if (strcmp(name, "xmm17") == 0) return LEVEL_BASE::REG_XMM17;
-    if (strcmp(name, "xmm18") == 0) return LEVEL_BASE::REG_XMM18;
-    if (strcmp(name, "xmm19") == 0) return LEVEL_BASE::REG_XMM19;
-    if (strcmp(name, "xmm20") == 0) return LEVEL_BASE::REG_XMM20;
-    if (strcmp(name, "xmm21") == 0) return LEVEL_BASE::REG_XMM21;
-    if (strcmp(name, "xmm22") == 0) return LEVEL_BASE::REG_XMM22;
-    if (strcmp(name, "xmm23") == 0) return LEVEL_BASE::REG_XMM23;
-    if (strcmp(name, "xmm24") == 0) return LEVEL_BASE::REG_XMM24;
-    if (strcmp(name, "xmm25") == 0) return LEVEL_BASE::REG_XMM25;
-    if (strcmp(name, "xmm26") == 0) return LEVEL_BASE::REG_XMM26;
-    if (strcmp(name, "xmm27") == 0) return LEVEL_BASE::REG_XMM27;
-    if (strcmp(name, "xmm28") == 0) return LEVEL_BASE::REG_XMM28;
-    if (strcmp(name, "xmm29") == 0) return LEVEL_BASE::REG_XMM29;
-    if (strcmp(name, "xmm30") == 0) return LEVEL_BASE::REG_XMM30;
-    if (strcmp(name, "xmm31") == 0) return LEVEL_BASE::REG_XMM31;
     if (strcmp(name, "ymm0") == 0) return LEVEL_BASE::REG_YMM0;
     if (strcmp(name, "ymm1") == 0) return LEVEL_BASE::REG_YMM1;
     if (strcmp(name, "ymm2") == 0) return LEVEL_BASE::REG_YMM2;
@@ -495,70 +416,6 @@ static inline REG RegisterNameToREG(const char* name) {
     if (strcmp(name, "ymm13") == 0) return LEVEL_BASE::REG_YMM13;
     if (strcmp(name, "ymm14") == 0) return LEVEL_BASE::REG_YMM14;
     if (strcmp(name, "ymm15") == 0) return LEVEL_BASE::REG_YMM15;
-    if (strcmp(name, "ymm16") == 0) return LEVEL_BASE::REG_YMM16;
-    if (strcmp(name, "ymm17") == 0) return LEVEL_BASE::REG_YMM17;
-    if (strcmp(name, "ymm18") == 0) return LEVEL_BASE::REG_YMM18;
-    if (strcmp(name, "ymm19") == 0) return LEVEL_BASE::REG_YMM19;
-    if (strcmp(name, "ymm20") == 0) return LEVEL_BASE::REG_YMM20;
-    if (strcmp(name, "ymm21") == 0) return LEVEL_BASE::REG_YMM21;
-    if (strcmp(name, "ymm22") == 0) return LEVEL_BASE::REG_YMM22;
-    if (strcmp(name, "ymm23") == 0) return LEVEL_BASE::REG_YMM23;
-    if (strcmp(name, "ymm24") == 0) return LEVEL_BASE::REG_YMM24;
-    if (strcmp(name, "ymm25") == 0) return LEVEL_BASE::REG_YMM25;
-    if (strcmp(name, "ymm26") == 0) return LEVEL_BASE::REG_YMM26;
-    if (strcmp(name, "ymm27") == 0) return LEVEL_BASE::REG_YMM27;
-    if (strcmp(name, "ymm28") == 0) return LEVEL_BASE::REG_YMM28;
-    if (strcmp(name, "ymm29") == 0) return LEVEL_BASE::REG_YMM29;
-    if (strcmp(name, "ymm30") == 0) return LEVEL_BASE::REG_YMM30;
-    if (strcmp(name, "ymm31") == 0) return LEVEL_BASE::REG_YMM31;
-    if (strcmp(name, "zmm0") == 0) return LEVEL_BASE::REG_ZMM0;
-    if (strcmp(name, "zmm1") == 0) return LEVEL_BASE::REG_ZMM1;
-    if (strcmp(name, "zmm2") == 0) return LEVEL_BASE::REG_ZMM2;
-    if (strcmp(name, "zmm3") == 0) return LEVEL_BASE::REG_ZMM3;
-    if (strcmp(name, "zmm4") == 0) return LEVEL_BASE::REG_ZMM4;
-    if (strcmp(name, "zmm5") == 0) return LEVEL_BASE::REG_ZMM5;
-    if (strcmp(name, "zmm6") == 0) return LEVEL_BASE::REG_ZMM6;
-    if (strcmp(name, "zmm7") == 0) return LEVEL_BASE::REG_ZMM7;
-    if (strcmp(name, "zmm8") == 0) return LEVEL_BASE::REG_ZMM8;
-    if (strcmp(name, "zmm9") == 0) return LEVEL_BASE::REG_ZMM9;
-    if (strcmp(name, "zmm10") == 0) return LEVEL_BASE::REG_ZMM10;
-    if (strcmp(name, "zmm11") == 0) return LEVEL_BASE::REG_ZMM11;
-    if (strcmp(name, "zmm12") == 0) return LEVEL_BASE::REG_ZMM12;
-    if (strcmp(name, "zmm13") == 0) return LEVEL_BASE::REG_ZMM13;
-    if (strcmp(name, "zmm14") == 0) return LEVEL_BASE::REG_ZMM14;
-    if (strcmp(name, "zmm15") == 0) return LEVEL_BASE::REG_ZMM15;
-    if (strcmp(name, "zmm16") == 0) return LEVEL_BASE::REG_ZMM16;
-    if (strcmp(name, "zmm17") == 0) return LEVEL_BASE::REG_ZMM17;
-    if (strcmp(name, "zmm18") == 0) return LEVEL_BASE::REG_ZMM18;
-    if (strcmp(name, "zmm19") == 0) return LEVEL_BASE::REG_ZMM19;
-    if (strcmp(name, "zmm20") == 0) return LEVEL_BASE::REG_ZMM20;
-    if (strcmp(name, "zmm21") == 0) return LEVEL_BASE::REG_ZMM21;
-    if (strcmp(name, "zmm22") == 0) return LEVEL_BASE::REG_ZMM22;
-    if (strcmp(name, "zmm23") == 0) return LEVEL_BASE::REG_ZMM23;
-    if (strcmp(name, "zmm24") == 0) return LEVEL_BASE::REG_ZMM24;
-    if (strcmp(name, "zmm25") == 0) return LEVEL_BASE::REG_ZMM25;
-    if (strcmp(name, "zmm26") == 0) return LEVEL_BASE::REG_ZMM26;
-    if (strcmp(name, "zmm27") == 0) return LEVEL_BASE::REG_ZMM27;
-    if (strcmp(name, "zmm28") == 0) return LEVEL_BASE::REG_ZMM28;
-    if (strcmp(name, "zmm29") == 0) return LEVEL_BASE::REG_ZMM29;
-    if (strcmp(name, "zmm30") == 0) return LEVEL_BASE::REG_ZMM30;
-    if (strcmp(name, "zmm31") == 0) return LEVEL_BASE::REG_ZMM31;
-    if (strcmp(name, "k0") == 0) return LEVEL_BASE::REG_K0;
-    if (strcmp(name, "k1") == 0) return LEVEL_BASE::REG_K1;
-    if (strcmp(name, "k2") == 0) return LEVEL_BASE::REG_K2;
-    if (strcmp(name, "k3") == 0) return LEVEL_BASE::REG_K3;
-    if (strcmp(name, "k4") == 0) return LEVEL_BASE::REG_K4;
-    if (strcmp(name, "k5") == 0) return LEVEL_BASE::REG_K5;
-    if (strcmp(name, "k6") == 0) return LEVEL_BASE::REG_K6;
-    if (strcmp(name, "k7") == 0) return LEVEL_BASE::REG_K7;
-    if (strcmp(name, "tmm0") == 0) return LEVEL_BASE::REG_TMM0;
-    if (strcmp(name, "tmm1") == 0) return LEVEL_BASE::REG_TMM1;
-    if (strcmp(name, "tmm2") == 0) return LEVEL_BASE::REG_TMM2;
-    if (strcmp(name, "tmm3") == 0) return LEVEL_BASE::REG_TMM3;
-    if (strcmp(name, "tmm4") == 0) return LEVEL_BASE::REG_TMM4;
-    if (strcmp(name, "tmm5") == 0) return LEVEL_BASE::REG_TMM5;
-    if (strcmp(name, "tmm6") == 0) return LEVEL_BASE::REG_TMM6;
-    if (strcmp(name, "tmm7") == 0) return LEVEL_BASE::REG_TMM7;
 
     return LEVEL_BASE::REG_INVALID();
 }
@@ -603,7 +460,10 @@ VOID LoadIntrinsics() {
         unsigned int nameSize = strlen(name);
         if (nameSize > sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH)
             nameSize = sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH - 1;
-        memcpy(&i->name, name, nameSize + 1);
+        memcpy(&i->name[0], name, nameSize + 1);
+        strcpy(&i->loaderName[0], "__");
+        strcat(&i->loaderName[0], &i->name[0]);
+        strcat(&i->loaderName[0], "Loader");
 
         // Copy registers.
         SetRegistersInIntrinsicsInfo(i->read, &i->numReadRegs, readRegs);
@@ -659,7 +519,7 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                                IARG_THREAD_ID, IARG_END);
             } else {
                 for (unsigned int i = 0; i < intrinsics.size(); ++i) {
-                    if (strcmp(name, intrinsics[i].name) == 0) {
+                    if (strcmp(name, intrinsics[i].loaderName) == 0) {
                         RTN_InsertCall(rtn, IPOINT_BEFORE,
                                        (AFUNPTR)DisableInstrumentationInThread,
                                        IARG_THREAD_ID, IARG_END);

@@ -1,39 +1,26 @@
+#include <assert.h>
 #include <instrumentation_control.h>
 
-DECLARE_INTRINSIC(MemsetImpl) {
-    ENTER_INTRINSIC_IMPLEMENTATION();
+DEFINE_INTRINSIC(Factorial) {
+    long value;
+    GetParameterGPR(1, &value);
 
-    unsigned char* buffer;
-    int size;
+    for (int i = value - 1; i > 0; --i) value *= i;
 
-    __asm__ volatile("" : "=D"(buffer) : :);
-    __asm__ volatile("" : "=S"(size) : :);
-
-    for (int i = 0; i < size; ++i) {
-        buffer[i] = 0xfe;
-    }
-
-    EXIT_INTRINSIC_IMPLEMENTATION();
+    SetReturnGPR(0, &value);
 }
 
 int main(void) {
-    volatile int size = 4096;
-    volatile unsigned char buffer[size];
-
     InitIntrinsics();
 
     BeginInstrumentationBlock();
     EnableThreadInstrumentation();
 
-    CALL_INTRINSIC(MemsetImpl, , "D"(buffer), "S"(size));
+    volatile int ret;
 
-    // More instructions to fill the bottom of the trace, so we guarantee
-    // simulation of the intrinsic.
-    for (int i = 0; i < 2; ++i) {
-        if (buffer[i] != 0xfe) {
-            return 1;
-        }
-    }
+    __asm__ volatile(CALL_INTRINSIC_TEMPLATE(Factorial) : "=a"(ret) : "b"(5) :);
+
+    assert(ret == 120);
 
     DisableThreadInstrumentation();
     EndInstrumentationBlock();

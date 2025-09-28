@@ -2,4 +2,4 @@ instantiate:
   class: TraceDumperComponent
   fetch: *ENGINE
   default: false
-  MemsetImpl: true
+  Factorial: true

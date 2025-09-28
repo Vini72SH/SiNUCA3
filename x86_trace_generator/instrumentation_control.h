@@ -2,7 +2,7 @@
 #define SINUCA3_INSTRUMENTATION_CONTROL_H_
 
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ extern "C" {
  * meaning that analysis code may be inserted into target program
  * during the instrumentation phase.
  */
-__attribute__((noinline)) void BeginInstrumentationBlock(void);
+void BeginInstrumentationBlock(void);
 
 /**
  * @brief Ends an instrumentation block.
@@ -43,7 +43,7 @@ __attribute__((noinline)) void BeginInstrumentationBlock(void);
  * Code following this call will no longer be instrumented.
  * This must be paired with a preceding BeginInstrumentationBlock call.
  */
-__attribute__((noinline)) void EndInstrumentationBlock(void);
+void EndInstrumentationBlock(void);
 
 /**
  * @brief Enables analysis code execution for the current thread.
@@ -51,85 +51,93 @@ __attribute__((noinline)) void EndInstrumentationBlock(void);
  * This function allows the execution of previously inserted instrumentation
  * code (analysis) for the calling thread.
  */
-__attribute__((noinline)) void EnableThreadInstrumentation(void);
+void EnableThreadInstrumentation(void);
 
 /**
  * @brief Disables analysis code execution for the current thread.
  */
-__attribute__((noinline)) void DisableThreadInstrumentation(void);
+void DisableThreadInstrumentation(void);
 
-// Intrinsics API for the x86_64 trace generator.
-#ifdef __x86_64
-
-extern char* __intrinsicsXSAVEbuffer;
-
+/**
+ * @brief Initializes the structures needed for handling intrinsics.
+ */
 void InitIntrinsics(void);
+/**
+ * @brief De-initializes the structures needed for handling intrinsics.
+ */
 void DeInitIntrinsics(void);
 
-#ifdef __clang__
-#define DECLARE_INTRINSIC(name) __attribute__((noinline)) void name(void)
-#elif __GNUC__
-#define DECLARE_INTRINSIC(name) \
-    __attribute__((noinline, optimize("no-omit-frame-pointer"))) void name(void)
-#else
-#error "Unsupported compiler."
-#endif
+/**
+ * @brief Don't call. Switches context for an intrinsic implementation.
+ */
+void __IntrinsicsSwitchContext(void);
 
-#define ENTER_INTRINSIC_IMPLEMENTATION()                                       \
-    __asm__ volatile(                                                          \
-        ".intel_syntax noprefix\n" /* General-purpose registers. Who though    \
-                                      getting rid of pusha was a good idea? */ \
-        "push rax\n"                                                           \
-        "push rbx\n"                                                           \
-        "push rcx\n"                                                           \
-        "push rdx\n"                                                           \
-        "push rsi\n"                                                           \
-        "push rdi\n"                                                           \
-        "push r8\n"                                                            \
-        "push r9\n"                                                            \
-        "push r10\n"                                                           \
-        "push r11\n"                                                           \
-        "push r12\n"                                                           \
-        "push r13\n"                                                           \
-        "push r14\n"                                                           \
-        "push r15\n"                                                           \
-        "pushfq\n"       /* Flags register */                                  \
-        "xor rax, rax\n" /* XSAVE magic. */                                    \
-        "sub rax, 1\n"                                                         \
-        "mov rdx, rax\n"                                                       \
-        "mov rbx, [__intrinsicsXSAVEbuffer]\n"                                 \
-        "xsave [rbx]\n"                                                        \
-        ".att_syntax\n");
+/**
+ * @brief Don't call. Holds the current intrinsic virtual call.
+ */
+extern void (*__intrinsicCall)(void);
 
-#define EXIT_INTRINSIC_IMPLEMENTATION() \
-    __asm__ volatile(                   \
-        ".intel_syntax noprefix\n"      \
-        "popfq\n"                       \
-        "pop r15\n"                     \
-        "pop r14\n"                     \
-        "pop r13\n"                     \
-        "pop r12\n"                     \
-        "pop r11\n"                     \
-        "pop r10\n"                     \
-        "pop r9\n"                      \
-        "pop r8\n"                      \
-        "pop rdi\n"                     \
-        "pop rsi\n"                     \
-        "pop rdx\n"                     \
-        "pop rcx\n"                     \
-        "pop rbx\n"                     \
-        "pop rax\n"                     \
-        ".att_syntax\n");
+/**
+ * @details Defines an intrinsic function. Example:
+ *
+ * ```
+ * DEFINE_INTRINSIC(Factorial) {
+ *     long value;
+ *     GetParameterGPR(1, &value);
+ *     for (int i = value - 1; i > 0; --i) value *= i;
+ *     SetReturnGPR(0, &value);
+ * }
+ * ```
+ */
+#define DEFINE_INTRINSIC(name)                                               \
+    __asm__(                                                                 \
+        ".intel_syntax noprefix\n"                                           \
+        ".section .text\n"                                                   \
+        ".type __" #name                                                     \
+        "Loader,@function\n"                                                 \
+        "__" #name                                                           \
+        "Loader:\n"                                                          \
+        "\tpush rbp\n"                                                       \
+        "\tmov rbp, rsp\n"                                                   \
+        "\tpush rax\n" /* We will need to keep it's value. */                \
+        "\tlea rax, [rip + " #name                                           \
+        "]\n"                                                                \
+        "\tmov [rip + __intrinsicCall], rax\n"                               \
+        "\tpop rax\n" /* Restore rax value to perform the context switch. */ \
+        "\tcall __IntrinsicsSwitchContext\n"                                 \
+        "\tpop rbp\n"                                                        \
+        "\tret\n"                                                            \
+        ".att_syntax prefix\n");                                             \
+    void name(void)
 
-#define CALL_INTRINSIC(function, output, ...) \
-    __asm__ volatile("call " #function "\n" : output : __VA_ARGS__ :);
+/**
+ * @details Inline Assembly template for calling intrinsics. For instance, to
+ * call the intrinsic Factorial passing a value in rbx as parameter and getting
+ * a return in rax, one would:
+ *
+ * ```
+ * int ret;
+ * __asm__ volatile(CALL_INTRINSIC_TEMPLATE(Factorial) : "=a"(ret) : "b"(5) :);
+ * ```
+ */
+#define CALL_INTRINSIC_TEMPLATE(intrinsic) \
+    ".intel_syntax noprefix\n"             \
+    "\tcall __" #intrinsic                 \
+    "Loader\n"                             \
+    ".att_syntax prefix\n"
 
-#define RDI(name) "D"(name)
-#define RSI(name) "S"(name)
-
-#define GET(register) "=" register
-
-#endif  // __x86_64
+/** @brief Gets a parameter value passed in a GPR. */
+void GetParameterGPR(int reg, void* output64bit);
+/** @brief Sets a return value passed in a GPR. */
+void SetReturnGPR(int reg, const void* input64bit);
+/** @brief Gets a parameter value passed in a XMM (SSE) register. */
+void GetParameterXMM(int reg, void* output128bit);
+/** @brief Sets a return value passed in a XMM (SSE) register. */
+void SetReturnXMM(int reg, const void* input128bit);
+/** @brief Gets a parameter value passed in a YMM (AVX) register. */
+void GetParameterYMM(int reg, void* output256bit);
+/** @brief Sets a return value passed in a YMM (AVX) register. */
+void SetReturnYMM(int reg, const void* input256bit);
 
 #ifdef __cplusplus
 }
