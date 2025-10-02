@@ -48,9 +48,9 @@ const int MAX_IMAGE_NAME_SIZE = 255;
 const int STDE_PAD = 7;
 
 enum FileType : uint16_t {
-    StaticTrace,
-    DynamicTrace,
-    MemoryTrace
+    FileTypeStaticTrace,
+    FileTypeDynamicTrace,
+    FileTypeMemoryTrace
 };
 
 enum StaticTraceDictionaryRecordType : uint8_t {
