@@ -42,7 +42,7 @@ extern "C" {
 
 namespace sinucaTracer {
 
-const char TRACE_VERSION[] = "1.0.0"; /**<Used to detect incompatibility.> */
+const char TRACE_VERSION[] = "0.0.1"; /**<Used to detect incompatibility.> */
 const int MAX_INSTRUCTION_NAME_LENGTH = 32;
 const int MAX_IMAGE_NAME_SIZE = 255;
 const int STDE_PAD = 7;
