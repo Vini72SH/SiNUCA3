@@ -22,7 +22,6 @@
 
 #include <cassert>  // assert
 
-#include "engine/default_packets.hpp"
 #include "pin.H"
 #include "tracer/sinuca/file_handler.hpp"
 #include "utils/logging.hpp"
@@ -54,27 +53,27 @@ bool isInstrumentating;
 struct ThreadData {
     sinucaTracer::DynamicTraceWriter dynamicTrace;
     sinucaTracer::MemoryTraceWriter memoryTrace;
-/**
- * @note Instrumentation is the process of deciding where and what code should
- * be inserted into the target program, while analysis refers to the code that
- * is actually executed at those insertion points to gather information about
- * the program’s behavior.
- *
- * @details Indicates, for each thread, whether it is allowed to execute
- * previously inserted analysis code.
- *
- * This flag does not control the instrumentation process itself (i.e., whether
- * code is inserted into the target program), but rather whether a specific
- * thread is permitted to execute that analysis code at runtime.
- *
- * The insertion of analysis code occurs only when the global
- * `isInstrumentating` flag is enabled. Later, during program execution, the
- * inserted code will only be executed by a thread if its corresponding entry in
- * this vector is set to true.
- *
- * When executed, the analysis code records dynamic and memory trace information
- * into files associated with the executing thread.
- */
+    /**
+     * @note Instrumentation is the process of deciding where and what code
+     * should be inserted into the target program, while analysis refers to the
+     * code that is actually executed at those insertion points to gather
+     * information about the program’s behavior.
+     *
+     * @details Indicates, for each thread, whether it is allowed to execute
+     * previously inserted analysis code.
+     *
+     * This flag does not control the instrumentation process itself (i.e.,
+     * whether code is inserted into the target program), but rather whether a
+     * specific thread is permitted to execute that analysis code at runtime.
+     *
+     * The insertion of analysis code occurs only when the global
+     * `isInstrumentating` flag is enabled. Later, during program execution, the
+     * inserted code will only be executed by a thread if its corresponding
+     * entry in this vector is set to true.
+     *
+     * When executed, the analysis code records dynamic and memory trace
+     * information into files associated with the executing thread.
+     */
     bool isThreadAnalysisEnabled;
 };
 
@@ -99,27 +98,27 @@ KNOB<std::string> knobFolder(KNOB_MODE_WRITEONCE, "pintool", "o", "./",
 KNOB<BOOL> knobForceInstrumentation(
     KNOB_MODE_WRITEONCE, "pintool", "f", "0",
     "Force instrumentation for the entire execution for all created threads.");
-/** @brief */
-KNOB<BOOL> knobDebugEnable(KNOB_MODE_WRITEONCE, "pintool", "d", "0",
-    "Create pintool debug log.");
 
 const char* GOMP_RTNS_FORCE_LOCK[] = {"GOMP_critical_start", "omp_set_lock",
-                                      "omp_set_nest_lock"};
+                                      "omp_set_nest_lock", NULL};
 
-const char* GOMP_RTNS_ATTEMPT_LOCK[] = {"omp_test_lock", "omp_test_nest_lock"};
+const char* GOMP_RTNS_ATTEMPT_LOCK[] = {"omp_test_lock", "omp_test_nest_lock",
+                                        NULL};
 
 const char* GOMP_RTNS_UNLOCK[] = {"GOMP_critical_end", "omp_unset_lock",
-                                  "omp_unset_nest_lock"};
+                                  "omp_unset_nest_lock", NULL};
 
-const char* GOMP_RTNS_BARRIER[] = {"GOMP_barrier"};
+const char* GOMP_RTNS_BARRIER[] = {"GOMP_barrier", NULL};
+
+const char* GOMP_RTNS_DESTROY[] = {"GOMP_parallel_end", NULL}
 
 #ifndef NDEBUG
-#define PINTOOL_DEBUG_PRINTF(...)                           \
-    {                                                       \
-        PIN_GetLock(&debugPrintLock, PIN_ThreadId());       \
-        printf("[DEBUG] ");                                 \
-        printf(__VA_ARGS__);                                \
-        PIN_ReleaseLock(&debugPrintLock, PIN_ThreadId());   \
+#define PINTOOL_DEBUG_PRINTF(...)                         \
+    {                                                     \
+        PIN_GetLock(&debugPrintLock, PIN_ThreadId());     \
+        printf("[DEBUG] ");                               \
+        printf(__VA_ARGS__);                              \
+        PIN_ReleaseLock(&debugPrintLock, PIN_ThreadId()); \
     }
 #else
 #define PINTOOL_DEBUG_PRINTF(...) \
@@ -165,7 +164,8 @@ VOID EnableInstrumentationInThread(THREADID tid) {
 
 /** @brief Disables execution of analysis code. */
 VOID DisableInstrumentationInThread(THREADID tid) {
-    if (!threadDataVec[tid]->isThreadAnalysisEnabled || KnobForceInstrumentation.Value()) {
+    if (!threadDataVec[tid]->isThreadAnalysisEnabled ||
+        KnobForceInstrumentation.Value()) {
         return;
     }
     PINTOOL_DEBUG_PRINTF("Disabled tool instrumentation in thread [%d]\n", tid);
@@ -176,7 +176,8 @@ VOID DisableInstrumentationInThread(THREADID tid) {
 VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
     PIN_GetLock(&threadStartLock, tid);
     int parentThreadId = PIN_GetParentTid();
-    SINUCA3_DEBUG_PRINTF("Thread [%d] created! Parent is [%d]\n", tid, imageName, parentThreadId);
+    SINUCA3_DEBUG_PRINTF("Thread [%d] created! Parent is [%d]\n", tid,
+                         imageName, parentThreadId);
     staticTrace->IncThreadCount();
     if (tid != threadDataVec.size()) {
         SINUCA3_ERROR_PRINTF("Thread data not created. Tid isnt sequential.\n");
@@ -211,7 +212,9 @@ VOID AppendToMemTraceStd(ADDRINT addr, UINT32 size, UINT8 type) {
     THREADID tid = PIN_ThreadId();
     if (!isThreadAnalysisEnabled[tid]) return;
     memoryTraces[tid]->AddMemoryOperation(addr, size, type);
-    PINTOOL_DEBUG_PRINTF("New memory operation: addr[%lu], size[%u], type[%u], tid[%d]\n", addr, size, type, tid);
+    PINTOOL_DEBUG_PRINTF(
+        "New memory operation: addr[%lu], size[%u], type[%u], tid[%d]\n", addr,
+        size, type, tid);
 }
 
 /** @brief Append non standard memory op to memory trace. */
@@ -236,7 +239,9 @@ VOID AppendToMemTraceNonStd(PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
             type = sinucaTracer::MemoryOperationStore;
         }
         threadDataVec[tid]->memoryTrace.AddMemoryOperation(addr, size, type);
-        PINTOOL_DEBUG_PRINTF("New memory operation: addr[%lu], size[%u], type[%u], tid[%d]\n", addr, size, type, tid);
+        PINTOOL_DEBUG_PRINTF(
+            "New memory operation: addr[%lu], size[%u], type[%u], tid[%d]\n",
+            addr, size, type, tid);
     }
 }
 
@@ -297,8 +302,11 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
     strcpy(imageName, sub.c_str());
 
     staticTrace = new sinucaTracer::StaticTraceFile();
+    if (staticTrace == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to create static trace file.\n");
+        return;
+    }
     staticTrace->OpenFile(traceDir, imageName);
-    staticTrace->InitializeFileHeader();
 
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
@@ -309,22 +317,56 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                 RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)InitInstrumentation,
                                IARG_END);
             }
-
             if (strcmp(name, "EndInstrumentationBlock") == 0) {
                 RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)StopInstrumentation,
                                IARG_END);
             }
-
             if (strcmp(name, "EnableThreadInstrumentation") == 0) {
                 RTN_InsertCall(rtn, IPOINT_BEFORE,
                                (AFUNPTR)EnableInstrumentationInThread,
                                IARG_THREAD_ID, IARG_END);
             }
-
             if (strcmp(name, "DisableThreadInstrumentation") == 0) {
                 RTN_InsertCall(rtn, IPOINT_BEFORE,
                                (AFUNPTR)DisableInstrumentationInThread,
                                IARG_THREAD_ID, IARG_END);
+            }
+
+            const char* gompRtnName;
+            for (int i = 0;; ++i) {
+                gompRtnName = GOMP_RTNS_FORCE_LOCK[i];
+                if (gompRtnName == NULL) break;
+                if (strcmp(name, gompRtnName) == 0) {
+                    RTN_InsertCall();
+                }
+            }
+            for (int i = 0;; ++i) {
+                gompRtnName = GOMP_RTNS_ATTEMPT_LOCK[i];
+                if (gompRtnName == NULL) break;
+                if (strcmp(name, gompRtnName) == 0) {
+                    RTN_InsertCall();
+                }
+            }
+            for (int i = 0;; ++i) {
+                gompRtnName = GOMP_RTNS_BARRIER[i];
+                if (gompRtnName == NULL) break;
+                if (strcmp(name, gompRtnName) == 0) {
+                    RTN_InsertCall();
+                }
+            }
+            for (int i = 0;; ++i) {
+                gompRtnName = GOMP_RTNS_UNLOCK[i];
+                if (gompRtnName == NULL) break;
+                if (strcmp(name, gompRtnName) == 0) {
+                    RTN_InsertCall();
+                }
+            }
+            for (int i = 0;; ++i) {
+                gompRtnName = GOMP_RTNS_DESTROY[i];
+                if (gompRtnName == NULL) break;
+                if (strcmp(name, gompRtnName) == 0) {
+                    RTN_InsertCall();
+                }
             }
 
             RTN_Close(rtn);
