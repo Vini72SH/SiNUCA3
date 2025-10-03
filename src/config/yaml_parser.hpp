@@ -59,6 +59,12 @@ struct YamlMappingEntry {
     ~YamlMappingEntry();
 };
 
+struct YamlLocation {
+    const char* file;
+    unsigned long line;
+    unsigned long column;
+};
+
 /**
  * @brief a generic YAML value. Tagged union + the anchor (C-style string,
  * deleted by the destructor).
@@ -71,19 +77,22 @@ struct YamlValue {
         const char* alias;
         std::vector<YamlValue*>* array;
         std::vector<YamlMappingEntry*>* mapping;
-    } value;            /** @brief The value of the tagged union. */
-    const char* anchor; /** @brief The anchor. */
-    YamlValueType type; /** @brief The tag of the tagged union. */
+    } value;               /** @brief The value of the tagged union. */
+    YamlLocation location; /** @brief The location of the definition. */
+    const char* anchor;    /** @brief The anchor. */
+    YamlValueType type;    /** @brief The tag of the tagged union. */
 
     /** @brief Constructs a value from a double. */
-    inline YamlValue(double value, const char* anchor = NULL)
-        : anchor(anchor), type(YamlValueTypeNumber) {
+    inline YamlValue(double value, YamlLocation location,
+                     const char* anchor = NULL)
+        : location(location), anchor(anchor), type(YamlValueTypeNumber) {
         this->value.number = value;
     }
 
     /** @brief Constructs a value from a boolean. */
-    inline YamlValue(bool value, const char* anchor = NULL)
-        : anchor(anchor), type(YamlValueTypeBoolean) {
+    inline YamlValue(bool value, YamlLocation location,
+                     const char* anchor = NULL)
+        : location(location), anchor(anchor), type(YamlValueTypeBoolean) {
         this->value.boolean = value;
     }
 
@@ -91,8 +100,9 @@ struct YamlValue {
      * @brief Constructs a value WITHOUT INITIALIZING IT, just setting it's
      * type.
      */
-    inline YamlValue(YamlValueType type, const char* anchor = NULL)
-        : anchor(anchor), type(type) {
+    inline YamlValue(YamlValueType type, YamlLocation location,
+                     const char* anchor = NULL)
+        : location(location), anchor(anchor), type(type) {
         switch (this->type) {
             case YamlValueTypeAlias:
                 this->value.alias = NULL;

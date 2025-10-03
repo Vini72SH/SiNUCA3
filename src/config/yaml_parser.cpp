@@ -33,9 +33,11 @@
 
 // This functions are declared up here because they're codependencies with other
 // parsing functions.
-static inline yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser);
+static inline yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser,
+                                              const char* file);
 static inline yaml::YamlValue* ParseYamlValueFromEvent(yaml_parser_t* parser,
-                                                       yaml_event_t* event);
+                                                       yaml_event_t* event,
+                                                       const char* file);
 
 static inline int YamlParseAndLogError(yaml_parser_t* parser,
                                        yaml_event_t* event) {
@@ -48,14 +50,26 @@ static inline int YamlParseAndLogError(yaml_parser_t* parser,
     return 0;
 }
 
-static inline int EnsureFileIsYamlMapping(yaml_parser_t* parser) {
+static inline yaml::YamlLocation LocationFromMark(const yaml_mark_t mark,
+                                                  const char* file) {
+    yaml::YamlLocation location;
+    location.column = mark.column;
+    location.line = mark.line;
+    location.file = file;
+    return location;
+}
+
+static inline int EnsureFileIsYamlMapping(yaml_parser_t* parser,
+                                          yaml::YamlLocation* location,
+                                          const char* file) {
     yaml_event_t event;
 
     // Assert toplevel is sane: stream start, then document, then mapping.
     if (YamlParseAndLogError(parser, &event)) return 1;
     if (event.type != YAML_STREAM_START_EVENT) {
         SINUCA3_ERROR_PRINTF(
-            "while reading config file: file is not a YAML mappnig.\n");
+            "while reading config file %s: file is not a YAML mappnig.\n",
+            file);
         yaml_event_delete(&event);
         return 1;
     }
@@ -63,7 +77,8 @@ static inline int EnsureFileIsYamlMapping(yaml_parser_t* parser) {
     if (YamlParseAndLogError(parser, &event)) return 1;
     if (event.type != YAML_DOCUMENT_START_EVENT) {
         SINUCA3_ERROR_PRINTF(
-            "while reading config file: file is not a YAML mappnig.\n");
+            "while reading config file %s: file is not a YAML mappnig.\n",
+            file);
         yaml_event_delete(&event);
         return 1;
     }
@@ -71,18 +86,23 @@ static inline int EnsureFileIsYamlMapping(yaml_parser_t* parser) {
     if (YamlParseAndLogError(parser, &event)) return 1;
     if (event.type != YAML_MAPPING_START_EVENT) {
         SINUCA3_ERROR_PRINTF(
-            "while reading config file: file is not a YAML mappnig.\n");
+            "while reading config file %s: file is not a YAML mappnig.\n",
+            file);
         yaml_event_delete(&event);
         return 1;
     }
+
+    // Write the location.
+    *location = LocationFromMark(event.start_mark, file);
 
     yaml_event_delete(&event);
     return 0;
 }
 
 static inline yaml::YamlMappingEntry* ParseMappingEntry(yaml_parser_t* parser,
-                                                        const char* name) {
-    yaml::YamlValue* value = ParseYamlValue(parser);
+                                                        const char* name,
+                                                        const char* file) {
+    yaml::YamlValue* value = ParseYamlValue(parser, file);
     if (value == NULL) return NULL;
 
     long sizeOfName = strlen(name);
@@ -92,6 +112,7 @@ static inline yaml::YamlMappingEntry* ParseMappingEntry(yaml_parser_t* parser,
 }
 
 static inline yaml::YamlValue* ParseMapping(yaml_parser_t* parser,
+                                            yaml::YamlLocation location,
                                             const char* anchor) {
     if (anchor != NULL) {
         long anchorSize = strlen(anchor);
@@ -101,7 +122,7 @@ static inline yaml::YamlValue* ParseMapping(yaml_parser_t* parser,
     }
 
     yaml::YamlValue* mapping =
-        new yaml::YamlValue(yaml::YamlValueTypeMapping, anchor);
+        new yaml::YamlValue(yaml::YamlValueTypeMapping, location, anchor);
 
     yaml_event_t event;
     yaml_event_type_t eventType;
@@ -113,8 +134,8 @@ static inline yaml::YamlValue* ParseMapping(yaml_parser_t* parser,
 
         eventType = event.type;
         if (eventType == YAML_SCALAR_EVENT) {
-            yaml::YamlMappingEntry* entry =
-                ParseMappingEntry(parser, (const char*)event.data.scalar.value);
+            yaml::YamlMappingEntry* entry = ParseMappingEntry(
+                parser, (const char*)event.data.scalar.value, location.file);
             if (entry == NULL) {
                 delete mapping;
                 return NULL;
@@ -134,6 +155,7 @@ static inline yaml::YamlValue* ParseMapping(yaml_parser_t* parser,
 }
 
 static inline yaml::YamlValue* ParseSequence(yaml_parser_t* parser,
+                                             yaml::YamlLocation location,
                                              const char* anchor) {
     if (anchor != NULL) {
         long anchorSize = strlen(anchor);
@@ -143,7 +165,7 @@ static inline yaml::YamlValue* ParseSequence(yaml_parser_t* parser,
     }
 
     yaml::YamlValue* array =
-        new yaml::YamlValue(yaml::YamlValueTypeArray, anchor);
+        new yaml::YamlValue(yaml::YamlValueTypeArray, location, anchor);
 
     yaml_event_t event;
 
@@ -161,7 +183,8 @@ static inline yaml::YamlValue* ParseSequence(yaml_parser_t* parser,
             return array;
         }
 
-        yaml::YamlValue* entry = ParseYamlValueFromEvent(parser, &event);
+        yaml::YamlValue* entry =
+            ParseYamlValueFromEvent(parser, &event, location.file);
         yaml_event_delete(&event);
         if (entry == NULL) {
             delete array;
@@ -172,6 +195,7 @@ static inline yaml::YamlValue* ParseSequence(yaml_parser_t* parser,
 }
 
 static inline yaml::YamlValue* ParseScalar(const char* scalar, long scalarSize,
+                                           yaml::YamlLocation location,
                                            const char* anchor) {
     if (anchor != NULL) {
         long anchorSize = strlen(anchor);
@@ -182,26 +206,28 @@ static inline yaml::YamlValue* ParseScalar(const char* scalar, long scalarSize,
 
     double number;
     if (sscanf(scalar, "%lf", &number) == 1)
-        return new yaml::YamlValue(number, anchor);
+        return new yaml::YamlValue(number, location, anchor);
     if (!strcmp(scalar, "true") || !strcmp(scalar, "yes"))
-        return new yaml::YamlValue(true, anchor);
+        return new yaml::YamlValue(true, location, anchor);
     if (!strcmp(scalar, "false") || !strcmp(scalar, "no"))
-        return new yaml::YamlValue(false, anchor);
+        return new yaml::YamlValue(false, location, anchor);
 
     yaml::YamlValue* value =
-        new yaml::YamlValue(yaml::YamlValueTypeString, anchor);
+        new yaml::YamlValue(yaml::YamlValueTypeString, location, anchor);
     value->value.string = new char[scalarSize + 1];
     memcpy((void*)value->value.string, (const void*)scalar, scalarSize + 1);
     return value;
 }
 
 static inline yaml::YamlValue* ParseYamlValueFromEvent(yaml_parser_t* parser,
-                                                       yaml_event_t* event) {
+                                                       yaml_event_t* event,
+                                                       const char* file) {
     yaml::YamlValue* value = NULL;
     long strSize;
+    yaml::YamlLocation location = LocationFromMark(event->start_mark, file);
     switch (event->type) {
         case YAML_ALIAS_EVENT:
-            value = new yaml::YamlValue(yaml::YamlValueTypeAlias);
+            value = new yaml::YamlValue(yaml::YamlValueTypeAlias, location);
             strSize = strlen((const char*)event->data.alias.anchor);
             value->value.alias = new char[strSize + 1];
             memcpy((void*)value->value.alias,
@@ -209,16 +235,17 @@ static inline yaml::YamlValue* ParseYamlValueFromEvent(yaml_parser_t* parser,
             break;
         case YAML_SCALAR_EVENT:
             value = ParseScalar((const char*)event->data.scalar.value,
-                                event->data.scalar.length,
+                                event->data.scalar.length, location,
                                 (const char*)event->data.scalar.anchor);
             break;
         case YAML_MAPPING_START_EVENT:
-            value = ParseMapping(parser,
+            value = ParseMapping(parser, location,
                                  (const char*)event->data.mapping_start.anchor);
             break;
         case YAML_SEQUENCE_START_EVENT:
-            value = ParseSequence(
-                parser, (const char*)event->data.sequence_start.anchor);
+            value =
+                ParseSequence(parser, location,
+                              (const char*)event->data.sequence_start.anchor);
             break;
         default:
             SINUCA3_DEBUG_PRINTF(
@@ -230,11 +257,12 @@ static inline yaml::YamlValue* ParseYamlValueFromEvent(yaml_parser_t* parser,
     return value;
 }
 
-static inline yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser) {
+static inline yaml::YamlValue* ParseYamlValue(yaml_parser_t* parser,
+                                              const char* file) {
     yaml_event_t event;
     if (YamlParseAndLogError(parser, &event)) return NULL;
 
-    yaml::YamlValue* value = ParseYamlValueFromEvent(parser, &event);
+    yaml::YamlValue* value = ParseYamlValueFromEvent(parser, &event, file);
     yaml_event_delete(&event);
     return value;
 }
@@ -254,7 +282,9 @@ yaml::YamlValue* yaml::ParseFile(const char* configFile) {
     // We need to make sure the top level is a mapping because another thing
     // would make no sense.
     yaml::YamlValue* yaml = NULL;
-    if (!EnsureFileIsYamlMapping(&parser)) yaml = ParseMapping(&parser, NULL);
+    yaml::YamlLocation location;
+    if (!EnsureFileIsYamlMapping(&parser, &location, configFile))
+        yaml = ParseMapping(&parser, location, NULL);
 
     yaml_parser_delete(&parser);
 
@@ -263,7 +293,7 @@ yaml::YamlValue* yaml::ParseFile(const char* configFile) {
 }
 
 // Pre-declaration for IncludeString as they're mutually recursive.
-int ProcessIncludeEntries(yaml::YamlValue* config, const char* configFile);
+int ProcessIncludeEntries(yaml::YamlValue* config);
 
 int IncludeString(std::vector<yaml::YamlMappingEntry*>* config,
                   const char* string) {
@@ -274,7 +304,7 @@ int IncludeString(std::vector<yaml::YamlMappingEntry*>* config,
     std::vector<yaml::YamlMappingEntry*>* newValues =
         newFileValue->value.mapping;
 
-    if (ProcessIncludeEntries(newFileValue, string)) {
+    if (ProcessIncludeEntries(newFileValue)) {
         delete newFileValue;
         return 1;
     }
@@ -293,23 +323,27 @@ int IncludeString(std::vector<yaml::YamlMappingEntry*>* config,
 }
 
 int IncludeArray(std::vector<yaml::YamlMappingEntry*>* config,
-                 std::vector<yaml::YamlValue*>* array, const char* configFile) {
+                 std::vector<yaml::YamlValue*>* array,
+                 yaml::YamlLocation location) {
     for (unsigned int i = 0; i < array->size(); ++i) {
-        if ((*array)[i]->type != yaml::YamlValueTypeString) {
+        const yaml::YamlValue* value = (*array)[i];
+        if (value->type != yaml::YamlValueTypeString) {
             SINUCA3_ERROR_PRINTF(
-                "while reading configuration file %s: include array members "
-                "should all be string.",
-                configFile);
+                "%s:%lu:%lu: include array members "
+                "should all be string. Got %s at %s:%lu:%lu.\n",
+                location.file, location.line, location.column,
+                value->TypeAsString(), value->location.file,
+                value->location.line, value->location.column);
             return 1;
         }
 
-        if (IncludeString(config, (*array)[i]->value.string)) return 1;
+        if (IncludeString(config, value->value.string)) return 1;
     }
 
     return 0;
 }
 
-int ProcessIncludeEntries(yaml::YamlValue* config, const char* configFile) {
+int ProcessIncludeEntries(yaml::YamlValue* config) {
     assert(config->type == yaml::YamlValueTypeMapping);
 
     std::vector<yaml::YamlMappingEntry*>* configMapping = config->value.mapping;
@@ -326,25 +360,26 @@ int ProcessIncludeEntries(yaml::YamlValue* config, const char* configFile) {
                     if (IncludeString(configMapping,
                                       entry->value->value.string)) {
                         SINUCA3_ERROR_PRINTF(
-                            "while reading configuration file %s.\n",
-                            configFile);
+                            "%s:%lu:%lu.\n", config->location.file,
+                            config->location.line, config->location.column);
                         return 1;
                     }
                     break;
                 case yaml::YamlValueTypeArray:
                     if (IncludeArray(configMapping, entry->value->value.array,
-                                     configFile)) {
+                                     config->location)) {
                         SINUCA3_ERROR_PRINTF(
-                            "while reading configuration file %s.\n",
-                            configFile);
+                            "%s:%lu:%lu.\n", config->location.file,
+                            config->location.line, config->location.column);
                         return 1;
                     }
                     break;
                 default:
                     SINUCA3_ERROR_PRINTF(
-                        "while reading configuration file %s: include should "
+                        "%s:%lu:%lu: include should "
                         "be a string or an array of strings.\n",
-                        configFile);
+                        config->location.file, config->location.line,
+                        config->location.column);
                     return 1;
             }
 
@@ -362,7 +397,7 @@ yaml::YamlValue* yaml::ParseFileWithIncludes(const char* configFile) {
     yaml::YamlValue* config = ParseFile(configFile);
     if (config == NULL) return NULL;
 
-    if (ProcessIncludeEntries(config, configFile)) {
+    if (ProcessIncludeEntries(config)) {
         delete config;
         return NULL;
     }
