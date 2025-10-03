@@ -22,35 +22,33 @@
 
 #include "dynamic_trace_writer.hpp"
 
-#include <cassert>
-
 extern "C" {
 #include <alloca.h>
 }
 
-int sinucaTracer::DynamicTraceFile::OpenFile(const char *sourceDir, const char *imgName, THREADID tid) {
+int sinucaTracer::DynamicTraceWriter::OpenFile(const char *sourceDir, const char *imgName, int tid) {
     unsigned long bufferSize;
     char* path;
-
     bufferSize = sinucaTracer::GetPathTidInSize(sourceDir, "dynamic", imgName);
     path = (char *)alloca(bufferSize);
     FormatPathTidIn(path, sourceDir, "dynamic", imgName, tid, bufferSize);
     this->file = fopen(path, "wb");
-    if (this->file == NULL) return 1;
-    /* This space will be used to store the file header. */
-    fseek(this->file, sizeof(this->header), SEEK_SET);
-    return 0;
+    return this->file == NULL;
 }
 
-int sinucaTracer::DynamicTraceFile::WriteHeaderToFile() {
+int sinucaTracer::DynamicTraceWriter::AddThreadEvent(unsigned char event, int tid) {
     if (this->file == NULL) return 1;
-    rewind(this->file);
-    unsigned long written = fwrite(&this->header, sizeof(this->header), 1, this->file);
-    return written != sizeof(this->header);
+    this->record.recordType = DynamicRecordThreadEvent;
+    this->record.data.thr.event = event;
+    this->record.data.thr.threadId = tid;
+    return (fwrite(&this->record, sizeof(this->record), 1, this->file) !=
+            sizeof(this->record));
 }
 
-int sinucaTracer::DynamicTraceFile::WriteDynamicRecordToFile() {
+int sinucaTracer::DynamicTraceWriter::AddBasicBlockId(int id) {
     if (this->file == NULL) return 1;
-    unsigned long written = fwrite(&this->record, sizeof(this->record), 1, this->file);
-    return written != sizeof(this->record);
+    this->record.recordType = DynamicRecordBasicBlockIdentifier;
+    this->record.data.bbl.basicBlockIdentifier = id;
+    return (fwrite(&this->record, sizeof(this->record), 1, this->file) !=
+            sizeof(this->record));
 }

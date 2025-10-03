@@ -20,47 +20,48 @@
 
 /**
  * @file dynamic_trace_writer.hpp
- * @details All classes defined here inherit from TraceFileWriter and implement
- * the preparation and buffering/flush of data to each file making up a trace
- * (static, dynamic and memory files). All of them implement a PrepareData**
- * method and an AppendToBuffer** one. They should be called in the order:
- * PrepareData**, it fills data structures, and then AppendToBuffer** which
- * deals with buffering/flushing the data.
+ * @details .
  */
-
-#include <pin.H>
 
 #include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
+#include "utils/logging.hpp"
 
 namespace sinucaTracer {
 
 class DynamicTraceWriter {
   private:
-    FILE* file;
+    FILE *file;
     FileHeader header;
     DynamicTraceRecord record;
 
-  public:
-    inline DynamicTraceWriter() : file(NULL) {};
-    inline ~DynamicTraceWriter() { if (file) fclose(file); }
-    int OpenFile(const char *source, const char *img, int tid);
-    int WriteHeaderToFile();
-    int WriteDynamicRecordToFile();
-
-    inline void InitializeFileHeader() {
+    inline void InitFileHeader() {
+        /* reserve space for header */
+        fseek(this->file, sizeof(this->header), SEEK_SET);
+        this->header.fileType = FileTypeDynamicTrace;
         this->header.data.dynamicHeader.totalExecutedInstructions = 0;
     }
-    inline void SetDynamicRecordType(short type) {
-        this->record.recordType = type;
+    inline int WriteHeaderToFile() {
+        rewind(this->file);
+        return (fwrite(&this->header, sizeof(this->header), 1, this->file) !=
+                sizeof(this->header));
     }
-    inline void SetDynamicRecordRoutineName(const char *name) {
-        strncpy(this->record.data.routineName, name,
-                sizeof(this->record.data.routineName) - 1);
+
+  public:
+    inline DynamicTraceWriter() : file(NULL) { this->InitFileHeader(); };
+    inline ~DynamicTraceWriter() {
+        if (file) {
+            fclose(file);
+        }
+        if (this->WriteHeaderToFile()) {
+            SINUCA3_ERROR_PRINTF("Failed to write dynamic file header!\n");
+        }
     }
-    inline void SetDynamicRecordBasicBlockId(unsigned long identifier) {
-        this->record.data.basicBlockIdentifier = identifier;
-    }
+
+    int OpenFile(const char *source, const char *img, int tid);
+    int AddBasicBlockId(int id);
+    int AddThreadEvent(unsigned char event, int tid);
+
     inline void IncTotalExecInst(int ins) {
         this->header.data.dynamicHeader.totalExecutedInstructions += ins;
     }

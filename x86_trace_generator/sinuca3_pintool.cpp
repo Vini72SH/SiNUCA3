@@ -32,9 +32,9 @@ extern "C" {
 }
 
 #include <sinuca3.hpp>
-#include <utils/dynamic_trace_writer.hpp>
-#include <utils/memory_trace_writer.hpp>
-#include <utils/static_trace_writer.hpp>
+#include "utils/dynamic_trace_writer.hpp"
+#include "utils/memory_trace_writer.hpp"
+#include "utils/static_trace_writer.hpp"
 
 /**
  * @note Instrumentation is the process of deciding where and what code should

@@ -31,8 +31,6 @@
 #include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
 
-#include "pin.H"
-
 namespace sinucaTracer {
 
 class MemoryTraceWriter {
