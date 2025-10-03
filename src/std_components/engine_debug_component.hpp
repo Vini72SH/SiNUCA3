@@ -1,7 +1,6 @@
 #ifndef SINUCA3_ENGINE_ENGINE_DEBUG_COMPONENT_HPP_
 #define SINUCA3_ENGINE_ENGINE_DEBUG_COMPONENT_HPP_
 
-#include "std_components/memory/simple_cache.hpp"
 #ifndef NDEBUG
 
 //
@@ -42,10 +41,8 @@ class EngineDebugComponent : public Component<InstructionPacket> {
         other; /** @brief Another component to test sending messages. */
     Component<FetchPacket>*
         fetch; /** @brief Another component to test fetching instructions. */
-    SimpleCache* cache;
     int otherConnectionID; /** @brief Connection ID for `other`. */
     int fetchConnectionID; /** @brief Connection ID for `fetch`. */
-    int cacheConnectionID; /** @brief Connection ID for `cache`. */
     bool send; /** @brief Tells wether we already sent a message to other. */
     bool shallFailOnFinish; /** @brief If true, fails at the FinishSetup method
                                to test the engine handling of failures. */

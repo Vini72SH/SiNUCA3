@@ -1,8 +1,3 @@
-#include <cstddef>
-#include <cstring>
-
-#include "engine/default_packets.hpp"
-#include "std_components/memory/simple_cache.hpp"
 #ifndef NDEBUG
 
 //
@@ -28,10 +23,9 @@
  * CALLED BY CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include <sinuca3.hpp>
-
 #include "engine_debug_component.hpp"
-#include "memory/simple_cache.hpp"
+
+#include <sinuca3.hpp>
 
 void EngineDebugComponent::PrintConfigValue(const char* parameter,
                                             ConfigValue value,
@@ -108,17 +102,6 @@ int EngineDebugComponent::SetConfigParameter(const char* parameter,
         }
         this->fetchConnectionID = this->fetch->Connect(0);
     }
-    if (strcmp(parameter, "simpleCache") == 0) {
-        this->cache =
-            dynamic_cast<SimpleCache*>(value.value.componentReference);
-        if (this->cache == NULL) {
-            SINUCA3_DEBUG_PRINTF(
-                "%p: Failed to cast pointerOther to SimpleCache.\n", this);
-            return 1;
-        }
-        this->cacheConnectionID = this->cache->Connect(4);
-        return 0;
-    }
 
     return 0;
 }
@@ -146,23 +129,6 @@ void EngineDebugComponent::Clock() {
 
     InstructionPacket messageInput = {NULL, DynamicInstructionInfo(), 0};
     InstructionPacket messageOutput = {NULL, DynamicInstructionInfo(), 0};
-
-    if (this->cache) {
-        static MemoryPacket MemoryMessage = 0;
-        MemoryPacket _MemoryMessageOuput = 0;
-        MemoryMessage += 1;
-        SINUCA3_DEBUG_PRINTF("%p: Sending message to cache (%lu) to %p.\n",
-                             this, MemoryMessage, this->cache);
-
-        this->cache->SendRequest(this->cacheConnectionID, &MemoryMessage);
-
-        if (this->cache->ReceiveResponse(this->cacheConnectionID,
-                                         &_MemoryMessageOuput) == 0) {
-            SINUCA3_DEBUG_PRINTF(
-                "%p: Received response from cache (%p): %lu.\n", this,
-                this->cache, _MemoryMessageOuput);
-        }
-    }
 
     if (this->other) {
         if (!(this->send)) {
