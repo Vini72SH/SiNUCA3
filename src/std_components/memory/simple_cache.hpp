@@ -32,7 +32,8 @@
 
 class SimpleCache : public Component<MemoryPacket> {
   public:
-    SimpleCache() : numberOfRequests(0) {};
+    SimpleCache() :  cache(NULL), numberOfRequests(0),
+    cacheSize(0), lineSize(0), numWays(0), policyID(CacheMemoryNS::Unset){};
     virtual ~SimpleCache() {};
 
     virtual int FinishSetup();
@@ -41,8 +42,18 @@ class SimpleCache : public Component<MemoryPacket> {
     virtual void PrintStatistics();
 
   private:
-    CacheMemory cache;
+    CacheMemory *cache;
     unsigned int numberOfRequests;
+
+    unsigned int cacheSize;
+    unsigned int lineSize;
+    unsigned int numWays;
+    CacheMemoryNS::ReplacementPoliciesID policyID;
+
+    int ConfigCacheSize(ConfigValue value);
+    int ConfigLineSize(ConfigValue value);
+    int ConfigAssociativity(ConfigValue value);
+    int ConfigPolicy(ConfigValue value);
 };
 
 #endif

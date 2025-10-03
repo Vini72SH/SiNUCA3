@@ -32,12 +32,98 @@
 #include "utils/cache/replacement_policies/random.hpp"
 #include "utils/cache/replacement_policies/roundRobin.hpp"
 
+using namespace CacheMemoryNS;
+
+/**
+ * @brief Number of bits in a address.
+ * Default is 64 bits.
+ * Used to calculate how many bits are used for tag.
+ * If you want to change this, may be better to clone this file
+ * and create another CacheMemory class for this.
+ */
+static const int addrSizeBits = 64;
+
 static double getLog2(double x) { return log(x) / log(2); }
 
 static bool checkIfPowerOfTwo(unsigned long x) {
     if (x == 0) return false;  // 0 is not a power of 2
     // x is power of 2 if only one bit is set.
     return (x & (x - 1)) == 0;
+}
+
+CacheMemory *CacheMemory::fromCacheSize(unsigned int cacheSize,
+                                        unsigned int lineSize,
+                                        unsigned int associativity,
+                                        CacheMemoryNS::ReplacementPoliciesID policy) {
+    unsigned int numSets = cacheSize / (lineSize * associativity);
+    return CacheMemory::fromNumSets(numSets, lineSize, associativity, policy);
+}
+
+CacheMemory *CacheMemory::fromNumSets(unsigned int numSets,
+                                      unsigned int lineSize,
+                                      unsigned int associativity,
+                                      CacheMemoryNS::ReplacementPoliciesID policy) {
+    if (associativity == 0) return NULL;
+    if (!checkIfPowerOfTwo(numSets) || !checkIfPowerOfTwo(lineSize)) {
+        SINUCA3_ERROR_PRINTF(
+            "CacheMemory: Trying to get a log2 of a non power of two number\n");
+        return NULL;
+    }
+
+    unsigned int indexBits = getLog2(numSets);
+    unsigned int offsetBits = getLog2(lineSize);
+    return CacheMemory::Alocate(indexBits, offsetBits, associativity, policy);
+}
+
+CacheMemory *CacheMemory::fromBits(unsigned int numIndexBits,
+                                   unsigned int numOffsetBits,
+                                   unsigned int associativity,
+                                   CacheMemoryNS::ReplacementPoliciesID policy) {
+    return CacheMemory::Alocate(numIndexBits, numOffsetBits, associativity,
+                                policy);
+}
+
+CacheMemory *CacheMemory::Alocate(unsigned int numIndexBits,
+                                  unsigned int numOffsetBits,
+                                  unsigned int associativity,
+                                  CacheMemoryNS::ReplacementPoliciesID policy) {
+    if (associativity == 0) return NULL;
+
+    unsigned int numSets = 1u << numIndexBits;
+
+    // Safe
+
+    CacheMemory *cm = new CacheMemory();
+    cm->numWays = associativity;
+    cm->numSets = numSets;
+
+    cm->offsetBits = numOffsetBits;
+    cm->indexBits = numIndexBits;
+    cm->tagBits = addrSizeBits - (cm->indexBits + cm->offsetBits);
+
+    cm->offsetMask = (1UL << cm->offsetBits) - 1;
+    cm->indexMask = ((1UL << cm->indexBits) - 1) << cm->offsetBits;
+    cm->tagMask = ((1UL << cm->tagBits) - 1)
+                  << (cm->offsetBits + cm->indexBits);
+
+    size_t n = cm->numSets * cm->numWays;
+    cm->entries = new CacheLine *[cm->numSets];
+    cm->entries[0] = new CacheLine[n];
+    memset(cm->entries[0], 0, n * sizeof(CacheLine));
+    for (int i = 1; i < cm->numSets; ++i) {
+        cm->entries[i] = cm->entries[0] + (i * cm->numWays);
+    }
+
+    for (int i = 0; i < cm->numSets; ++i) {
+        for (int j = 0; j < cm->numWays; ++j) {
+            cm->entries[i][j].i = i;
+            cm->entries[i][j].j = j;
+        }
+    }
+
+    cm->SetReplacementPolicy(policy);
+
+    return cm;
 }
 
 CacheMemory::~CacheMemory() {
@@ -53,12 +139,12 @@ bool CacheMemory::Read(MemoryPacket addr) {
     CacheLine *result;
 
     exist = this->GetEntry(addr, &result);
-    if (exist){
+    if (exist) {
         this->policy->Acess(result);
     }
 
     this->statAcess += 1;
-    if(exist)
+    if (exist)
         this->statHit += 1;
     else
         this->statMiss += 1;
@@ -71,7 +157,7 @@ void CacheMemory::Write(MemoryPacket addr) {
     unsigned long tag = GetTag(addr);
     unsigned long index = GetIndex(addr);
 
-    if(!FindEmptyEntry(addr, &victim)){
+    if (!FindEmptyEntry(addr, &victim)) {
         int set, way;
         this->policy->SelectVictim(tag, index, &set, &way);
         victim = &this->entries[set][way];
@@ -122,215 +208,50 @@ bool CacheMemory::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
     return false;
 }
 
-void CacheMemory::setAddrSizeBits(unsigned int addrSizeBits) {
-    this->addrSizeBits = addrSizeBits;
-}
-
-int CacheMemory::FinishSetup() {
-    if (this->cacheSize == 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache didn't received obrigatory parameter \"cacheSize\"\n");
-        return 1;
-    }
-
-    if (this->lineSize == 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache didn't received obrigatory parameter \"lineSize\"\n");
-        return 1;
-    }
-
-    if (this->numWays == -1) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache didn't received obrigatory parameter \"associativity\"\n");
-        return 1;
-    }
-
-    this->numSets = this->cacheSize / (this->lineSize * this->numWays);
-
-    if (!checkIfPowerOfTwo(this->numSets) ||
-        !checkIfPowerOfTwo(this->lineSize)) {
-        SINUCA3_ERROR_PRINTF(
-            "Trying to get a log2 of a non power of two number\n");
-        return 1;
-    }
-
-    this->offsetBits = getLog2(this->lineSize);
-    this->indexBits = getLog2(this->numSets);
-    this->tagBits = this->addrSizeBits - (this->indexBits + this->offsetBits);
-
-    if (this->tagBits < 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Calculated tagBits is negative. Check addrSizeBits, lineSize and "
-            "numSets.\n");
-        return 1;
-    }
-
-    if (this->numWays != 0 && this->tagBits == 0) {
-        SINUCA3_ERROR_PRINTF(
-            "No bits left to be used as cache tag. Increase addrSizeBits or "
-            "reduce lineSize/numSets.\n");
-        return 1;
-    }
-
-    this->offsetMask = (1UL << offsetBits) - 1;
-    this->indexMask = ((1UL << indexBits) - 1) << offsetBits;
-    this->tagMask = ((1UL << tagBits) - 1) << (offsetBits + indexBits);
-
-    size_t n = this->numSets * this->numWays;
-    this->entries = new CacheLine *[this->numSets];
-    this->entries[0] = new CacheLine[n];
-    memset(this->entries[0], 0, n * sizeof(CacheLine));
-    for (int i = 1; i < this->numSets; ++i) {
-        this->entries[i] = this->entries[0] + (i * this->numWays);
-    }
-
-    for (int i = 0; i < this->numSets; ++i) {
-        for (int j = 0; j < this->numWays; ++j) {
-            this->entries[i][j].i = i;
-            this->entries[i][j].j = j;
-        }
-    }
-
-    if (this->policyID == Unset) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache didn't received obrigatory parameter \"policy\"\n");
-        return 1;
-    }
-
-    this->SetReplacementPolicy(this->policyID);
-
-    return 0;
-}
-
-int CacheMemory::SetConfigParameter(const char *parameter, ConfigValue value) {
-    bool isCacheSize = (strcmp(parameter, "cacheSize") == 0);
-    bool isLineSize = (strcmp(parameter, "lineSize") == 0);
-    bool isAssociativity = (strcmp(parameter, "associativity") == 0);
-
-    bool isPolicy = (strcmp(parameter, "policy") == 0);
-
-    if (!isCacheSize && !isLineSize && !isAssociativity && !isPolicy) {
-        SINUCA3_ERROR_PRINTF("Cache received an unkown parameter: %s.\n",
-                             parameter);
-        return 1;
-    }
-
-    if (isCacheSize && value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache parameter \"cacheSize\" is not an integer.\n");
-        return 1;
-    }
-
-    if (isLineSize && value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache parameter \"lineSize\" is not an integer.\n");
-        return 1;
-    }
-
-    if (isAssociativity && value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF(
-            "Cache parameter \"associativity\" is not an integer.\n");
-        return 1;
-    }
-
-    if (isPolicy && value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("Cache parameter \"policy\" is not an integer.\n");
-        return 1;
-    }
-
-    if (isCacheSize) {
-        const long v = value.value.integer;
-        if (v <= 0) {
-            SINUCA3_ERROR_PRINTF(
-                "Invalid value for Cache parameter \"cacheSize\": should be > "
-                "0.");
-            return 1;
-        }
-        this->cacheSize = v;
-    }
-
-    if (isLineSize) {
-        const long v = value.value.integer;
-        if (v <= 0) {
-            SINUCA3_ERROR_PRINTF(
-                "Invalid value for Cache parameter \"lineSize\": should be > "
-                "0.");
-            return 1;
-        }
-        this->lineSize = v;
-    }
-
-    if (isAssociativity) {
-        const long v = value.value.integer;
-        if (v <= 0) {
-            SINUCA3_ERROR_PRINTF(
-                "Invalid value for Cache parameter \"associativity\": should "
-                "be > 0.");
-            return 1;
-        }
-        this->numWays = v;
-    }
-
-    if (isPolicy) {
-        const ReplacementPoliciesID v =
-            static_cast<ReplacementPoliciesID>(value.value.integer);
-        this->policyID = v;
-    }
-
-    return 0;
-}
-
-bool CacheMemory::SetReplacementPolicy(ReplacementPoliciesID id) {
+void CacheMemory::SetReplacementPolicy(ReplacementPoliciesID id) {
     switch (id) {
         case LruID:
             this->policy =
                 new ReplacementPolicies::LRU(this->numSets, this->numWays);
-            return 0;
+            return;
 
         case RandomID:
             this->policy =
                 new ReplacementPolicies::Random(this->numSets, this->numWays);
-            return 0;
+            return;
 
         case RoundRobinID:
             this->policy = new ReplacementPolicies::RoundRobin(this->numSets,
                                                                this->numWays);
-            return 0;
+            return;
 
         default:
-            return 1;
+            return;
     }
 }
 
-void CacheMemory::resetStatistics(){
+void CacheMemory::resetStatistics() {
     this->statMiss = 0;
     this->statHit = 0;
     this->statAcess = 0;
     this->statEvaction = 0;
 }
 
-unsigned long CacheMemory::getStatMiss() const{
-    return this->statMiss;
-}
+unsigned long CacheMemory::getStatMiss() const { return this->statMiss; }
 
-unsigned long CacheMemory::getStatHit() const{
-    return this->statHit;
-}
+unsigned long CacheMemory::getStatHit() const { return this->statHit; }
 
-unsigned long CacheMemory::getStatAcess() const{
-    return this->statAcess;
-}
+unsigned long CacheMemory::getStatAcess() const { return this->statAcess; }
 
-unsigned long CacheMemory::getStatEvaction() const{
+unsigned long CacheMemory::getStatEvaction() const {
     return this->statEvaction;
 }
 
-float CacheMemory::getStatValidProp() const{
+float CacheMemory::getStatValidProp() const {
     int n = this->numSets * this->numWays;
     int count = 0;
-    for(int i=0; i<n; ++i){
-        if(this->entries[0][i].isValid)
-            count += 1;
+    for (int i = 0; i < n; ++i) {
+        if (this->entries[0][i].isValid) count += 1;
     }
-    return (float)count/(float)n;
+    return (float)count / (float)n;
 }

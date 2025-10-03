@@ -23,18 +23,131 @@
 #include "simple_cache.hpp"
 
 #include <sinuca3.hpp>
+
+#include "config/config.hpp"
 #include "utils/logging.hpp"
 
 int SimpleCache::FinishSetup() {
-    if (this->cache.FinishSetup()) return 1;
+    if (this->cacheSize == 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache didn't received obrigatory parameter \"cacheSize\"\n");
+        return 1;
+    }
+
+    if (this->lineSize == 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache didn't received obrigatory parameter \"lineSize\"\n");
+        return 1;
+    }
+
+    if (this->numWays == 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache didn't received obrigatory parameter \"associativity\"\n");
+        return 1;
+    }
+
+    if (this->policyID == CacheMemoryNS::Unset) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache didn't received obrigatory parameter \"policy\"\n");
+        return 1;
+    }
+
+    this->cache = CacheMemory::fromCacheSize(this->cacheSize, this->lineSize,
+                                             this->numWays, this->policyID);
+    if (this->cache == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to alocate CacheMemory\n");
+        return 1;
+    }
 
     return 0;
 }
 
-int SimpleCache::SetConfigParameter(const char* parameter, ConfigValue value) {
-    if (this->cache.SetConfigParameter(parameter, value)) return 1;
+int SimpleCache::ConfigCacheSize(ConfigValue value) {
+    if (value.type != ConfigValueTypeInteger) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache parameter \"cacheSize\" is not an integer.\n");
+        return 1;
+    }
 
+    const long v = value.value.integer;
+    if (v <= 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Invalid value for Cache parameter \"cacheSize\": should be > "
+            "0.");
+        return 1;
+    }
+    this->cacheSize = v;
     return 0;
+}
+
+int SimpleCache::ConfigLineSize(ConfigValue value) {
+    if (value.type != ConfigValueTypeInteger) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache parameter \"lineSize\" is not an integer.\n");
+        return 1;
+    }
+
+    const long v = value.value.integer;
+    if (v <= 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Invalid value for Cache parameter \"lineSize\": should be > "
+            "0.");
+        return 1;
+    }
+    this->lineSize = v;
+    return 0;
+}
+
+int SimpleCache::ConfigAssociativity(ConfigValue value) {
+    if (value.type != ConfigValueTypeInteger) {
+        SINUCA3_ERROR_PRINTF(
+            "Cache parameter \"associativity\" is not an integer.\n");
+        return 1;
+    }
+
+    const long v = value.value.integer;
+    if (v <= 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Invalid value for Cache parameter \"associativity\": should "
+            "be > 0.");
+        return 1;
+    }
+    this->numWays = v;
+    return 0;
+}
+
+int SimpleCache::ConfigPolicy(ConfigValue value) {
+    if (value.type != ConfigValueTypeInteger) {
+        SINUCA3_ERROR_PRINTF("Cache parameter \"policy\" is not an integer.\n");
+        return 1;
+    }
+
+    const CacheMemoryNS::ReplacementPoliciesID v =
+        static_cast<CacheMemoryNS::ReplacementPoliciesID>(value.value.integer);
+    this->policyID = v;
+    return 0;
+}
+
+int SimpleCache::SetConfigParameter(const char* parameter, ConfigValue value) {
+    if (strcmp(parameter, "cacheSize") == 0) {
+        return this->ConfigCacheSize(value);
+    }
+
+    if (strcmp(parameter, "lineSize") == 0) {
+        return this->ConfigLineSize(value);
+    }
+
+    if (strcmp(parameter, "associativity") == 0) {
+        return this->ConfigAssociativity(value);
+    }
+
+    if (strcmp(parameter, "policy") == 0) {
+        return this->ConfigPolicy(value);
+    }
+
+    SINUCA3_ERROR_PRINTF("Cache received an unkown parameter: %s.\n",
+                         parameter);
+    return 1;
 }
 
 void SimpleCache::Clock() {
@@ -53,13 +166,12 @@ void SimpleCache::Clock() {
                                  this, packet);
 
             // Read() returns true if it was hit.
-            if (this->cache.Read(packet)) {
+            if (this->cache->Read(packet)) {
                 SINUCA3_DEBUG_PRINTF("%p: SimpleCache HIT!\n", this);
             } else {
                 SINUCA3_DEBUG_PRINTF("%p: SimpleCache MISS!\n", this);
-                this->cache.Write(packet);
+                this->cache->Write(packet);
             }
-
 
             this->SendResponseToConnection(i, &packet);
         }
@@ -67,6 +179,10 @@ void SimpleCache::Clock() {
 }
 
 void SimpleCache::PrintStatistics() {
-            SINUCA3_DEBUG_PRINTF("%p: SimpleCache Stats:\n\tMiss: %lu\n\tHit: %lu\n\tAcces: %lu\n\tEvaction: %lu\n\tValidProp: %.3f\n",
-                this, this->cache.getStatMiss(), this->cache.getStatHit(), this->cache.getStatAcess(), this->cache.getStatEvaction(), this->cache.getStatValidProp());
+    SINUCA3_DEBUG_PRINTF(
+        "%p: SimpleCache Stats:\n\tMiss: %lu\n\tHit: %lu\n\tAcces: "
+        "%lu\n\tEvaction: %lu\n\tValidProp: %.3f\n",
+        this, this->cache->getStatMiss(), this->cache->getStatHit(),
+        this->cache->getStatAcess(), this->cache->getStatEvaction(),
+        this->cache->getStatValidProp());
 }

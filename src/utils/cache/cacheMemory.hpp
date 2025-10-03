@@ -23,17 +23,18 @@
  * @details WP! Abstract
  */
 
-#include <cstddef>
 #include <sinuca3.hpp>
 
 #include "replacement_policy.hpp"
 
-enum ReplacementPoliciesID {
-    Unset = -1,
-    LruID = 0,
-    RandomID = 1,
-    RoundRobinID = 2
-};
+namespace CacheMemoryNS {
+    enum ReplacementPoliciesID {
+        Unset = -1,
+        LruID = 0,
+        RandomID = 1,
+        RoundRobinID = 2
+    };
+}
 
 struct CacheLine {
     unsigned long tag;
@@ -55,24 +56,21 @@ struct CacheLine {
 
 class CacheMemory {
   public:
-    inline CacheMemory()
-        : addrSizeBits(64),
-          cacheSize(0),
-          lineSize(0),
-          numWays(-1),
-          entries(NULL),
-          policy(NULL),
-          policyID(Unset),
-          statMiss(0),
-          statHit(0),
-          statAcess(0),
-          statEvaction(0) {};
+    static CacheMemory *fromCacheSize(unsigned int cacheSize,
+                                      unsigned int lineSize,
+                                      unsigned int associativity,
+                                      CacheMemoryNS::ReplacementPoliciesID policy);
+
+    static CacheMemory *fromNumSets(unsigned int numSets, unsigned int lineSize,
+                                    unsigned int associativity,
+                                    CacheMemoryNS::ReplacementPoliciesID policy);
+
+    static CacheMemory *fromBits(unsigned int numIndexBits,
+                                 unsigned int numOffsetBits,
+                                 unsigned int associativity,
+                                 CacheMemoryNS::ReplacementPoliciesID policy);
+
     virtual ~CacheMemory();
-
-    int FinishSetup();
-    int SetConfigParameter(const char *parameter, ConfigValue value);
-
-    bool SetReplacementPolicy(ReplacementPoliciesID id);
 
     /**
      * @brief Reads a cache.
@@ -113,8 +111,6 @@ class CacheMemory {
      */
     bool FindEmptyEntry(unsigned long addr, CacheLine **result) const;
 
-    void setAddrSizeBits(unsigned int addrSizeBits);
-
     void resetStatistics();
     unsigned long getStatMiss() const;
     unsigned long getStatHit() const;
@@ -123,19 +119,7 @@ class CacheMemory {
     float getStatValidProp() const;
 
   protected:
-    /**
-     * @brief Number of bits in a address.
-     * Default is 64 bits.
-     * It can be modified using `setAddrSizeBits()`,
-     * but it should be set before configuring the cache,
-     * for example, in your component's constructor.
-     */
-    unsigned int addrSizeBits;
-
-    unsigned int cacheSize;  // Bytes
-    unsigned int lineSize;   // Bytes
     int numWays;
-
     int numSets;
 
     unsigned int offsetBits;
@@ -148,13 +132,19 @@ class CacheMemory {
     CacheLine **entries;  // matrix [sets x ways]
 
     ReplacementPolicy *policy;
-    ReplacementPoliciesID policyID;
 
     // Statistics
     unsigned long statMiss;
     unsigned long statHit;
     unsigned long statAcess;
     unsigned long statEvaction;
+
+    inline CacheMemory()
+        : statMiss(0), statHit(0), statAcess(0), statEvaction(0) {};
+
+    static CacheMemory *Alocate(unsigned int numIndexBits, unsigned int numOffsetBits,
+                      unsigned int associativity, CacheMemoryNS::ReplacementPoliciesID policy);
+    void SetReplacementPolicy(CacheMemoryNS::ReplacementPoliciesID id);
 };
 
 #endif
