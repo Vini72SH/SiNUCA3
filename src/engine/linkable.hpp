@@ -68,9 +68,15 @@ struct Connection {
     inline int GetMessageSize() const;
 
     /**
-    * @brief Swaps the connection buffers and flushes unread buffers.
-    */
-    void CommitBuffers();
+     * @brief Returns true if the request buffer with id is available and false
+     * if the buffer is full.
+     */
+    inline bool IsRequestBufferAvailable(int id) const;
+
+    /**
+     * @brief Swap the buffers of the connection.
+     */
+    void SwapBuffers();
 
     /**
      * @brief Insert a message into a requestBuffer.
@@ -215,6 +221,20 @@ class Linkable {
      * buffers and do other pos-clock setup jobs.
      */
     void PosClock();
+
+    bool IsConnectionAvailable(int connectionID);
+
+    /**
+     * @brief This method should be declared here so the simulator can send the
+     * finish setup message.
+     * @details This method is called after the config file is and all
+     * parameters are set, so to finish any setup required by the component.
+     * Non-zero should be returned if any problem occurred (e.g., a required
+     * configuration parameter was not provided). The component is responsible
+     * for printing a proper error message describing what happened.
+     * @returns Non-zero on error, 0 otherwise.
+     */
+    virtual int FinishSetup() = 0;
 
     /**
      * @brief This method should be declared here so the simulator can send

@@ -83,10 +83,9 @@ void HardwiredPredictor::Respond(int id, PredictorPacket request) {
         response.data.targetResponse.target = ~instruction.nextInstruction;
     }
 
+    this->SendResponseToConnection(id, &response);
     if (this->sendTo != NULL) {
         this->sendTo->SendRequest(this->sendToID, &response);
-    } else {
-        this->SendResponseToConnection(id, &response);
     }
 }
 
