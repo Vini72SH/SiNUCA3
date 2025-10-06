@@ -27,6 +27,11 @@
 #include <tracer/sinuca/file_handler.hpp>
 #include "utils/logging.hpp"
 
+#ifndef RECORD_ARRAY_SIZE_
+#define RECORD_ARRAY_SIZE_
+const int RECORD_ARRAY_SIZE = 10000;
+#endif
+
 namespace sinucaTracer {
 
 /** @brief Check dynamic_trace_writer.hpp documentation for details */
@@ -34,16 +39,9 @@ class DynamicTraceWriter {
   private:
     FILE *file;
     FileHeader header;
-    DynamicTraceRecord *recordArray;
+    DynamicTraceRecord recordArray[RECORD_ARRAY_SIZE];
     int recordArrayOccupation;
-    int recordArraySize;
 
-    inline int WriteHeaderToFile() {
-        if (this->file == NULL) return 1;
-        rewind(this->file);
-        return (fwrite(&this->header, 1, sizeof(this->header), this->file) !=
-                sizeof(this->header));
-    }
     inline int FlushDynamicRecords() {
         if (this->file == NULL) return 1;
         unsigned long occupationInBytes =
@@ -51,24 +49,26 @@ class DynamicTraceWriter {
         return (fwrite(this->recordArray, 1, occupationInBytes, this->file) !=
                 occupationInBytes);
     }
+    inline void ResetRecordArray() {
+        this->recordArrayOccupation = 0;
+    }
 
-    int DoubleRecordArraySize();
+    int FlushRecordArray();
 
   public:
     inline DynamicTraceWriter()
         : file(0),
-          recordArray(0),
-          recordArrayOccupation(0),
-          recordArraySize(0) {
+          recordArrayOccupation(0) {
         this->header.fileType = FileTypeDynamicTrace;
-        this->header.data.dynamicHeader.totalExecutedInstructions = 0;
     };
     inline ~DynamicTraceWriter() {
-        if (this->WriteHeaderToFile()) {
+        if (this->header.FlushHeader(this->file)) {
             SINUCA3_ERROR_PRINTF("Failed to write dynamic file header!\n");
         }
-        if (this->FlushDynamicRecords()) {
-            SINUCA3_ERROR_PRINTF("Failed to flush dynamic records!\n");
+        if (!this->IsRecordArrayEmpty()) {
+            if (this->FlushRecordArray()) {
+                SINUCA3_ERROR_PRINTF("Failed to flush dynamic records!\n");
+            }
         }
         if (file) {
             fclose(file);
@@ -81,6 +81,12 @@ class DynamicTraceWriter {
 
     inline void IncExecutedInstructions(int ins) {
         this->header.data.dynamicHeader.totalExecutedInstructions += ins;
+    }
+    inline int IsRecordArrayEmpty() {
+        return (this->recordArrayOccupation <= 0);
+    }
+    inline int IsRecordArrayFull() {
+        return (this->recordArrayOccupation == RECORD_ARRAY_SIZE);
     }
 };
 

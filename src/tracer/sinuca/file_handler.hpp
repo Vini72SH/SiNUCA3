@@ -82,8 +82,6 @@ enum MemoryOperationType : uint8_t {
 struct Instruction {
     uint64_t instructionAddress;
     uint64_t instructionSize;
-    uint32_t instructionOpcode;    /**<Enum defined in xed-iclass-enum.h */
-    uint32_t instructionExtension;
     uint32_t effectiveAddressWidth;
     uint32_t instructionPredicate; /**<Used when isPredicatedInst is true */
     uint16_t readRegsArray[MAX_REGISTERS];    /**<Enum defined in reg_ia32.PH */
@@ -114,9 +112,8 @@ struct StaticTraceRecord {
     } data;
     uint8_t recordType;
 
-    inline int FlushRecord(FILE* file) {
-        if (!file) return 1;
-        return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+    inline StaticTraceRecord() {
+        memset(this, 0, sizeof(*this));
     }
 } __attribute__((packed));
 
@@ -133,9 +130,8 @@ struct DynamicTraceRecord {
     } data;
     uint8_t recordType;
 
-    inline int FlushRecord(FILE* file) {
-        if (!file) return 1;
-        return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+    inline DynamicTraceRecord() {
+        memset(this, 0, sizeof(*this));
     }
 } __attribute__((packed));
 
@@ -153,9 +149,8 @@ struct MemoryTraceRecord {
     } data;
     uint8_t recordType;
 
-    inline int FlushRecord(FILE* file) {
-        if (!file) return 1;
-        return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+    inline MemoryTraceRecord() {
+        memset(this, 0, sizeof(*this));
     }
 } __attribute__((packed));
 
@@ -175,11 +170,16 @@ struct FileHeader {
     char traceVersion[sizeof(TRACE_VERSION)];
 
     inline FileHeader() {
+        memset(this, 0, sizeof(*this));
         memcpy(this->traceVersion, TRACE_VERSION, sizeof(this->traceVersion));
     }
     inline int FlushHeader(FILE* file) {
         if (!file) return 1;
+        rewind(file);
         return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+    }
+    inline void ReserveHeaderSpace(FILE* file) {
+        fseek(file, sizeof(*this), SEEK_SET);
     }
 } __attribute__((packed));
 

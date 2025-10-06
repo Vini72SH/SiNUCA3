@@ -28,7 +28,11 @@
 const int MAX_REGISTERS = 16;
 const int MAX_MEM_OPERATIONS = 16;
 const int TRACE_LINE_SIZE = 256;
-const int INST_MNEMONIC_LEN = 8 + sizeof('\0');
+/**
+ * @brief Intel Pin warns that any size < 23 may cause output to be truncated.
+ * This value might increase in the future, so I set it as 25 for safety.
+ */
+const int INST_MNEMONIC_LEN = 25 + sizeof('\0');
 
 /** @brief Enumerates the types of branches. */
 enum Branch {
@@ -49,8 +53,6 @@ struct StaticInstructionInfo {
     unsigned long instAddress;
     unsigned long instSize;
 
-    unsigned int instOpcode;
-    unsigned int instExtension;
     unsigned int instPredicate;
     unsigned int effectiveAddressWidth;
 

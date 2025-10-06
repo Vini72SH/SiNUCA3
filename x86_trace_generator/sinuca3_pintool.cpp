@@ -277,8 +277,6 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
                 INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
 
             if (hasMemOperators) {
-                PINTOOL_DEBUG_PRINTF("Instruction [%s] has memory operators\n",
-                                     INS_Mnemonic(ins).c_str());
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTrace,
                                IARG_THREAD_ID, IARG_MULTI_MEMORYACCESS_EA,
                                IARG_END);

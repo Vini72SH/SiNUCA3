@@ -26,6 +26,11 @@
 #include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
 
+#ifndef RECORD_ARRAY_SIZE_
+#define RECORD_ARRAY_SIZE_
+const int RECORD_ARRAY_SIZE = 10000;
+#endif
+
 namespace sinucaTracer {
 
 /** @brief Check memory_trace_writer.hpp documentation for details */
@@ -33,40 +38,30 @@ class MemoryTraceWriter {
   private:
     FILE* file;
     FileHeader header;
-    MemoryTraceRecord* recordArray;
+    MemoryTraceRecord recordArray[RECORD_ARRAY_SIZE];
     int recordArrayOccupation;
-    int recordArraySize;
 
-    inline int WriteHeaderToFile() {
-        if (this->file == NULL) return 1;
-        rewind(this->file);
-        return (fwrite(&this->header, 1, sizeof(this->header), this->file) !=
-                sizeof(this->header));
-    }
-    inline int FlushMemoryRecords() {
-        if (this->file == NULL) return 1;
-        unsigned long occupationInBytes =
-            sizeof(*this->recordArray) * this->recordArrayOccupation;
-        return (fwrite(this->recordArray, 1, occupationInBytes, this->file) !=
-                occupationInBytes);
+    inline void ResetRecordArray() {
+        this->recordArrayOccupation = 0;
     }
 
-    int DoubleRecordArraySize();
+    int FlushRecordArray();
 
   public:
     inline MemoryTraceWriter()
         : file(0),
-          recordArray(0),
-          recordArrayOccupation(0),
-          recordArraySize(0) {
+          recordArrayOccupation(0)
+          {
             this->header.fileType = FileTypeMemoryTrace;
           };
     inline ~MemoryTraceWriter() {
-        if (this->WriteHeaderToFile()) {
+        if (this->header.FlushHeader(this->file)) {
             SINUCA3_ERROR_PRINTF("Failed to write memory file header!\n");
         }
-        if (this->FlushMemoryRecords()) {
-            SINUCA3_ERROR_PRINTF("Failed to flush memory records!\n");
+        if (!this->IsRecordArrayEmpty()) {
+            if (this->FlushRecordArray()) {
+                SINUCA3_ERROR_PRINTF("[1] Failed to flush memory records!\n");
+            }
         }
         if (file) {
             fclose(file);
@@ -77,6 +72,13 @@ class MemoryTraceWriter {
     int AddNumberOfMemOperations(unsigned int memoryOperations);
     int AddMemoryOperation(unsigned long address, unsigned int size,
                            unsigned char type);
+
+    inline int IsRecordArrayEmpty() {
+        return (this->recordArrayOccupation <= 0);
+    }
+    inline int IsRecordArrayFull() {
+        return (this->recordArrayOccupation == RECORD_ARRAY_SIZE);
+    }
 };
 
 }  // namespace sinucaTracer

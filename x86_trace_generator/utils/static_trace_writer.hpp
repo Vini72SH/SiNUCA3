@@ -23,6 +23,7 @@
  * @details .
  */
 
+#include <cstdlib>
 #include <tracer/sinuca/file_handler.hpp>
 
 #include "pin.H"
@@ -35,36 +36,39 @@ class StaticTraceWriter {
     FILE* file;
     FileHeader header;
     StaticTraceRecord* basicBlock;
-    unsigned long basicBlockSize;
-    unsigned long basicBlockOccupation;
+    int basicBlockArraySize;
+    int basicBlockOccupation;
+    int currentBasicBlockSize;
+
+    inline void ResetBasicBlock() {
+        this->basicBlockOccupation = 1;
+        this->currentBasicBlockSize = -1;
+    }
 
     int FlushBasicBlock();
     int ReallocBasicBlock();
-    int IsBasicBlockFull();
-    int TranslatePinInst(Instruction* inst, const PIN* pinInst);
+    int TranslatePinInst(Instruction* inst, const INS* pinInst);
 
   public:
     inline StaticTraceWriter()
         : file(0),
           basicBlock(0),
-          basicBlockSize(0),
-          basicBlockOccupation(0) {
+          basicBlockArraySize(0) {
         this->header.fileType = FileTypeStaticTrace;
-        this->header.data.staticHeader.instCount = 0;
-        this->header.data.staticHeader.bblCount = 0;
-        this->header.data.staticHeader.threadCount = 0;
+        this->ResetBasicBlock();
     };
     inline ~StaticTraceWriter() {
         if (this->header.FlushHeader(this->file)) {
             SINUCA3_ERROR_PRINTF("Failed to write static header!\n")
         }
-        if (this->basicBlockOccupation > 0) {
-            if (this->FlushBasicBlock()) {
-                SINUCA3_ERROR_PRINTF("Failed to flush basic block!\n");
-            }
+        if (!this->IsBasicBlockEmpty()) {
+            SINUCA3_ERROR_PRINTF("Last basic block is incomplete!\n");
         }
         if (this->file) {
             fclose(this->file);
+        }
+        if (this->basicBlock) {
+            free(this->basicBlock);
         }
     }
 
@@ -72,6 +76,18 @@ class StaticTraceWriter {
     int AddInstruction(const INS* pinInst);
     int AddBasicBlockSize(unsigned int basicBlockSize);
 
+    inline int IsBasicBlockReadyToFlush() {
+        return (this->currentBasicBlockSize == this->basicBlockOccupation - 1);
+    }
+    inline int WasBasicBlockReset() {
+        return (this->currentBasicBlockSize == -1);
+    }
+    inline int IsBasicBlockArrayFull() {
+        return (this->basicBlockOccupation >= this->basicBlockArraySize);
+    }
+    inline int IsBasicBlockEmpty() {
+        return (this->basicBlockOccupation <= 0);
+    }
     inline void IncStaticInstructionCount() {
         this->header.data.staticHeader.instCount++;
     }
