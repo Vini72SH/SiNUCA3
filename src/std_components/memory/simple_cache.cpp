@@ -52,7 +52,7 @@ int SimpleCache::FinishSetup() {
         return 1;
     }
 
-    this->cache = CacheMemory::fromCacheSize(this->cacheSize, this->lineSize,
+    this->cache = CacheMemory<unsigned long>::fromCacheSize(this->cacheSize, this->lineSize,
                                              this->numWays, this->policyID);
     if (this->cache == NULL) {
         SINUCA3_ERROR_PRINTF("Failed to alocate CacheMemory\n");
@@ -165,12 +165,12 @@ void SimpleCache::Clock() {
             SINUCA3_DEBUG_PRINTF("%p: SimpleCache Message (%lu) Received!\n",
                                  this, packet);
 
-            // Read() returns true if it was hit.
+            // Read() returns NULL if it was a miss.
             if (this->cache->Read(packet)) {
                 SINUCA3_DEBUG_PRINTF("%p: SimpleCache HIT!\n", this);
             } else {
                 SINUCA3_DEBUG_PRINTF("%p: SimpleCache MISS!\n", this);
-                this->cache->Write(packet);
+                this->cache->Write(packet, &packet);
             }
 
             this->SendResponseToConnection(i, &packet);

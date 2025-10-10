@@ -42,7 +42,7 @@ class SimpleCache : public Component<MemoryPacket> {
     virtual void PrintStatistics();
 
   private:
-    CacheMemory *cache;
+    CacheMemory<unsigned long> *cache;
     unsigned int numberOfRequests;
 
     unsigned int cacheSize;

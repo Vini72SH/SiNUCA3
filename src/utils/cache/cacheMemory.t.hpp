@@ -1,3 +1,6 @@
+#ifndef SINUCA3_CACHE_MEMORY_T_HPP_
+#define SINUCA3_CACHE_MEMORY_T_HPP_
+
 //
 // Copyright (C) 2024  HiPES - Universidade Federal do Paraná
 //
@@ -16,16 +19,21 @@
 //
 
 /**
- * @file cache_nway.cpp
- * @brief Implementation of a abstract nway cache.
+ * @file cacheMemory.t.hpp
+ * @brief Implementation of cacheMemory.
  */
 
-#include "cacheMemory.hpp"
 
 #include <cassert>
 #include <cmath>
 #include <cstddef>
 #include <utils/logging.hpp>
+
+// Including the header file here is NOT necessary for compilation,
+// because this file is always included at the end of the header.
+// However, some text editors can use it to correctly locate symbols
+// for code navigation, autocomplete, and diagnostics.
+#include "cacheMemory.hpp"
 
 #include "replacement_policy.hpp"
 #include "utils/cache/replacement_policies/lru.hpp"
@@ -43,23 +51,25 @@ using namespace CacheMemoryNS;
  */
 static const int addrSizeBits = 64;
 
-static double getLog2(double x) { return log(x) / log(2); }
+static inline double getLog2(double x) { return log(x) / log(2); }
 
-static bool checkIfPowerOfTwo(unsigned long x) {
+static inline bool checkIfPowerOfTwo(unsigned long x) {
     if (x == 0) return false;  // 0 is not a power of 2
     // x is power of 2 if only one bit is set.
     return (x & (x - 1)) == 0;
 }
 
-CacheMemory *CacheMemory::fromCacheSize(unsigned int cacheSize,
+template <typename ValueType>
+CacheMemory<ValueType> *CacheMemory<ValueType>::fromCacheSize(unsigned int cacheSize,
                                         unsigned int lineSize,
                                         unsigned int associativity,
                                         CacheMemoryNS::ReplacementPoliciesID policy) {
     unsigned int numSets = cacheSize / (lineSize * associativity);
-    return CacheMemory::fromNumSets(numSets, lineSize, associativity, policy);
+    return CacheMemory<ValueType>::fromNumSets(numSets, lineSize, associativity, policy);
 }
 
-CacheMemory *CacheMemory::fromNumSets(unsigned int numSets,
+template <typename ValueType>
+CacheMemory<ValueType> *CacheMemory<ValueType>::fromNumSets(unsigned int numSets,
                                       unsigned int lineSize,
                                       unsigned int associativity,
                                       CacheMemoryNS::ReplacementPoliciesID policy) {
@@ -72,18 +82,20 @@ CacheMemory *CacheMemory::fromNumSets(unsigned int numSets,
 
     unsigned int indexBits = getLog2(numSets);
     unsigned int offsetBits = getLog2(lineSize);
-    return CacheMemory::Alocate(indexBits, offsetBits, associativity, policy);
+    return CacheMemory<ValueType>::Alocate(indexBits, offsetBits, associativity, policy);
 }
 
-CacheMemory *CacheMemory::fromBits(unsigned int numIndexBits,
+template <typename ValueType>
+CacheMemory<ValueType> *CacheMemory<ValueType>::fromBits(unsigned int numIndexBits,
                                    unsigned int numOffsetBits,
                                    unsigned int associativity,
                                    CacheMemoryNS::ReplacementPoliciesID policy) {
-    return CacheMemory::Alocate(numIndexBits, numOffsetBits, associativity,
+    return CacheMemory<ValueType>::Alocate(numIndexBits, numOffsetBits, associativity,
                                 policy);
 }
 
-CacheMemory *CacheMemory::Alocate(unsigned int numIndexBits,
+template <typename ValueType>
+CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBits,
                                   unsigned int numOffsetBits,
                                   unsigned int associativity,
                                   CacheMemoryNS::ReplacementPoliciesID policy) {
@@ -91,9 +103,7 @@ CacheMemory *CacheMemory::Alocate(unsigned int numIndexBits,
 
     unsigned int numSets = 1u << numIndexBits;
 
-    // Safe
-
-    CacheMemory *cm = new CacheMemory();
+    CacheMemory<ValueType> *cm = new CacheMemory<ValueType>();
     cm->numWays = associativity;
     cm->numSets = numSets;
 
@@ -121,26 +131,43 @@ CacheMemory *CacheMemory::Alocate(unsigned int numIndexBits,
         }
     }
 
+    cm->data = new ValueType *[cm->numSets];
+    cm->data[0] = new ValueType[n];
+    memset(cm->data[0], 0, n * sizeof(ValueType));
+    for (int i = 1; i < cm->numSets; ++i) {
+        cm->data[i] = cm->data[0] + (i * cm->numWays);
+    }
+
     cm->SetReplacementPolicy(policy);
 
     return cm;
 }
 
-CacheMemory::~CacheMemory() {
+template <typename ValueType>
+CacheMemory<ValueType>::~CacheMemory() {
     if (this->entries) {
         delete[] this->entries[0];
         delete[] this->entries;
     }
+
+    if (this->data) {
+        delete[] this->data[0];
+        delete[] this->data;
+    }
+
     delete this->policy;
 }
 
-bool CacheMemory::Read(MemoryPacket addr) {
+template <typename ValueType>
+const ValueType* CacheMemory<ValueType>::Read(MemoryPacket addr) {
     bool exist;
-    CacheLine *result;
+    CacheLine *line;
+    const ValueType* result = NULL;
 
-    exist = this->GetEntry(addr, &result);
+    exist = this->GetEntry(addr, &line);
     if (exist) {
-        this->policy->Acess(result);
+        this->policy->Acess(line);
+        result = static_cast<const ValueType*>(&this->data[line->i][line->j]);
     }
 
     this->statAcess += 1;
@@ -149,10 +176,11 @@ bool CacheMemory::Read(MemoryPacket addr) {
     else
         this->statMiss += 1;
 
-    return exist;
+    return result;
 }
 
-void CacheMemory::Write(MemoryPacket addr) {
+template <typename ValueType>
+void CacheMemory<ValueType>::Write(MemoryPacket addr, const ValueType* data) {
     CacheLine *victim = NULL;
     unsigned long tag = GetTag(addr);
     unsigned long index = GetIndex(addr);
@@ -165,23 +193,30 @@ void CacheMemory::Write(MemoryPacket addr) {
 
     *victim = CacheLine(victim, tag, index);
     this->policy->Acess(victim);
+
+    this->data[victim->i][victim->j] = *data;
+
     this->statEvaction += 1;
     return;
 }
 
-unsigned long CacheMemory::GetOffset(unsigned long addr) const {
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::GetOffset(unsigned long addr) const {
     return addr & this->offsetMask;
 }
 
-unsigned long CacheMemory::GetIndex(unsigned long addr) const {
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::GetIndex(unsigned long addr) const {
     return (addr & this->indexMask) >> this->offsetBits;
 }
 
-unsigned long CacheMemory::GetTag(unsigned long addr) const {
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::GetTag(unsigned long addr) const {
     return (addr & this->tagMask) >> (this->offsetBits + this->indexBits);
 }
 
-bool CacheMemory::GetEntry(unsigned long addr, CacheLine **result) const {
+template <typename ValueType>
+bool CacheMemory<ValueType>::GetEntry(unsigned long addr, CacheLine **result) const {
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
@@ -195,7 +230,8 @@ bool CacheMemory::GetEntry(unsigned long addr, CacheLine **result) const {
     return false;
 }
 
-bool CacheMemory::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
+template <typename ValueType>
+bool CacheMemory<ValueType>::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
         CacheLine *entry = &this->entries[index][way];
@@ -208,7 +244,8 @@ bool CacheMemory::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
     return false;
 }
 
-void CacheMemory::SetReplacementPolicy(ReplacementPoliciesID id) {
+template <typename ValueType>
+void CacheMemory<ValueType>::SetReplacementPolicy(ReplacementPoliciesID id) {
     switch (id) {
         case LruID:
             this->policy =
@@ -230,24 +267,30 @@ void CacheMemory::SetReplacementPolicy(ReplacementPoliciesID id) {
     }
 }
 
-void CacheMemory::resetStatistics() {
+template <typename ValueType>
+void CacheMemory<ValueType>::resetStatistics() {
     this->statMiss = 0;
     this->statHit = 0;
     this->statAcess = 0;
     this->statEvaction = 0;
 }
 
-unsigned long CacheMemory::getStatMiss() const { return this->statMiss; }
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::getStatMiss() const { return this->statMiss; }
 
-unsigned long CacheMemory::getStatHit() const { return this->statHit; }
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::getStatHit() const { return this->statHit; }
 
-unsigned long CacheMemory::getStatAcess() const { return this->statAcess; }
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::getStatAcess() const { return this->statAcess; }
 
-unsigned long CacheMemory::getStatEvaction() const {
+template <typename ValueType>
+unsigned long CacheMemory<ValueType>::getStatEvaction() const {
     return this->statEvaction;
 }
 
-float CacheMemory::getStatValidProp() const {
+template <typename ValueType>
+float CacheMemory<ValueType>::getStatValidProp() const {
     int n = this->numSets * this->numWays;
     int count = 0;
     for (int i = 0; i < n; ++i) {
@@ -255,3 +298,5 @@ float CacheMemory::getStatValidProp() const {
     }
     return (float)count / (float)n;
 }
+
+#endif

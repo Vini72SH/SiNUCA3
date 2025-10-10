@@ -22,6 +22,7 @@
 
 // Foward Declaration
 struct CacheLine;
+template <typename ValueType>
 class CacheMemory;
 
 class ReplacementPolicy {

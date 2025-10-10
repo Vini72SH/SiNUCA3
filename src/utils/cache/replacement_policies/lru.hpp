@@ -24,7 +24,6 @@
  */
 
 #include <sinuca3.hpp>
-#include <utils/cache/cacheMemory.hpp>
 #include <utils/cache/replacement_policy.hpp>
 
 namespace ReplacementPolicies {
