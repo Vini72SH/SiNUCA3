@@ -188,7 +188,7 @@ class CacheMemory {
      * @return Pointer to the cached value if found (HIT), or `NULL` if not
      * found (MISS).
      */
-    const ValueType *Read(MemoryPacket addr);
+    const ValueType *Read(unsigned long addr);
 
     /**
      * @brief Writes a value into the cache for the specified memory address.
@@ -204,7 +204,7 @@ class CacheMemory {
      * @param addr Memory address to write to.
      * @param[in] result Pointer to the value to be written into the cache.
      */
-    void Write(MemoryPacket addr, const ValueType *data);
+    void Write(unsigned long addr, const ValueType *data);
 
     unsigned long GetOffset(unsigned long addr) const;
     unsigned long GetIndex(unsigned long addr) const;

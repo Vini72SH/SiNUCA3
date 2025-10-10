@@ -159,7 +159,7 @@ CacheMemory<ValueType>::~CacheMemory() {
 }
 
 template <typename ValueType>
-const ValueType* CacheMemory<ValueType>::Read(MemoryPacket addr) {
+const ValueType* CacheMemory<ValueType>::Read(unsigned long addr) {
     bool exist;
     CacheLine *line;
     const ValueType* result = NULL;
@@ -180,7 +180,7 @@ const ValueType* CacheMemory<ValueType>::Read(MemoryPacket addr) {
 }
 
 template <typename ValueType>
-void CacheMemory<ValueType>::Write(MemoryPacket addr, const ValueType* data) {
+void CacheMemory<ValueType>::Write(unsigned long addr, const ValueType* data) {
     CacheLine *victim = NULL;
     unsigned long tag = GetTag(addr);
     unsigned long index = GetIndex(addr);
