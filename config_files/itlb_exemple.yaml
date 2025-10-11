@@ -1,0 +1,16 @@
+tlb: &tlb
+  class: SimpleCache
+  cacheSize: 32768
+  lineSize: 64
+  associativity: 4
+  policy: 0
+
+instantiate:
+  class: iTLBDebugComponent
+  fetch: *ENGINE
+  itlb:
+    class: iTLB
+    entries: 64
+    associativity: 1
+    policy: 0
+    missPenalty: 10

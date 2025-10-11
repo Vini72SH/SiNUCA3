@@ -3,20 +3,12 @@ example: &example
   pointer:
     class: EngineDebugComponent
     pointerOther: *otherComponent
-  simpleCache: *tlb
 
 otherComponent: &otherComponent
   class: EngineDebugComponent
   parameter1: 4.20
   parameter2: 69
   parameter3: true
-
-tlb: &tlb
-  class: SimpleCache
-  cacheSize: 32768
-  lineSize: 64
-  associativity: 4
-  policy: 0
 
 instantiate:
   class: EngineDebugComponent

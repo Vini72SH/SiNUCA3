@@ -26,6 +26,7 @@
 
 #include "cores/simple_core.hpp"
 #include "engine_debug_component.hpp"
+#include <std_components/debug/memory/itlb_debug_component.hpp>
 #include "execute/simple_execution_unit.hpp"
 #include "fetch/fetcher.hpp"
 #include "misc/queues.hpp"
@@ -34,12 +35,14 @@
 #include "predictors/hardwired_predictor.hpp"
 #include "predictors/interleavedBTB.hpp"
 #include "predictors/ras.hpp"
+#include <std_components/memory/itlb.hpp>
 #include "std_components/memory/simple_cache.hpp"
 #include "trace_dumper_component.hpp"
 
 Linkable* CreateDefaultComponentByClass(const char* name) {
 #ifndef NDEBUG
     COMPONENT(EngineDebugComponent);
+    COMPONENT(iTLBDebugComponent);
 #endif
 
     COMPONENT(SimpleMemory);
@@ -53,6 +56,7 @@ Linkable* CreateDefaultComponentByClass(const char* name) {
     COMPONENT(Fetcher);
     COMPONENT(SimpleExecutionUnit);
     COMPONENT(HardwiredPredictor);
+    COMPONENT(iTLB);
     COMPONENT(SimpleCache);
     COMPONENT(TraceDumperComponent);
 
