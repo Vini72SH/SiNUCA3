@@ -64,7 +64,9 @@ class Map {
     map::Node<Element>* table[map::M];
 
   public:
-    Map() : arena(4096) {};
+    Map() : arena(4096) {
+        memset(this->table, 0, map::M * sizeof(*this->table));
+    };
 
     void Insert(const char* const key, const Element value) {
         unsigned long keyLen = strlen(key) * sizeof(char);
@@ -75,6 +77,7 @@ class Map {
 
         *nodePtr = (map::Node<Element>*)this->arena.Alloc(sizeof(**nodePtr));
         (*nodePtr)->key = (char*)this->arena.Alloc(keyLen + 1);
+        (*nodePtr)->next = NULL;
 
         memcpy((void*)(*nodePtr)->key, key, keyLen + 1);
         (*nodePtr)->value = value;
@@ -102,7 +105,9 @@ class StringMap {
     map::Node<char*>* table[map::M];
 
   public:
-    inline StringMap() : arena(4096) {};
+    inline StringMap() : arena(4096) {
+        memset(this->table, 0, map::M * sizeof(*this->table));
+    };
 
     const char* Insert(const char* key, const char* value);
     const char* Get(const char* const key);

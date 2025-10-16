@@ -51,8 +51,9 @@ const char* StringMap::Insert(const char* key, const char* value) {
     *nodePtr = (map::Node<char*>*)this->arena.Alloc(sizeof(**nodePtr));
     (*nodePtr)->key = (char*)this->arena.Alloc(keyLen);
     (*nodePtr)->value = (char*)this->arena.Alloc(valueLen);
+    (*nodePtr)->next = NULL;
 
-    memcpy((void*)(*nodePtr)->key, key, keyLen);
+    memcpy((void*)(*nodePtr)->key, key, keyLen + 1);
     memcpy((void*)(*nodePtr)->value, value, valueLen + 1);
 
     return (*nodePtr)->value;
