@@ -74,9 +74,13 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::fromNumSets(unsigned int numSets
                                       unsigned int associativity,
                                       CacheMemoryNS::ReplacementPoliciesID policy) {
     if (associativity == 0) return NULL;
-    if (!checkIfPowerOfTwo(numSets) || !checkIfPowerOfTwo(lineSize)) {
+    if (!checkIfPowerOfTwo(numSets)){
         SINUCA3_ERROR_PRINTF(
-            "CacheMemory: Trying to get a log2 of a non power of two number\n");
+            "CacheMemory: numSets cannot be %u because it is not power of two.\n", numSets);
+    }
+    if (!checkIfPowerOfTwo(lineSize)) {
+        SINUCA3_ERROR_PRINTF(
+            "CacheMemory: lineSize cannot be %u because it is not power of two.\n", lineSize);
         return NULL;
     }
 

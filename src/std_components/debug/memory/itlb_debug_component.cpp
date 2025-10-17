@@ -24,9 +24,10 @@
  * BE INCLUDED BY CODE PATHS THAT ONLY COMPILE IN DEBUG MODE.
  */
 
-#include "itlb_debug_component.hpp"
-
+#include <cstdio>
 #include <sinuca3.hpp>
+
+#include "itlb_debug_component.hpp"
 
 int iTLBDebugComponent::SetConfigParameter(const char* parameter,
                                            ConfigValue value) {
@@ -40,6 +41,8 @@ int iTLBDebugComponent::SetConfigParameter(const char* parameter,
             return 1;
         }
         this->fetchConnectionID = this->fetch->Connect(0);
+        SINUCA3_DEBUG_PRINTF("%p: connected to fetch: %d\n", this,
+                             this->fetchConnectionID);
     }
 
     if (strcmp(parameter, "itlb") == 0) {
@@ -51,6 +54,7 @@ int iTLBDebugComponent::SetConfigParameter(const char* parameter,
             return 1;
         }
         this->itlbID = this->itlb->Connect(0);
+        SINUCA3_DEBUG_PRINTF("%p: connected to itlb: %d\n", this, this->itlbID);
     }
 
     return 0;
@@ -69,23 +73,38 @@ int iTLBDebugComponent::FinishSetup() {
 }
 
 void iTLBDebugComponent::Clock() {
-
+    SINUCA3_DEBUG_PRINTF("Clock!\n");
     Address fakePhysicalAddress;
-    if(waitingResponse && this->itlb->ReceiveResponse(this->itlbID, &fakePhysicalAddress)){
-        SINUCA3_DEBUG_PRINTF("%p: Fetcher stall\n", this);
-        return; // stall
+    if (this->waitingFor >= 2){
+
+        if(this->itlb->ReceiveResponse(this->itlbID, &fakePhysicalAddress)){
+            SINUCA3_DEBUG_PRINTF("%p: Fetcher stall\n", this);
+            return;  // stall
+        } else {
+            this->waitingFor -= 1;
+        }
+
     }
 
     FetchPacket packet;
     packet.request = 0;
+    bool received = false;
     this->fetch->SendRequest(this->fetchConnectionID, &packet);
-    if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) ==
-        0) {
+    if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) == 0) {
+        received = true;
         SINUCA3_DEBUG_PRINTF("%p: Fetched instruction %s\n", this,
-                                packet.response.staticInfo->opcodeAssembly);
+                             packet.response.staticInfo->opcodeAssembly);
     }
 
-    this->itlb->SendRequest(this->itlbID, (unsigned long *) &packet.response.staticInfo->opcodeAddress);
+    if(!received)
+        return;
+
+    Address virtualAddress =
+        static_cast<Address>(packet.response.staticInfo->opcodeAddress);
+    SINUCA3_DEBUG_PRINTF("%p: Sending request %p for itlb\n", this,
+                         (void*)virtualAddress);
+    this->itlb->SendRequest(this->itlbID, &virtualAddress);
+    this->waitingFor += 1;
 }
 
 void iTLBDebugComponent::PrintStatistics() {

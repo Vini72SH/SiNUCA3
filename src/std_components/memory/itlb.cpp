@@ -47,7 +47,7 @@ int iTLB::FinishSetup() {
     }
 
     unsigned int numSets = this->entries / this->numWays;
-    this->cache = CacheMemory<unsigned long>::fromNumSets(numSets, 0,
+    this->cache = CacheMemory<unsigned long>::fromNumSets(numSets, this->pageSize,
                                              this->numWays, this->policyID);
     if (this->cache == NULL) {
         SINUCA3_ERROR_PRINTF("iTLB: Failed to alocate CacheMemory\n");
@@ -64,7 +64,7 @@ int iTLB::ConfigEntries(ConfigValue value) {
         return 1;
     }
 
-    const long v = value.value.integer;
+    const unsigned int v = value.value.integer;
     if (v <= 0) {
         SINUCA3_ERROR_PRINTF(
             "Invalid value for iTLB parameter \"entries\": should be > "
@@ -82,7 +82,7 @@ int iTLB::ConfigAssociativity(ConfigValue value) {
         return 1;
     }
 
-    const long v = value.value.integer;
+    const unsigned int v = value.value.integer;
     if (v <= 0) {
         SINUCA3_ERROR_PRINTF(
             "Invalid value for iTLB parameter \"associativity\": should "
@@ -111,9 +111,21 @@ int iTLB::ConfigPenalty(ConfigValue value){
         return 1;
     }
 
-    unsigned long v =
+    const unsigned long v =
         static_cast<unsigned long>(value.value.integer);
     this->missPenalty = v;
+    return 0;
+}
+
+int iTLB::ConfigPageSize(ConfigValue value){
+    if (value.type != ConfigValueTypeInteger) {
+        SINUCA3_ERROR_PRINTF("iTLB parameter \"pageSize\" is not an integer.\n");
+        return 1;
+    }
+
+    const unsigned int v =
+        static_cast<unsigned long>(value.value.integer);
+    this->pageSize = v;
     return 0;
 }
 
@@ -134,6 +146,10 @@ int iTLB::SetConfigParameter(const char* parameter, ConfigValue value) {
         return this->ConfigPenalty(value);
     }
 
+    if (strcmp(parameter, "pageSize") == 0) {
+        return this->ConfigPageSize(value);
+    }
+
     SINUCA3_ERROR_PRINTF("iTLB received an unkown parameter: %s.\n",
                          parameter);
     return 1;
@@ -148,6 +164,7 @@ void iTLB::Clock() {
 
         if(this->currentPenalty == 0){
             this->currentPenalty = NO_PENALTY;
+            SINUCA3_DEBUG_PRINTF("%p: iTLB Waiting ended! Sending response\n", this);;
             this->SendResponseToConnection(this->requestID, &this->requestAddr);
         }
 
@@ -168,10 +185,10 @@ void iTLB::Clock() {
 
             // Read() returns NULL if it was a miss.
             if (this->cache->Read(this->requestAddr)) {
-                SINUCA3_DEBUG_PRINTF("%p: iTLB HIT!\n", this);
+                SINUCA3_DEBUG_PRINTF("%p: iTLB HIT Sending response!\n", this);
                 this->SendResponseToConnection(this->requestID, &this->requestAddr);
             } else {
-                SINUCA3_DEBUG_PRINTF("%p: iTLB MISS!\n", this);
+                SINUCA3_DEBUG_PRINTF("%p: iTLB MISS Waiting cycles!\n", this);
                 this->currentPenalty = this->missPenalty;
                 this->cache->Write(this->requestAddr, &this->requestAddr);
                 break;

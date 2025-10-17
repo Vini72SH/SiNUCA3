@@ -39,6 +39,7 @@ class iTLB : public Component<Address> {
         : numberOfRequests(0),
           entries(0),
           numWays(0),
+          pageSize(4096),
           currentPenalty(NO_PENALTY),
           missPenalty(0),
           cache(NULL),
@@ -55,6 +56,7 @@ class iTLB : public Component<Address> {
 
     unsigned int entries;
     unsigned int numWays;
+    unsigned int pageSize; // default 4 KiB
 
     long
         currentPenalty; /**< Counter to control the paying of penalties >*/
@@ -70,6 +72,7 @@ class iTLB : public Component<Address> {
     int ConfigAssociativity(ConfigValue value);
     int ConfigPolicy(ConfigValue value);
     int ConfigPenalty(ConfigValue value);
+    int ConfigPageSize(ConfigValue value);
 };
 
 #endif

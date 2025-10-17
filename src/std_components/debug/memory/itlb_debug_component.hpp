@@ -45,11 +45,17 @@ class iTLBDebugComponent : public Component<InstructionPacket> {
         itlb;   /** @brief iTLB component to test sending requests. */
     int itlbID; /** @brief Connection ID for `itlb`. */
 
-    bool waitingResponse;
+    int waitingFor; /** * @brief Number of pending iTLB requests.
+     *
+     * Can not be more than 2.
+     * Limiting to 1 request causes idle cycles as the TLB waits for the current
+     * request to finish, reducing instruction throughput. Allowing 2 lets requests
+     * overlap for better efficiency.
+     */
 
   public:
     inline iTLBDebugComponent()
-        : fetch(NULL), fetchConnectionID(-1), itlb(NULL), waitingResponse(false) {}
+        : fetch(NULL), fetchConnectionID(-1), itlb(NULL), waitingFor(0) {}
 
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
