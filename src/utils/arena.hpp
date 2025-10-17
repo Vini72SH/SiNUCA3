@@ -42,9 +42,9 @@ class Arena {
     inline void* Alloc(unsigned long size) {
         size = size + (sizeof(void*) - size % sizeof(void*));
         if (this->top + size > this->size) {
-            this->next = new Arena(this->size > size ? this->size : size);
             if (this->next == NULL) {
-                return NULL;
+                this->next = new Arena(this->size > size ? this->size : size);
+                if (this->next == NULL) return NULL;
             }
             return this->next->Alloc(size);
         }
