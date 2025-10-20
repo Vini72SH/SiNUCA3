@@ -62,10 +62,14 @@ enum DynamicTraceRecordType : uint8_t {
     DynamicRecordThreadEvent
 };
 
-enum ThreadEvent : uint8_t {
+enum ThreadEventType : uint8_t {
     ThreadEventCreateThread,
     ThreadEventDestroyThread,
     ThreadEventLockRequest,
+    ThreadEventNestLockRequest,
+    ThreadEventLockAttempt,
+    ThreadEventNestLockAttempt,
+    ThreadEventUnlock,
     ThreadEventBarrier
 };
 
@@ -124,7 +128,7 @@ struct DynamicTraceRecord {
             uint32_t basicBlockIdentifier;
         } bbl;
         struct {
-            uint32_t threadId;
+            uint32_t eventId;
             uint8_t event;
         } thr;
     } data;

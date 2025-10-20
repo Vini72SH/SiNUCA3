@@ -71,7 +71,7 @@ class DynamicTraceWriter {
     }
 
     int OpenFile(const char *source, const char *img, int tid);
-    int AddThreadEvent(unsigned char event, int tid);
+    int AddThreadEvent(unsigned char event, int eid);
     int AddBasicBlockId(int basicBlockId);
 
     inline void IncExecutedInstructions(int ins) {

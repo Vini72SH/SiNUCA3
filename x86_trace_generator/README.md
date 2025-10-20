@@ -4,6 +4,10 @@ make
 ```
 
 To use the trace generator, you need to load the program via the Intel Pin.
-Example command:
 
-./pin/pin -t ./obj_intel64/*.so -o {directory} -- ./program_to_trace
+Example command:
+./pin/pin -t ./obj-intel64/my_pintool.so -o ./my_trace -- ./my_program
+
+Options:
+-f: Force instrumentation even when no blocks are defined.
+-o: Output directory.

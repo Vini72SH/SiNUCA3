@@ -161,14 +161,14 @@ int StaticTraceWriter::AddInstruction(const INS* pinInst) {
         }
     }
 
-    Instruction* inst =
-        &this->basicBlock[this->basicBlockOccupation].data.instruction;
+    // Instruction* inst =
+    //    &this->basicBlock[this->basicBlockOccupation].data.instruction;
 
     this->basicBlock[this->basicBlockOccupation].recordType =
         StaticRecordInstruction;
-    if (this->TranslatePinInst(inst, pinInst)) {
-        SINUCA3_ERROR_PRINTF("Failed to properly translate instruction!\n");
-    }
+    // if (this->TranslatePinInst(inst, pinInst)) {
+    //     SINUCA3_ERROR_PRINTF("Failed to properly translate instruction!\n");
+    // }
 
     ++this->basicBlockOccupation;
 

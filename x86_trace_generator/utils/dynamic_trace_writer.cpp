@@ -49,7 +49,7 @@ int DynamicTraceWriter::OpenFile(const char *sourceDir, const char *imageName,
     return 0;
 }
 
-int DynamicTraceWriter::AddThreadEvent(unsigned char event, int tid) {
+int DynamicTraceWriter::AddThreadEvent(unsigned char event, int eid) {
     if (this->file == NULL) {
         SINUCA3_ERROR_PRINTF("[1] File pointer is nil in mem trace!\n");
         return 1;
@@ -58,7 +58,7 @@ int DynamicTraceWriter::AddThreadEvent(unsigned char event, int tid) {
     this->recordArray[this->recordArrayOccupation].recordType =
         DynamicRecordThreadEvent;
     this->recordArray[this->recordArrayOccupation].data.thr.event = event;
-    this->recordArray[this->recordArrayOccupation].data.thr.threadId = tid;
+    this->recordArray[this->recordArrayOccupation].data.thr.eventId = eid;
 
     ++this->recordArrayOccupation;
 
