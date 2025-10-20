@@ -193,10 +193,10 @@ VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
 
     threadData->isThreadAnalysisEnabled = false;
     threadDataVec.push_back(threadData);
-    // if (parentThreadId != tid) {
-    //     threadDataVec[parentThreadId]->dynamicTrace.AddThreadEvent(
-    //         ThreadEventCreateThread, tid);
-    // }
+    if (parentThreadId != tid) {
+        threadDataVec[parentThreadId]->dynamicTrace.AddThreadEvent(
+            ThreadEventCreateThread, tid);
+    }
 
     staticTrace->IncThreadCount();
 
@@ -268,6 +268,7 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
     std::string rtnName = RTN_Name(rtn);
     RTN_Close(rtn);
 
+    /* comment */
     for (std::string& str : rtnsWithPauseInst) {
         if (rtnName == str) {
             PINTOOL_DEBUG_PRINTF("Not instrumenting [%s]. Skipping...\n", rtnName.c_str());
@@ -275,28 +276,29 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
     }
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
-        /* c */
+        /* comment */
         unsigned int numberInstInBasicBlock = BBL_NumIns(bbl);
         unsigned int basicBlockIndex = staticTrace->GetBasicBlockCount();
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)AppendToDynamicTrace,
                        IARG_THREAD_ID, IARG_UINT32, basicBlockIndex,
                        IARG_UINT32, numberInstInBasicBlock, IARG_END);
-        /* c */
+        /* comment */
         if (staticTrace->AddBasicBlockSize(numberInstInBasicBlock)) {
             PINTOOL_DEBUG_PRINTF("Failed to add basic block count to file\n");
         }
-        /* c */
+        /* comment */
         staticTrace->IncBasicBlockCount();
 
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
             if (staticTrace->AddInstruction(&ins)) {
                 PINTOOL_DEBUG_PRINTF("Failed to add instruction to file\n");
             }
+            /* comment */
             staticTrace->IncStaticInstructionCount();
 
+            /* comment */
             bool hasMemOperators =
                 INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins);
-
             if (hasMemOperators) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTrace,
                                IARG_THREAD_ID, IARG_MULTI_MEMORYACCESS_EA,
@@ -404,10 +406,12 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
 
                     PINTOOL_DEBUG_PRINTF("Found %s; Event Id is [%d]!\n",
                                          rtnName, eventIdentifier);
+
                     ++eventIdentifier;
                 }
             }
 
+            /* pause is spin lock hint */
             for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins)) {
                 if (INS_Mnemonic(ins) == "PAUSE") {
                     PINTOOL_DEBUG_PRINTF("Found pause in [%s]\n", rtnName);
