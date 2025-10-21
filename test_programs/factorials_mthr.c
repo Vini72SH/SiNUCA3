@@ -25,19 +25,18 @@ int __attribute__((noinline)) RecursiveFactorial(int x) {
 int main(void) {
     omp_set_nested(1);
 
+    int arr[6];
+
     BeginInstrumentationBlock();
 
-#pragma omp parallel num_threads(2)
+#pragma omp parallel shared(arr) num_threads(2)
     {
-        volatile int a = 5;
 
-#pragma omp critical
-        {
-            {
-                EnableThreadInstrumentation();
-                a = IterativeFactorial(a);
-                DisableThreadInstrumentation();
-            }
+#pragma omp for
+        for (int i = 0; i < 6; ++i) {
+            EnableThreadInstrumentation();
+            arr[i] = IterativeFactorial(i);
+            DisableThreadInstrumentation();
         }
     }
 
@@ -50,6 +49,8 @@ int main(void) {
             b = RecursiveFactorial(b);
             DisableThreadInstrumentation();
         }
+
+#pragma omp barrier
     }
 
     EndInstrumentationBlock();
