@@ -38,6 +38,8 @@
 #include "utils/memory_trace_writer.hpp"
 #include "utils/static_trace_writer.hpp"
 
+#include <stack>
+
 extern "C" {
 #include <sys/stat.h>
 #include <unistd.h>
@@ -86,7 +88,10 @@ struct ThreadData {
 
 std::vector<ThreadData*> threadDataVec;
 StaticTraceWriter* staticTrace;
+/** @brief  */
 std::vector<std::string> rtnsWithPauseInst;
+/** @brief  */
+std::stack<THREADID> parendThreadStack;
 
 /** @brief Used to block two threads from trying to print simultaneously. */
 static PIN_LOCK debugPrintLock;
@@ -100,8 +105,6 @@ static const char* imageName = NULL;
 static bool wasInitInstrumentationCalled = false;
 /** @brief */
 static unsigned int numberOfActiveThreads = 1;
-/** @brief */
-static THREADID parentThreadId;
 
 /** @brief Set directory to save trace with '-o'. Default is current dir. */
 KNOB<std::string> knobFolder(KNOB_MODE_WRITEONCE, "pintool", "o", "./",
@@ -213,12 +216,12 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bblId, UINT32 numInst) {
 
     /* new thread created or reused */
     if (numberOfActiveThreads <= tid) {
-        threadDataVec[parentThreadId]->dynamicTrace.AddThreadEvent(
+        threadDataVec[parendThreadStack.top()]->dynamicTrace.AddThreadEvent(
             ThreadEventCreateThread, tid);
         ++numberOfActiveThreads;
 
         PINTOOL_DEBUG_PRINTF("Thread [%d] created and parent is [%d]\n", tid,
-                         parentThreadId);
+                         parendThreadStack.top());
     }
 }
 
@@ -323,7 +326,7 @@ VOID OnThreadEvent(THREADID tid, INT32 eid, UINT32 event) {
     }
     if (event == ThreadEventCreateThread) {
         PIN_GetLock(&getParentThreadLock, tid);
-        parentThreadId = tid;
+        parendThreadStack.push(tid);
         PIN_ReleaseLock(&getParentThreadLock);
     } else {
         if (threadDataVec[tid]->dynamicTrace.AddThreadEvent(event, eid)) {
@@ -333,6 +336,7 @@ VOID OnThreadEvent(THREADID tid, INT32 eid, UINT32 event) {
     }
 
     if (event == ThreadEventDestroyThread) {
+        parendThreadStack.pop();
         numberOfActiveThreads = parentThreadId + 1;
     }
 }
