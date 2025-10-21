@@ -146,15 +146,17 @@ FetchResult SinucaTraceReader::Fetch(InstructionPacket *ret, int tid) {
     if (!this->threadDataArray[tid].isInsideBasicBlock) {
         this->threadDataArray[tid].currentInst = 0;
 
+        /* Loop
+         * -> if new thread is created: create and continue
+         * -> if tid trace ended: return FetchResultNop
+         * -> if new inst is fetched, break
+         */
         do {
             if (this->threadDataArray[tid].dynFile->ReadDynamicRecord()) {
                 return FetchResultError;
             }
-            recordType = this->threadDataArray[tid].dynFile->GetRecordType();
-        } while (recordType != DynamicRecordBasicBlockIdentifier);
 
-        this->threadDataArray[tid].currentBasicBlock =
-            this->threadDataArray[tid].dynFile->GetBasicBlockIdentifier();
+        } while ();
     }
 
     ret->staticInfo =

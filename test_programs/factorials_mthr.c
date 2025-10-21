@@ -27,25 +27,28 @@ int main(void) {
 
     BeginInstrumentationBlock();
 
-#pragma omp parallel num_threads(1)
+#pragma omp parallel num_threads(2)
     {
         volatile int a = 5;
-        volatile int b = 5;
-#pragma omp parallel num_threads(1)
-        {
+
 #pragma omp critical
+        {
             {
                 EnableThreadInstrumentation();
                 a = IterativeFactorial(a);
                 DisableThreadInstrumentation();
             }
         }
+    }
+
+#pragma omp parallel num_threads(3)
+    {
+        volatile int b = 5;
 #pragma omp critical
         {
             EnableThreadInstrumentation();
             b = RecursiveFactorial(b);
             DisableThreadInstrumentation();
-
         }
     }
 

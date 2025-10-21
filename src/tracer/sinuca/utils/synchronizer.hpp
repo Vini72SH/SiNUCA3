@@ -26,5 +26,52 @@
 
 #include <sinuca3.hpp>
 #include <tracer/sinuca/file_handler.hpp>
+#include <utils/circular_buffer.hpp>
+
+#include <search.h>
+
+typedef int THREADID;
+
+enum ThreadState {
+    ThreadStateUndefined,
+    ThreadStateSleeping,
+    ThreadStateActive
+};
+
+struct ThreadLock {
+    bool busy;
+    CircularBuffer queue;
+
+    inline ThreadLock() : busy(0) {
+        queue.Allocate(0, sizeof(THREADID));
+    }
+};
+
+struct ThreadBarrier {
+    bool busy;
+    int cont;
+
+    inline ThreadBarrier() : busy(0), cont(0) {}
+};
+
+class Synchro {
+  private:
+    hsearch_data* hlocks;
+    ThreadBarrier barrier;
+    int totalThreads;
+
+  public:
+    inline Synchro() : hlocks(NULL), totalThreads(0) {}
+    inline ~Synchro() {
+        if (this->hlocks) {
+            hdestroy_r(this->hlocks);
+        }
+    }
+
+    ThreadState HandleLockRequest();
+    ThreadState HandleBarrierWait();
+
+    inline void IncTotalThreads() {++this->totalThreads;}
+};
 
 #endif
