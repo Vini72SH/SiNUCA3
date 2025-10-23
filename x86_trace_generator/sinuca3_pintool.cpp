@@ -320,30 +320,34 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
 
 }
 
-VOID OnThreadEvent(THREADID tid, INT32 eid, UINT32 event) {
-    PINTOOL_DEBUG_PRINTF("Thread event is [%d]; event id [%d]; tid [%u]\n", event,
+VOID OnThreadEvent(THREADID tid, VOID* rtnAddr, UINT32 event) {
+    PINTOOL_DEBUG_PRINTF("Thread event is [%d]; tid [%u]\n", event,
                          eid, tid);
 
     if (threadDataVec.size() - tid <= 0) {
         PINTOOL_DEBUG_PRINTF("Error while adding thread event [1]\n");
         return;
     }
+
     if (event == ThreadEventCreateThread) {
         PIN_GetLock(&getParentThreadLock, tid);
         parendThreadStack.push(tid);
         PIN_ReleaseLock(&getParentThreadLock);
-    } else {
-        if (threadDataVec[tid]->dynamicTrace.AddThreadEvent(event, eid)) {
-            PINTOOL_DEBUG_PRINTF("Error while adding thread event [2]\n");
-            return;
-        }
+        return;
+    } 
+    
+    if (threadDataVec[tid]->dynamicTrace.AddThreadEvent(event, eid)) {
+        PINTOOL_DEBUG_PRINTF("Error while adding thread event [2]\n");
+        return;
     }
-
     if (event == ThreadEventDestroyThread) {
         if (parendThreadStack.top() == tid) {
             numberOfActiveThreads = parendThreadStack.top() + 1;
             parendThreadStack.pop();
         }
+    } else if (event == ThreadEventLockRequest) {
+        RTN rtn = RTN_FindByAddress(rtnAddr);
+        PINTOOL_DEBUG_PRINTF("%s\n", )
     }
 }
 
@@ -389,8 +393,6 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
         return;
     }
 
-    int eventIdentifier = 0;
-
     for (SEC sec = IMG_SecHead(img); SEC_Valid(sec); sec = SEC_Next(sec)) {
         for (RTN rtn = SEC_RtnHead(sec); RTN_Valid(rtn); rtn = RTN_Next(rtn)) {
             RTN_Open(rtn);
@@ -422,7 +424,7 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                     /* the code must me inserted before every call inst */
                     /* currently the code is inserted before the rtn */
                     RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)OnThreadEvent,
-                                   IARG_THREAD_ID, IARG_UINT32, eventIdentifier,
+                                   IARG_THREAD_ID, IARG_PTR, RTN_Address(rtn),
                                    IARG_UINT32, gompRtnsArr[i].type, IARG_END);
 
                     ++eventIdentifier;
