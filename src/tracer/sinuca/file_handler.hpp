@@ -31,6 +31,7 @@
  * coexist.
  */
 
+#include <cstdint>
 #include <cstring>
 #include <sinuca3.hpp>
 #include "engine/default_packets.hpp"
@@ -46,7 +47,7 @@ const char TRACE_VERSION[] = "0.0.1"; /**<Used to detect incompatibility.> */
 const int MAX_IMAGE_NAME_SIZE = 255;
 const int RECORD_ARRAY_SIZE = 10000;
 
-enum FileType : uint16_t {
+enum FileType : uint8_t {
     FileTypeStaticTrace,
     FileTypeDynamicTrace,
     FileTypeMemoryTrace
@@ -66,10 +67,7 @@ enum ThreadEventType : uint8_t {
     ThreadEventCreateThread,
     ThreadEventDestroyThread,
     ThreadEventLockRequest,
-    ThreadEventNestLockRequest,
-    ThreadEventLockAttempt,
-    ThreadEventNestLockAttempt,
-    ThreadEventUnlock,
+    ThreadEventUnlockRequest,
     ThreadEventBarrier
 };
 
@@ -133,6 +131,8 @@ struct DynamicTraceRecord {
                 struct _PACKED {
                     uint64_t lockAddress;
                     uint8_t isDefaultLock;
+                    uint8_t isTestLock;
+                    uint8_t isNestedLock;
                 } lockInfo;
                 struct _PACKED {
                     uint32_t tid;
@@ -178,7 +178,7 @@ struct FileHeader {
             uint64_t totalExecutedInstructions;
         } dynamicHeader;
     } data;
-    uint16_t fileType;
+    uint8_t fileType;
     char traceVersion[sizeof(TRACE_VERSION)];
 
     inline FileHeader() {

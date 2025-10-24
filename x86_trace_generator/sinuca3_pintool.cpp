@@ -30,15 +30,13 @@
  */
 
 #include <sinuca3.hpp>
+#include <stack>
 
 #include "pin.H"
-
 #include "tracer/sinuca/file_handler.hpp"
 #include "utils/dynamic_trace_writer.hpp"
 #include "utils/memory_trace_writer.hpp"
 #include "utils/static_trace_writer.hpp"
-
-#include <stack>
 
 extern "C" {
 #include <sys/stat.h>
@@ -217,15 +215,15 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bblId, UINT32 numInst) {
     /* new thread created or reused */
     if (numberOfActiveThreads <= tid) {
         if (parendThreadStack.size() <= 0) {
-            PINTOOL_DEBUG_PRINTF("Thread [%d] parent not yet identified\n", tid);
+            PINTOOL_DEBUG_PRINTF("Thread [%d] parent not yet identified\n",
+                                 tid);
             return;
         }
-        threadDataVec[parendThreadStack.top()]->dynamicTrace.AddThreadEvent(
-            ThreadEventCreateThread, tid);
+        threadDataVec[parendThreadStack.top()]->dynamicTrace.AddThreadCreateEvent(tid);
         ++numberOfActiveThreads;
 
         PINTOOL_DEBUG_PRINTF("Thread [%d] created and parent is [%d]\n", tid,
-                         parendThreadStack.top());
+                             parendThreadStack.top());
     }
 }
 
@@ -317,73 +315,107 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
             }
         }
     }
-
 }
 
-VOID OnThreadEvent(THREADID tid, ADDRINT rtnAddr, UINT32 event) {
-    PINTOOL_DEBUG_PRINTF("Thread event is [%d]; tid [%u]\n", event, tid);
-
+int CheckThreadId(THREADID tid) {
     if (threadDataVec.size() - tid <= 0) {
-        PINTOOL_DEBUG_PRINTF("Error while adding thread event [1]\n");
-        return;
+        PINTOOL_DEBUG_PRINTF("CheckThreadId failed\n");
+        return 1;
     }
 
-    if (event == ThreadEventCreateThread) {
-        PIN_GetLock(&getParentThreadLock, tid);
-        parendThreadStack.push(tid);
-        PIN_ReleaseLock(&getParentThreadLock);
-        return;
-    }
+    return 0;
+}
 
-    if (threadDataVec[tid]->dynamicTrace.AddThreadEvent(event, 0)) {
-        PINTOOL_DEBUG_PRINTF("Error while adding thread event [2]\n");
-        return;
-    }
-    if (event == ThreadEventDestroyThread) {
-        if (parendThreadStack.top() == tid) {
+VOID OnThreadCreationEvent(THREADID tid, UINT32 eventType) {
+    CheckThreadId(tid);
+
+    switch (eventType) {
+        case ThreadEventCreateThread:
+            PIN_GetLock(&getParentThreadLock, tid);
+            parendThreadStack.push(tid);
+            PIN_ReleaseLock(&getParentThreadLock);
+            break;
+        case ThreadEventDestroyThread:
             numberOfActiveThreads = parendThreadStack.top() + 1;
             parendThreadStack.pop();
-        }
-    } else if (event == ThreadEventLockRequest) {
-        // RTN rtn = RTN_FindByAddress(rtnAddr);
+            threadDataVec[tid]->dynamicTrace.AddThreadDestroyEvent();
+            break;
+        default:
+            PINTOOL_DEBUG_PRINTF("OnThreadCreationEvent unkown type\n");
+            break;
     }
+}
+
+VOID OnGlobalLockThreadEvent(THREADID tid, UINT32 isLock) {
+    CheckThreadId(tid);
+
+    if (isLock) {
+        threadDataVec[tid]->dynamicTrace.AddLockEventGlobalLock();
+    } else {
+        threadDataVec[tid]->dynamicTrace.AddUnlockEventGlobalLock();
+    }
+}
+
+VOID OnPrivateLockThreadEvent(THREADID tid, ADDRINT lockAddr, UINT32 isLock,
+                              UINT32 isNested, UINT32 isTest) {
+    CheckThreadId(tid);
+
+    if (isLock) {
+        threadDataVec[tid]->dynamicTrace.AddLockEventPrivateLock(
+            lockAddr, isNested, isTest);
+    } else {
+        threadDataVec[tid]->dynamicTrace.AddUnlockEventPrivateLock(
+            lockAddr, isNested);
+    }
+}
+
+VOID OnBarrierThreadEvent(THREADID tid) {
+    CheckThreadId(tid);
+
+    threadDataVec[tid]->dynamicTrace.AddBarrierEvent();
+}
+
+INS FindInstInRtn(RTN rtn, std::string instName) {
+    for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins)) {
+        PINTOOL_DEBUG_PRINTF("%s\n", INS_Mnemonic(ins).c_str());
+        if (INS_Mnemonic(ins) == instName) {
+            return ins;
+        }
+    }
+
+    return INS_Invalid();
 }
 
 /** @brief */
 VOID OnImageLoad(IMG img, VOID* ptr) {
     if (!IMG_IsMainExecutable(img)) return;
 
-    struct DefaultRtnEvent {
+    struct RtnEvent {
         std::string name;
         unsigned char type;
     };
     struct LockRtnEvent {
-        std::string name;
-        unsigned char type;
-        bool usesDefaultLock;
+        RtnEvent event;
+        bool isTestLock;
+        bool isNestedLock;
     };
 
-    static LockRtnEvent gompRtnsLock[] = {
-        {"GOMP_critical_start", ThreadEventLockRequest, true},
-        {"GOMP_critical_end", ThreadEventUnlock, true},
-        {"GOMP_critical_name_start", ThreadEventLockRequest, false},
-        {"GOMP_critical_name_end", ThreadEventUnlock, false},
-        {"omp_set_lock", ThreadEventLockRequest, false},
-        {"omp_set_nest_lock", ThreadEventNestLockRequest, false},
-        {"omp_test_lock", ThreadEventLockAttempt, false},
-        {"omp_test_nest_lock", ThreadEventNestLockAttempt, false},
-        {"omp_unset_lock", ThreadEventUnlock, false},
-        {"omp_unset_nest_lock", ThreadEventUnlock, false},
-    };
-
-    static DefaultRtnEvent gompRtnsBarrier[] = {
-        {"GOMP_barrier", ThreadEventBarrier},
-    }
-
-    static DefaultRtnEvent gompRtnsThrCreation[] = {
+    static RtnEvent threadCreationRtns[] = {
         {"gomp_team_start", ThreadEventCreateThread},
-        {"gomp_team_end", ThreadEventDestroyThread}
-    };
+        {"gomp_team_end", ThreadEventDestroyThread}};
+    static RtnEvent globalLockRtns[] = {
+        {"GOMP_critical_start", ThreadEventLockRequest},
+        {"GOMP_critical_end", ThreadEventUnlockRequest}};
+    static LockRtnEvent privateLockRtns[] = {
+        {{"GOMP_critical_name_start", ThreadEventLockRequest}, false, false},
+        {{"GOMP_critical_name_end", ThreadEventUnlockRequest}, false, false},
+        {{"omp_set_lock", ThreadEventLockRequest}, false, false},
+        {{"omp_set_nest_lock", ThreadEventLockRequest}, false, true},
+        {{"omp_test_lock", ThreadEventLockRequest}, true, false},
+        {{"omp_test_nest_lock", ThreadEventLockRequest}, true, true},
+        {{"omp_unset_lock", ThreadEventUnlockRequest}, false, false},
+        {{"omp_unset_nest_lock", ThreadEventUnlockRequest}, false, true}};
+    static RtnEvent barrierRtns[] = {{"GOMP_barrier", ThreadEventBarrier}};
 
     std::string absoluteImgPath = IMG_Name(img);
     long size = absoluteImgPath.length() + sizeof('\0');
@@ -432,21 +464,45 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                                IARG_THREAD_ID, IARG_END);
             }
 
-            iterMax = sizeof(gompRtnsArr) / sizeof(ThreadEvent);
-
-            for (iter = 0; i < iterMax; ++iter) {
-                if (rtnName == gompRtnsArr[iter].name) {
-                    RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)OnThreadEvent,
-                                   IARG_THREAD_ID, IARG_PTR, RTN_Address(rtn),
-                                   IARG_UINT32, gompRtnsArr[iter].type, IARG_END);
-
+            iterMax = sizeof(globalLockRtns) / sizeof(RtnEvent);
+            for (iter = 0; iter < iterMax; ++iter) {
+                if (rtnName == globalLockRtns[iter].name) {
+                    UINT32 isLock =
+                        (globalLockRtns[iter].type == ThreadEventLockRequest);
+                    RTN_InsertCall(
+                        rtn, IPOINT_BEFORE, (AFUNPTR)OnGlobalLockThreadEvent,
+                        IARG_THREAD_ID, IARG_UINT32, isLock, IARG_END);
+                }
+            }
+            iterMax = sizeof(privateLockRtns) / sizeof(LockRtnEvent);
+            for (iter = 0; iter < iterMax; ++iter) {
+                if (rtnName == globalLockRtns[iter].name) {
+                    INS inst;
+                    if (globalLockRtns[iter].type == ThreadEventLockRequest) {
+                        inst = FindInstInRtn(rtn, "LOCK");
+                    }
+                    // INS_InsertCall();
+                }
+            }
+            iterMax = sizeof(barrierRtns) / sizeof(RtnEvent);
+            for (iter = 0; iter < iterMax; ++iter) {
+                if (rtnName == globalLockRtns[iter].name) {
+                    
+                }
+            }
+            iterMax = sizeof(threadCreationRtns) / sizeof(RtnEvent);
+            for (iter = 0; iter < iterMax; ++iter) {
+                if (rtnName == globalLockRtns[iter].name) {
+                    
                 }
             }
 
             /* pause instruction is spin lock hint */
-            for (INS ins = RTN_InsHead(rtn); INS_Valid(ins); ins = INS_Next(ins)) {
+            for (INS ins = RTN_InsHead(rtn); INS_Valid(ins);
+                 ins = INS_Next(ins)) {
                 if (INS_Mnemonic(ins) == "PAUSE") {
-                    PINTOOL_DEBUG_PRINTF("Found pause in [%s]\n", rtnName.c_str());
+                    PINTOOL_DEBUG_PRINTF("Found pause in [%s]\n",
+                                         rtnName.c_str());
                     rtnsWithPauseInst.push_back(rtnName);
                 }
             }

@@ -23,19 +23,20 @@
 #include "dynamic_trace_writer.hpp"
 
 #include <cstdlib>
+
 #include "utils/logging.hpp"
 
 extern "C" {
 #include <alloca.h>
 }
 
-int DynamicTraceWriter::OpenFile(const char *sourceDir, const char *imageName,
+int DynamicTraceWriter::OpenFile(const char* sourceDir, const char* imageName,
                                  int tid) {
     unsigned long bufferSize;
-    char *path;
+    char* path;
 
     bufferSize = GetPathTidInSize(sourceDir, "dynamic", imageName);
-    path = (char *)alloca(bufferSize);
+    path = (char*)alloca(bufferSize);
     FormatPathTidIn(path, sourceDir, "dynamic", imageName, tid, bufferSize);
     this->file = fopen(path, "wb");
     if (this->file == NULL) {
@@ -47,57 +48,139 @@ int DynamicTraceWriter::OpenFile(const char *sourceDir, const char *imageName,
     return 0;
 }
 
-int DynamicTraceWriter::AddThreadEvent(unsigned char event, int eid) {
-    if (this->file == NULL) {
-        SINUCA3_ERROR_PRINTF("[1] File pointer is nil in mem trace!\n");
-        return 1;
-    }
-
-    this->recordArray[this->recordArrayOccupation].recordType =
-        DynamicRecordThreadEvent;
-    this->recordArray[this->recordArrayOccupation].data.thr.event = event;
-    this->recordArray[this->recordArrayOccupation].data.thr.eventId = eid;
-
-    ++this->recordArrayOccupation;
-
+int DynamicTraceWriter::CheckRecordArray() {
     if (this->IsRecordArrayFull()) {
         if (this->FlushRecordArray()) {
-            SINUCA3_ERROR_PRINTF("[1] Failed to flush mem record array!\n")
+            SINUCA3_ERROR_PRINTF("Failed to flush mem record array!\n")
             return 1;
         }
         this->ResetRecordArray();
     }
+    return 0;
+}
+
+int DynamicTraceWriter::AddThreadCreateEvent(int tid) {
+    this->SetRecordTypeThreadEvent();
+
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventCreateThread;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.thrCreate.tid = tid;
+    
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
+int DynamicTraceWriter::AddThreadDestroyEvent() {
+    this->SetRecordTypeThreadEvent();
+
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventDestroyThread;
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
+int DynamicTraceWriter::AddLockEventPrivateLock(unsigned long lockAddress,
+                                                bool isNested, bool isTest) {
+    this->SetRecordTypeThreadEvent();
+    
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventLockRequest;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 0;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isNestedLock =
+        (isNested == true) ? 1 : 0;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isTestLock = (isTest == true) ? 1 : 0;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.lockAddress = lockAddress;
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+int DynamicTraceWriter::AddUnlockEventPrivateLock(unsigned long lockAddress,
+                                                  bool isNested) {
+    this->SetRecordTypeThreadEvent();
+    
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventUnlockRequest;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 0;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isNestedLock =
+        (isNested == true) ? 1 : 0;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.lockAddress = lockAddress;    
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
+int DynamicTraceWriter::AddLockEventGlobalLock() {
+    this->SetRecordTypeThreadEvent();
+    
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventLockRequest;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;  
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
+int DynamicTraceWriter::AddUnlockEventGlobalLock() {
+    this->SetRecordTypeThreadEvent();
+    
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventUnlockRequest;
+    this->recordArray[this->recordArrayOccupation]
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;  
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
+int DynamicTraceWriter::AddBarrierEvent() { 
+    this->SetRecordTypeThreadEvent();
+    
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventBarrier;
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
 
     return 0;
 }
 
 int DynamicTraceWriter::AddBasicBlockId(int id) {
-    if (this->file == NULL) {
-        SINUCA3_ERROR_PRINTF("[2] File pointer is nil in mem trace!\n");
-        return 1;
-    }
+    this->SetRecordTypeBasicBlockId();
 
-    this->recordArray[this->recordArrayOccupation].recordType =
-        DynamicRecordBasicBlockIdentifier;
     this->recordArray[this->recordArrayOccupation]
         .data.bbl.basicBlockIdentifier = id;
 
     ++this->recordArrayOccupation;
-
-    if (this->IsRecordArrayFull()) {
-        if (this->FlushRecordArray()) {
-            SINUCA3_ERROR_PRINTF("[2] Failed to flush mem record array!\n")
-            return 1;
-        }
-        this->ResetRecordArray();
-    }
+    if (this->CheckRecordArray()) return 1;
 
     return 0;
 }
 
 int DynamicTraceWriter::FlushRecordArray() {
     if (this->file == NULL) {
-        SINUCA3_ERROR_PRINTF("[3] File pointer is nil in mem trace!\n");
+        SINUCA3_ERROR_PRINTF("File pointer is nil in mem trace!\n");
         return 1;
     }
 
@@ -106,7 +189,7 @@ int DynamicTraceWriter::FlushRecordArray() {
 
     if (fwrite(this->recordArray, 1, occupationInBytes, this->file) !=
         occupationInBytes) {
-        SINUCA3_ERROR_PRINTF("[3] Failed to flush memory records!\n");
+        SINUCA3_ERROR_PRINTF("Failed to flush memory records!\n");
         return 1;
     }
 

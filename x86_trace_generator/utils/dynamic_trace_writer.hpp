@@ -25,33 +25,32 @@
 
 #include <cstdio>
 #include <tracer/sinuca/file_handler.hpp>
+
 #include "utils/logging.hpp"
 
 /** @brief Check dynamic_trace_writer.hpp documentation for details */
 class DynamicTraceWriter {
   private:
-    FILE *file;
+    FILE* file;
     FileHeader header;
     DynamicTraceRecord recordArray[RECORD_ARRAY_SIZE];
     int recordArrayOccupation;
 
-    inline int FlushDynamicRecords() {
-        if (this->file == NULL) return 1;
-        unsigned long occupationInBytes =
-            sizeof(*this->recordArray) * this->recordArrayOccupation;
-        return (fwrite(this->recordArray, 1, occupationInBytes, this->file) !=
-                occupationInBytes);
+    inline void ResetRecordArray() { this->recordArrayOccupation = 0; }
+    inline void SetRecordTypeThreadEvent() {
+        this->recordArray[this->recordArrayOccupation].recordType =
+            DynamicRecordThreadEvent;
     }
-    inline void ResetRecordArray() {
-        this->recordArrayOccupation = 0;
+    inline void SetRecordTypeBasicBlockId() {
+        this->recordArray[this->recordArrayOccupation].recordType =
+            DynamicRecordBasicBlockIdentifier;
     }
 
     int FlushRecordArray();
+    int CheckRecordArray();
 
   public:
-    inline DynamicTraceWriter()
-        : file(0),
-          recordArrayOccupation(0) {
+    inline DynamicTraceWriter() : file(0), recordArrayOccupation(0) {
         this->header.fileType = FileTypeDynamicTrace;
     };
     inline ~DynamicTraceWriter() {
@@ -68,8 +67,17 @@ class DynamicTraceWriter {
         }
     }
 
-    int OpenFile(const char *source, const char *img, int tid);
-    int AddThreadEvent(unsigned char event, int eid);
+    int OpenFile(const char* source, const char* img, int tid);
+
+    int AddThreadCreateEvent(int tid);
+    int AddThreadDestroyEvent();
+    int AddBarrierEvent();
+    int AddUnlockEventGlobalLock();
+    int AddLockEventGlobalLock();
+    int AddUnlockEventPrivateLock(unsigned long lockAddress, bool isNested);
+    int AddLockEventPrivateLock(unsigned long lockAddress, bool isNested,
+                                bool isTest);
+
     int AddBasicBlockId(int basicBlockId);
 
     inline void IncExecutedInstructions(int ins) {
