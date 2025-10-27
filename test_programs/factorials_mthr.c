@@ -90,7 +90,18 @@ void TestOmpNamedCriticalBlock() {
 
 void TestOmpLock() {}
 
-void TestOmpSingleBlock() {}
+void TestOmpSingleBlock() {
+#pragma omp parallel
+    {
+        int a = 10;
+        int b = 5;
+#pragma omp single
+        {
+            a = IterativeFactorial(a);
+            b = RecursiveFactorial(b);
+        }
+    }
+}
 
 void TestOmpMasterBlock() {}
 
@@ -128,6 +139,7 @@ int main(int argc, char* argv[]) {
     TEST(TestNestedParallelBlock)
     TEST(TestOmpGlobalCriticalBlock)
     TEST(TestOmpNamedCriticalBlock)
+    TEST(TestOmpSingleBlock)
     TEST(TestOmpMasterBlock)
     TEST(TestOmpBarrier)
     TEST(TestOmpFor)

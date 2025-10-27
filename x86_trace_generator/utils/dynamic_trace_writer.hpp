@@ -71,9 +71,9 @@ class DynamicTraceWriter {
 
     int AddThreadCreateEvent(int tid);
     int AddThreadDestroyEvent();
-    int AddBarrierEvent();
     int AddUnlockEventGlobalLock();
     int AddLockEventGlobalLock();
+    int AddBarrierEvent();
     int AddUnlockEventPrivateLock(unsigned long lockAddress, bool isNested);
     int AddLockEventPrivateLock(unsigned long lockAddress, bool isNested,
                                 bool isTest);

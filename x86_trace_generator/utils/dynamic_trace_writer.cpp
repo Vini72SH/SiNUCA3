@@ -66,7 +66,7 @@ int DynamicTraceWriter::AddThreadCreateEvent(int tid) {
         ThreadEventCreateThread;
     this->recordArray[this->recordArrayOccupation]
         .data.thrEvent.eventData.thrCreate.tid = tid;
-    
+
     ++this->recordArrayOccupation;
     if (this->CheckRecordArray()) return 1;
 
@@ -88,7 +88,7 @@ int DynamicTraceWriter::AddThreadDestroyEvent() {
 int DynamicTraceWriter::AddLockEventPrivateLock(unsigned long lockAddress,
                                                 bool isNested, bool isTest) {
     this->SetRecordTypeThreadEvent();
-    
+
     this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
         ThreadEventLockRequest;
     this->recordArray[this->recordArrayOccupation]
@@ -109,7 +109,7 @@ int DynamicTraceWriter::AddLockEventPrivateLock(unsigned long lockAddress,
 int DynamicTraceWriter::AddUnlockEventPrivateLock(unsigned long lockAddress,
                                                   bool isNested) {
     this->SetRecordTypeThreadEvent();
-    
+
     this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
         ThreadEventUnlockRequest;
     this->recordArray[this->recordArrayOccupation]
@@ -118,7 +118,7 @@ int DynamicTraceWriter::AddUnlockEventPrivateLock(unsigned long lockAddress,
         .data.thrEvent.eventData.lockInfo.isNestedLock =
         (isNested == true) ? 1 : 0;
     this->recordArray[this->recordArrayOccupation]
-        .data.thrEvent.eventData.lockInfo.lockAddress = lockAddress;    
+        .data.thrEvent.eventData.lockInfo.lockAddress = lockAddress;
 
     ++this->recordArrayOccupation;
     if (this->CheckRecordArray()) return 1;
@@ -128,11 +128,11 @@ int DynamicTraceWriter::AddUnlockEventPrivateLock(unsigned long lockAddress,
 
 int DynamicTraceWriter::AddLockEventGlobalLock() {
     this->SetRecordTypeThreadEvent();
-    
+
     this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
         ThreadEventLockRequest;
     this->recordArray[this->recordArrayOccupation]
-        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;  
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;
 
     ++this->recordArrayOccupation;
     if (this->CheckRecordArray()) return 1;
@@ -142,11 +142,11 @@ int DynamicTraceWriter::AddLockEventGlobalLock() {
 
 int DynamicTraceWriter::AddUnlockEventGlobalLock() {
     this->SetRecordTypeThreadEvent();
-    
+
     this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
         ThreadEventUnlockRequest;
     this->recordArray[this->recordArrayOccupation]
-        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;  
+        .data.thrEvent.eventData.lockInfo.isDefaultLock = 1;
 
     ++this->recordArrayOccupation;
     if (this->CheckRecordArray()) return 1;
@@ -154,9 +154,9 @@ int DynamicTraceWriter::AddUnlockEventGlobalLock() {
     return 0;
 }
 
-int DynamicTraceWriter::AddBarrierEvent() { 
+int DynamicTraceWriter::AddBarrierEvent() {
     this->SetRecordTypeThreadEvent();
-    
+
     this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
         ThreadEventBarrier;
 

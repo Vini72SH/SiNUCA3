@@ -122,7 +122,7 @@ struct StaticTraceRecord {
 /** @brief Written to dynamic trace file. */
 struct DynamicTraceRecord {
     union _PACKED {
-        struct _PACKED {
+        struct {
             uint32_t basicBlockIdentifier;
         } bbl;
         struct _PACKED {
@@ -134,9 +134,12 @@ struct DynamicTraceRecord {
                     uint8_t isTestLock;
                     uint8_t isNestedLock;
                 } lockInfo;
-                struct _PACKED {
+                struct {
                     uint32_t tid;
                 } thrCreate;
+                struct {
+                    uint64_t barrierAddress;
+                } barrierInfo;
             } eventData;
         } thrEvent;
     } data;
@@ -155,7 +158,7 @@ struct MemoryTraceRecord {
             uint16_t size;    /**<Size in bytes of memory read or written. */
             uint8_t type;     /**<Load or Store. */
         } operation;
-        struct _PACKED {
+        struct {
             int32_t numberOfMemoryOps;
         } opHeader;
     } data;
