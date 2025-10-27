@@ -33,7 +33,7 @@ int Ras::Configure(Config config) {
     if (config.ComponentReference("sendTo", &this->sendTo)) return 1;
     if (this->sendTo != NULL) this->forwardToID = this->sendTo->Connect(0);
 
-    this->buffer = new unsigned long[this->size];
+    this->buffer = new unsigned long[this->size]();
 
     return 0;
 }
