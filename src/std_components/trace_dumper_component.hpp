@@ -34,8 +34,6 @@ class TraceDumperComponent : public Component<int> {
     unsigned int fetchID;
     bool def;
 
-    int FetchParameter(ConfigValue value);
-    int DefaultParameter(ConfigValue value);
     void Override(const char* instruction);
     bool IsOverride(const char* instruction);
 
@@ -43,8 +41,7 @@ class TraceDumperComponent : public Component<int> {
     inline TraceDumperComponent()
         : fetch(NULL), fetched(0), fetchID(0), def(true) {};
 
-    virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
+    virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
 

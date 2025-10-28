@@ -236,9 +236,23 @@ int yaml::Parser::ParseFile(const char* configFile, YamlValue* const ret) {
     if (!this->EnsureFileIsYamlMapping(&location, configFile))
         result = this->ParseMapping(location, NULL, ret);
 
-    yaml_parser_delete(&parser);
+    yaml_parser_delete(&this->parser);
 
     fclose(fp);
+    return result;
+}
+
+int yaml::Parser::ParseString(const char* const string, YamlValue* const ret) {
+    yaml_parser_initialize(&this->parser);
+    yaml_parser_set_input_string(&this->parser, (const unsigned char*)string,
+                                 strlen(string));
+
+    yaml::YamlLocation location;
+    int result = 1;
+    if (!this->EnsureFileIsYamlMapping(&location, "<input string>"))
+        result = this->ParseMapping(location, NULL, ret);
+
+    yaml_parser_delete(&this->parser);
     return result;
 }
 
@@ -287,6 +301,7 @@ int yaml::Parser::ProcessIncludeEntries(yaml::YamlValue* config) {
 
     Map<YamlValue>* configMapping = config->value.mapping;
     YamlValue* entry = configMapping->Get("include");
+    if (entry == NULL) return 0;
 
     switch (entry->type) {
         case yaml::YamlValueTypeString:

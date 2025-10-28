@@ -130,6 +130,7 @@ class Parser {
      * toplevel. Each `include` parameter in the root of each file will be
      * treated either as a file path or an array of file paths.
      * @param configFile name of the root configuration file.
+     * @param ret Return. Alive until the parser is dropped.
      * @return NULL on error. If not NULL, the caller must delete the returned
      * value sometime.
      */
@@ -138,15 +139,24 @@ class Parser {
 
     /**
      * @details Opens a configuration file by name and parses it, including it's
-     * include directives. If a NULL is returned, an error occurred. The caller
-     * may safely do it's own cleanup stuff without bothering in logging the
-     * error as the function already does log the problems in the configuration
-     * files with the utilities provided in logging.hpp.
+     * include directives. The caller may safely do it's own cleanup stuff
+     * without bothering in logging the error as the function already does log
+     * the problems in the configuration files with the utilities provided in
+     * logging.hpp. Every pointer returned via the ret tree is alive until the
+     * parser is dropped.
      * @param configFile name of the root configuration file.
-     * @return NULL on error. If not NULL, the caller must delete the returned
-     * value sometime.
+     * @param ret Return. Alive until the parser is dropped.
+     * @return Non-zero on error.
      */
     int ParseFile(const char* const configFile, YamlValue* const ret);
+
+    /**
+     * @details Same as ParseFile but parses a string. Useful for testing.
+     * @param string string to parse.
+     * @param ret Return. Alive until the parser is dropped.
+     * @return Non-zero on error.
+     */
+    int ParseString(const char* const string, YamlValue* const ret);
 };
 
 }  // namespace yaml
