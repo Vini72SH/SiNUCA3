@@ -38,8 +38,6 @@
 #include <utils/bimodal_counter.hpp>
 #include <utils/circular_buffer.hpp>
 
-#include "engine/default_packets.hpp"
-
 /** @brief Refer to gshare_predictor.hpp documentation for details */
 class GsharePredictor : public Component<PredictorPacket> {
   private:
@@ -98,9 +96,8 @@ class GsharePredictor : public Component<PredictorPacket> {
 
   public:
     GsharePredictor();
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
+    virtual int Configure(Config config);
     virtual void PrintStatistics();
-    virtual int FinishSetup();
     virtual void Clock();
     virtual ~GsharePredictor();
 };

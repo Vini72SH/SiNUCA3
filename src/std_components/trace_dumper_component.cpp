@@ -25,54 +25,6 @@
 #include <cstring>
 #include <sinuca3.hpp>
 
-#include "config/config.hpp"
-#include "engine/default_packets.hpp"
-#include "utils/logging.hpp"
-
-int TraceDumperComponent::FinishSetup() {
-    if (this->fetch == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "TraceDumperComponent did not received parameter fetch.\n");
-        return 1;
-    }
-
-    this->fetchID = this->fetch->Connect(0);
-
-    return 0;
-}
-
-int TraceDumperComponent::FetchParameter(ConfigValue value) {
-    if (value.type != ConfigValueTypeComponentReference) {
-        SINUCA3_ERROR_PRINTF(
-            "TraceDumperComponent parameter fetch is not a "
-            "Component<FetchPacket>.\n");
-        return 1;
-    }
-
-    this->fetch =
-        dynamic_cast<Component<FetchPacket>*>(value.value.componentReference);
-    if (this->fetch == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "TraceDumperComponent parameter fetch is not a "
-            "Component<FetchPacket>.\n");
-        return 1;
-    }
-
-    return 0;
-}
-
-int TraceDumperComponent::DefaultParameter(ConfigValue value) {
-    if (value.type != ConfigValueTypeBoolean) {
-        SINUCA3_ERROR_PRINTF(
-            "TraceDumperComponent parameter default is not a boolean.\n");
-        return 1;
-    }
-
-    this->def = value.value.boolean;
-
-    return 0;
-}
-
 void TraceDumperComponent::Override(const char* instruction) {
     int size = strlen(instruction) + 1;
     const char* str = new char[size];
@@ -80,12 +32,20 @@ void TraceDumperComponent::Override(const char* instruction) {
     this->overrides.push_back(str);
 }
 
-int TraceDumperComponent::SetConfigParameter(const char* parameter,
-                                             ConfigValue value) {
-    if (strcmp(parameter, "fetch") == 0) return this->FetchParameter(value);
-    if (strcmp(parameter, "default") == 0) return this->DefaultParameter(value);
+int TraceDumperComponent::Configure(Config config) {
+    if (config.ComponentReference("fetch", &this->fetch, true)) return 1;
+    if (config.Bool("default", &this->def)) return 1;
 
-    this->Override(parameter);
+    this->fetchID = this->fetch->Connect(0);
+
+    // Use raw yaml to get the overrides.
+    yaml::YamlValue value;
+    Map<yaml::YamlValue>* rawConfig = config.RawYaml();
+    rawConfig->ResetIterator();
+    for (const char* key = rawConfig->Next(&value); key != NULL;
+         key = rawConfig->Next(&value)) {
+        if (strcmp(key, "fetch") && strcmp(key, "default")) this->Override(key);
+    }
 
     return 0;
 }
@@ -166,5 +126,5 @@ void TraceDumperComponent::PrintStatistics() {
 
 TraceDumperComponent::~TraceDumperComponent() {
     for (unsigned int i = 0; i < this->overrides.size(); ++i)
-        delete this->overrides[i];
+        delete[] this->overrides[i];
 }
