@@ -48,21 +48,21 @@ class iTLB : public Component<Address> {
           pageSize(4096),
           currentPenalty(NO_PENALTY),
           missPenalty(0),
-          cache(NULL),
-          policyID(CacheMemoryNS::Unset) {};
+          cache(NULL)
+          {};
     virtual ~iTLB() {};
 
     virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
+    virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
 
   private:
     unsigned int numberOfRequests;
 
-    unsigned int entries;
-    unsigned int numWays;
-    unsigned int pageSize; // default 4 KiB
+    unsigned long entries;
+    unsigned long numWays;
+    unsigned long pageSize; // default 4 KiB
 
     long
         currentPenalty; /**< Counter to control the paying of penalties >*/
@@ -74,13 +74,6 @@ class iTLB : public Component<Address> {
     CircularBuffer pendingRequests; /**< Stores requests that have not yet been processed. >*/
 
     CacheMemory<Address>* cache;
-    CacheMemoryNS::ReplacementPoliciesID policyID;
-
-    int ConfigEntries(ConfigValue value);
-    int ConfigAssociativity(ConfigValue value);
-    int ConfigPolicy(ConfigValue value);
-    int ConfigPenalty(ConfigValue value);
-    int ConfigPageSize(ConfigValue value);
 };
 
 #endif

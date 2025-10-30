@@ -54,102 +54,42 @@ int Fetcher::FinishSetup() {
     return 0;
 }
 
-int Fetcher::FetchConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->fetch = dynamic_cast<Component<FetchPacket>*>(
-            value.value.componentReference);
-        if (this->fetch != NULL) {
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `fetch` is not a Component<FetchPacket>.\n");
-    return 1;
-}
+int Fetcher::Configure(Config config) {
+    if (config.ComponentReference("fetch", &this->fetch, true)) return 1;
+    if (config.ComponentReference("instructionMemory", &this->instructionMemory,
+                                  true))
+        return 1;
+    if (config.ComponentReference("predictor", &this->predictor)) return 1;
 
-int Fetcher::InstructionMemoryConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->instructionMemory = dynamic_cast<Component<InstructionPacket>*>(
-            value.value.componentReference);
-        if (this->instructionMemory != NULL) {
-            return 0;
-        }
-    }
+    long fetchSize = 1;
+    if (config.Integer("fetchSize", &fetchSize)) return 1;
+    if (fetchSize <= 0) return config.Error("fetchSize", "is not > 0.");
+    this->fetchSize = fetchSize;
 
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `instructionMemory` is not a "
-        "Component<InstructionPacket>.\n");
-    return 1;
-}
+    long fetchInterval = 1;
+    if (config.Integer("fetchInterval", &fetchInterval)) return 1;
+    if (fetchInterval <= 0) return config.Error("fetchInterval", "is not > 0.");
+    this->fetchInterval = fetchInterval;
 
-int Fetcher::FetchSizeConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->fetchSize = value.value.integer;
-            return 0;
-        }
-    }
+    long misspredictPenalty = 0;
+    if (config.Integer("misspredictPenalty", &misspredictPenalty)) return 1;
+    if (misspredictPenalty <= 0)
+        return config.Error("misspredictPenalty", "is not > 0.");
+    this->misspredictPenalty = misspredictPenalty;
 
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `fetchSize` is not a integer > 0.\n");
-    return 1;
-}
+    this->fetchID = this->fetch->Connect(this->fetchSize);
+    this->instructionMemoryID =
+        this->instructionMemory->Connect(this->fetchSize);
 
-int Fetcher::FetchIntervalConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->fetchInterval = value.value.integer;
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `fetchInterval` is not a integer > 0.\n");
-    return 1;
-}
+    this->fetchBuffer = new FetchBufferEntry[this->fetchSize];
 
-int Fetcher::PredictorConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->predictor = dynamic_cast<Component<PredictorPacket>*>(
-            value.value.componentReference);
-        if (this->predictor != NULL) return 0;
+    // Maybe connect to a predictor.
+    if (this->predictor != NULL) {
+        this->predictorID = this->predictor->Connect(this->fetchSize);
+        this->flagsToCheck |= FetchBufferEntryFlagsPredicted;
     }
 
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `predictor` is not a "
-        "Component<PredictorPacket>.\n");
-    return 1;
-}
-
-int Fetcher::MisspredictPenaltyConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->misspredictPenalty = value.value.integer;
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Fetcher parameter `misspredictPenalty` is not a integer > 0.\n");
-    return 1;
-}
-
-int Fetcher::SetConfigParameter(const char* parameter, ConfigValue value) {
-    if (strcmp(parameter, "fetch") == 0) {
-        return this->FetchConfigParameter(value);
-    } else if (strcmp(parameter, "instructionMemory") == 0) {
-        return this->InstructionMemoryConfigParameter(value);
-    } else if (strcmp(parameter, "fetchSize") == 0) {
-        return this->FetchSizeConfigParameter(value);
-    } else if (strcmp(parameter, "fetchInterval") == 0) {
-        return this->FetchIntervalConfigParameter(value);
-    } else if (strcmp(parameter, "predictor") == 0) {
-        return this->PredictorConfigParameter(value);
-    } else if (strcmp(parameter, "misspredictPenalty") == 0) {
-        return this->MisspredictPenaltyConfigParameter(value);
-    }
-
-    SINUCA3_ERROR_PRINTF("Fetcher received unknown parameter %s.\n", parameter);
-
-    return 1;
+    return 0;
 }
 
 void Fetcher::ClockSendBuffered() {

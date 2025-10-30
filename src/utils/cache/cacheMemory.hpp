@@ -27,15 +27,6 @@
 
 #include "replacement_policy.hpp"
 
-namespace CacheMemoryNS {
-enum ReplacementPoliciesID {
-    Unset = -1,
-    LruID = 0,
-    RandomID = 1,
-    RoundRobinID = 2
-};
-}
-
 struct CacheLine {
     unsigned long tag;
     unsigned long index;
@@ -120,7 +111,7 @@ class CacheMemory {
     static CacheMemory *fromCacheSize(
         unsigned int cacheSize, unsigned int lineSize,
         unsigned int associativity,
-        CacheMemoryNS::ReplacementPoliciesID policy);
+        const char *policy);
 
     /**
      * @brief Creates a cache specifying the number of sets and line size.
@@ -143,7 +134,7 @@ class CacheMemory {
      */
     static CacheMemory *fromNumSets(
         unsigned int numSets, unsigned int lineSize, unsigned int associativity,
-        CacheMemoryNS::ReplacementPoliciesID policy);
+        const char *policy);
 
     /**
      * @brief Creates a cache specifying the number of index and offset bits
@@ -167,7 +158,7 @@ class CacheMemory {
     static CacheMemory *fromBits(unsigned int numIndexBits,
                                  unsigned int numOffsetBits,
                                  unsigned int associativity,
-                                 CacheMemoryNS::ReplacementPoliciesID policy);
+                                 const char *policy);
 
     virtual ~CacheMemory();
 
@@ -262,8 +253,8 @@ class CacheMemory {
     static CacheMemory *Alocate(unsigned int numIndexBits,
                                 unsigned int numOffsetBits,
                                 unsigned int associativity,
-                                CacheMemoryNS::ReplacementPoliciesID policy);
-    void SetReplacementPolicy(CacheMemoryNS::ReplacementPoliciesID id);
+                                const char *policy);
+    int SetReplacementPolicy(const char *policyName);
 };
 
 #include "cacheMemory.t.hpp"

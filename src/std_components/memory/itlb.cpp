@@ -25,30 +25,37 @@
 #include <sinuca3.hpp>
 
 #include "config/config.hpp"
+#include "utils/cache/cacheMemory.hpp"
 #include "utils/logging.hpp"
 
-int iTLB::FinishSetup() {
-    if (this->entries == 0) {
+int iTLB::Configure(Config config){
+    const char *tempStr_Policy;
+
+    if(config.Integer("entries", (long*)&this->entries, true)) return 1;
+    if(config.Integer("associativity", (long*)&this->numWays, true)) return 1;
+    if(config.Integer("missPenalty", (long*)&this->missPenalty, true)) return 1;
+
+    // Optional
+    if(config.String("policy", &tempStr_Policy)) return 1;
+    if(config.Integer("pageSize", (long*)&this->pageSize)) return 1;
+
+    if(this->entries == 0){
         SINUCA3_ERROR_PRINTF(
-            "iTLB didn't received obrigatory parameter \"entries\"\n");
+            "Invalid value for iTLB parameter \"entries\": should be > "
+            "0.");
         return 1;
     }
 
-    if (this->numWays == 0) {
+    if(this->numWays == 0){
         SINUCA3_ERROR_PRINTF(
-            "iTLB didn't received obrigatory parameter \"associativity\"\n");
-        return 1;
-    }
-
-    if (this->policyID == CacheMemoryNS::Unset) {
-        SINUCA3_ERROR_PRINTF(
-            "iTLB didn't received obrigatory parameter \"policy\"\n");
+            "Invalid value for iTLB parameter \"associativity\": should "
+            "be > 0.");
         return 1;
     }
 
     unsigned int numSets = this->entries / this->numWays;
     this->cache = CacheMemory<unsigned long>::fromNumSets(numSets, this->pageSize,
-                                             this->numWays, this->policyID);
+                                             this->numWays, tempStr_Policy);
     if (this->cache == NULL) {
         SINUCA3_ERROR_PRINTF("iTLB: Failed to alocate CacheMemory\n");
         return 1;
@@ -57,104 +64,6 @@ int iTLB::FinishSetup() {
     this->pendingRequests.Allocate(0, sizeof(struct TLBRequest));
 
     return 0;
-}
-
-int iTLB::ConfigEntries(ConfigValue value) {
-    if (value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF(
-            "iTLB parameter \"entries\" is not an integer.\n");
-        return 1;
-    }
-
-    const unsigned int v = value.value.integer;
-    if (v <= 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Invalid value for iTLB parameter \"entries\": should be > "
-            "0.");
-        return 1;
-    }
-    this->entries = v;
-    return 0;
-}
-
-int iTLB::ConfigAssociativity(ConfigValue value) {
-    if (value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF(
-            "iTLB parameter \"associativity\" is not an integer.\n");
-        return 1;
-    }
-
-    const unsigned int v = value.value.integer;
-    if (v <= 0) {
-        SINUCA3_ERROR_PRINTF(
-            "Invalid value for iTLB parameter \"associativity\": should "
-            "be > 0.");
-        return 1;
-    }
-    this->numWays = v;
-    return 0;
-}
-
-int iTLB::ConfigPolicy(ConfigValue value) {
-    if (value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("iTLB parameter \"policy\" is not an integer.\n");
-        return 1;
-    }
-
-    const CacheMemoryNS::ReplacementPoliciesID v =
-        static_cast<CacheMemoryNS::ReplacementPoliciesID>(value.value.integer);
-    this->policyID = v;
-    return 0;
-}
-
-int iTLB::ConfigPenalty(ConfigValue value){
-    if (value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("iTLB parameter \"missPenalty\" is not an integer.\n");
-        return 1;
-    }
-
-    const unsigned long v =
-        static_cast<unsigned long>(value.value.integer);
-    this->missPenalty = v;
-    return 0;
-}
-
-int iTLB::ConfigPageSize(ConfigValue value){
-    if (value.type != ConfigValueTypeInteger) {
-        SINUCA3_ERROR_PRINTF("iTLB parameter \"pageSize\" is not an integer.\n");
-        return 1;
-    }
-
-    const unsigned int v =
-        static_cast<unsigned long>(value.value.integer);
-    this->pageSize = v;
-    return 0;
-}
-
-int iTLB::SetConfigParameter(const char* parameter, ConfigValue value) {
-    if (strcmp(parameter, "entries") == 0) {
-        return this->ConfigEntries(value);
-    }
-
-    if (strcmp(parameter, "associativity") == 0) {
-        return this->ConfigAssociativity(value);
-    }
-
-    if (strcmp(parameter, "policy") == 0) {
-        return this->ConfigPolicy(value);
-    }
-
-    if (strcmp(parameter, "missPenalty") == 0) {
-        return this->ConfigPenalty(value);
-    }
-
-    if (strcmp(parameter, "pageSize") == 0) {
-        return this->ConfigPageSize(value);
-    }
-
-    SINUCA3_ERROR_PRINTF("iTLB received an unkown parameter: %s.\n",
-                         parameter);
-    return 1;
 }
 
 void iTLB::Clock() {

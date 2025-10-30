@@ -27,6 +27,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <cstring>
 #include <utils/logging.hpp>
 
 // Including the header file here is NOT necessary for compilation,
@@ -39,8 +40,6 @@
 #include "utils/cache/replacement_policies/lru.hpp"
 #include "utils/cache/replacement_policies/random.hpp"
 #include "utils/cache/replacement_policies/roundRobin.hpp"
-
-using namespace CacheMemoryNS;
 
 /**
  * @brief Number of bits in a address.
@@ -63,7 +62,7 @@ template <typename ValueType>
 CacheMemory<ValueType> *CacheMemory<ValueType>::fromCacheSize(unsigned int cacheSize,
                                         unsigned int lineSize,
                                         unsigned int associativity,
-                                        CacheMemoryNS::ReplacementPoliciesID policy) {
+                                        const char *policy) {
     unsigned int numSets = cacheSize / (lineSize * associativity);
     return CacheMemory<ValueType>::fromNumSets(numSets, lineSize, associativity, policy);
 }
@@ -72,7 +71,7 @@ template <typename ValueType>
 CacheMemory<ValueType> *CacheMemory<ValueType>::fromNumSets(unsigned int numSets,
                                       unsigned int lineSize,
                                       unsigned int associativity,
-                                      CacheMemoryNS::ReplacementPoliciesID policy) {
+                                      const char *policy) {
     if (associativity == 0) return NULL;
     if (!checkIfPowerOfTwo(numSets)){
         SINUCA3_ERROR_PRINTF(
@@ -93,7 +92,7 @@ template <typename ValueType>
 CacheMemory<ValueType> *CacheMemory<ValueType>::fromBits(unsigned int numIndexBits,
                                    unsigned int numOffsetBits,
                                    unsigned int associativity,
-                                   CacheMemoryNS::ReplacementPoliciesID policy) {
+                                   const char *policy) {
     return CacheMemory<ValueType>::Alocate(numIndexBits, numOffsetBits, associativity,
                                 policy);
 }
@@ -102,7 +101,7 @@ template <typename ValueType>
 CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBits,
                                   unsigned int numOffsetBits,
                                   unsigned int associativity,
-                                  CacheMemoryNS::ReplacementPoliciesID policy) {
+                                  const char *policy) {
     if (associativity == 0) return NULL;
 
     unsigned int numSets = 1u << numIndexBits;
@@ -119,6 +118,11 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
     cm->indexMask = ((1UL << cm->indexBits) - 1) << cm->offsetBits;
     cm->tagMask = ((1UL << cm->tagBits) - 1)
                   << (cm->offsetBits + cm->indexBits);
+
+    if(cm->SetReplacementPolicy(policy)){
+        delete cm;
+        return NULL;
+    }
 
     size_t n = cm->numSets * cm->numWays;
     cm->entries = new CacheLine *[cm->numSets];
@@ -141,8 +145,6 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
     for (int i = 1; i < cm->numSets; ++i) {
         cm->data[i] = cm->data[0] + (i * cm->numWays);
     }
-
-    cm->SetReplacementPolicy(policy);
 
     return cm;
 }
@@ -249,26 +251,28 @@ bool CacheMemory<ValueType>::FindEmptyEntry(unsigned long addr, CacheLine **resu
 }
 
 template <typename ValueType>
-void CacheMemory<ValueType>::SetReplacementPolicy(ReplacementPoliciesID id) {
-    switch (id) {
-        case LruID:
-            this->policy =
-                new ReplacementPolicies::LRU(this->numSets, this->numWays);
-            return;
+int CacheMemory<ValueType>::SetReplacementPolicy(const char *policyName) {
 
-        case RandomID:
-            this->policy =
-                new ReplacementPolicies::Random(this->numSets, this->numWays);
-            return;
-
-        case RoundRobinID:
-            this->policy = new ReplacementPolicies::RoundRobin(this->numSets,
-                                                               this->numWays);
-            return;
-
-        default:
-            return;
+    if(strcmp(policyName, "lru") == 0){
+        this->policy =
+            new ReplacementPolicies::LRU(this->numSets, this->numWays);
+        return 0;
     }
+
+
+    if(strcmp(policyName, "random") == 0){
+        this->policy =
+            new ReplacementPolicies::Random(this->numSets, this->numWays);
+        return 0;
+    }
+
+    if(strcmp(policyName, "roundrobin") == 0){
+        this->policy = new ReplacementPolicies::RoundRobin(this->numSets,
+                                                           this->numWays);
+        return 0;
+    }
+
+    return 1;
 }
 
 template <typename ValueType>

@@ -1,3 +1,4 @@
+#include "config/config.hpp"
 #include "std_components/memory/itlb.hpp"
 #include "utils/logging.hpp"
 #ifndef NDEBUG
@@ -30,46 +31,14 @@
 
 #include "itlb_debug_component.hpp"
 
-int iTLBDebugComponent::SetConfigParameter(const char* parameter,
-                                           ConfigValue value) {
-    if (strcmp(parameter, "fetch") == 0) {
-        this->fetch = dynamic_cast<Component<FetchPacket>*>(
-            value.value.componentReference);
-        if (this->fetch == NULL) {
-            SINUCA3_DEBUG_PRINTF(
-                "%p: Failed to cast fetch to Component<InstructionPacket>.\n",
-                this);
-            return 1;
-        }
-        this->fetchConnectionID = this->fetch->Connect(0);
-        SINUCA3_DEBUG_PRINTF("%p: connected to fetch: %d\n", this,
-                             this->fetchConnectionID);
-    }
+int iTLBDebugComponent::Configure(Config config){
+    if(config.ComponentReference("fetch", &this->fetch, true)) return 1;
+    if(config.ComponentReference("itlb", &this->itlb, true)) return 1;
 
-    if (strcmp(parameter, "itlb") == 0) {
-        this->itlb =
-            dynamic_cast<Component<Address>*>(value.value.componentReference);
-        if (this->itlb == NULL) {
-            SINUCA3_DEBUG_PRINTF(
-                "%p: Failed to cast itlb to Component<Address>.\n", this);
-            return 1;
-        }
-        this->itlbID = this->itlb->Connect(0);
-        SINUCA3_DEBUG_PRINTF("%p: connected to itlb: %d\n", this, this->itlbID);
-    }
+    this->fetchConnectionID = this->fetch->Connect(0);
+    this->itlbID = this->itlb->Connect(0);
+    SINUCA3_DEBUG_PRINTF("%p: connected to itlb: %d\n", this, this->itlbID);
 
-    return 0;
-}
-
-int iTLBDebugComponent::FinishSetup() {
-    if (this->fetch == NULL) {
-        SINUCA3_DEBUG_PRINTF("iTLBDebugComponent: missing fetch Component.\n");
-        return 1;
-    }
-    if (this->itlb == NULL) {
-        SINUCA3_DEBUG_PRINTF("iTLBDebugComponent: missing itlb Component.\n");
-        return 1;
-    }
     return 0;
 }
 

@@ -59,8 +59,7 @@ class iTLBDebugComponent : public Component<InstructionPacket> {
             this->tlbRequestBuffer.Allocate(2, sizeof(Address));
         }
 
-    virtual int FinishSetup();
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
+        virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
 
