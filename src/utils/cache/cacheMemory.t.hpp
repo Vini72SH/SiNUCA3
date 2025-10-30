@@ -102,7 +102,10 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
                                   unsigned int numOffsetBits,
                                   unsigned int associativity,
                                   const char *policy) {
-    if (associativity == 0) return NULL;
+    if (associativity == 0){
+        SINUCA3_ERROR_PRINTF("CacheMemory: associativity cannot be equal to 0.\n");
+        return NULL;
+    }
 
     unsigned int numSets = 1u << numIndexBits;
 
@@ -121,6 +124,7 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
 
     if(cm->SetReplacementPolicy(policy)){
         delete cm;
+        SINUCA3_ERROR_PRINTF("CacheMemory: Invalid replacement policy.\n");
         return NULL;
     }
 

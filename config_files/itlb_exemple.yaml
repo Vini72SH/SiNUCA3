@@ -1,9 +1,9 @@
-instantiate:
+exemple: &exemple
   class: iTLBDebugComponent
   fetch: *ENGINE
   itlb:
     class: iTLB
     entries: 64
-    associativity: 1
-    policy: 0
     missPenalty: 5
+    policy: lru
+    associativity: 1

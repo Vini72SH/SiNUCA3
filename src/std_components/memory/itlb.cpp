@@ -29,7 +29,7 @@
 #include "utils/logging.hpp"
 
 int iTLB::Configure(Config config){
-    const char *tempStr_Policy;
+    const char *tempStr_Policy = "lru"; // lru is default
 
     if(config.Integer("entries", (long*)&this->entries, true)) return 1;
     if(config.Integer("associativity", (long*)&this->numWays, true)) return 1;
