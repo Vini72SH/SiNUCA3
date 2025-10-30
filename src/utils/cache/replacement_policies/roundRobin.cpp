@@ -37,10 +37,10 @@ RoundRobin::RoundRobin(int numSets, int numWays)
 
 RoundRobin::~RoundRobin() { delete this->rrIndex; }
 
-void RoundRobin::Acess(CacheLine *entry) { (void)entry; }
+void RoundRobin::Acess(CacheLine* entry) { (void)entry; }
 
 void RoundRobin::SelectVictim(unsigned long tag, unsigned long index,
-                              int *resultSet, int *resultWay) {
+                              int* resultSet, int* resultWay) {
     (void)tag;
     int rr = this->rrIndex[index];
     this->rrIndex[index] = (this->rrIndex[index] + 1) % this->numWays;

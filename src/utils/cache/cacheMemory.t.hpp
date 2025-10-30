@@ -23,7 +23,6 @@
  * @brief Implementation of cacheMemory.
  */
 
-
 #include <cassert>
 #include <cmath>
 #include <cstddef>
@@ -35,7 +34,6 @@
 // However, some text editors can use it to correctly locate symbols
 // for code navigation, autocomplete, and diagnostics.
 #include "cacheMemory.hpp"
-
 #include "replacement_policy.hpp"
 #include "utils/cache/replacement_policies/lru.hpp"
 #include "utils/cache/replacement_policies/random.hpp"
@@ -59,57 +57,60 @@ static inline bool checkIfPowerOfTwo(unsigned long x) {
 }
 
 template <typename ValueType>
-CacheMemory<ValueType> *CacheMemory<ValueType>::fromCacheSize(unsigned int cacheSize,
-                                        unsigned int lineSize,
-                                        unsigned int associativity,
-                                        const char *policy) {
+CacheMemory<ValueType>* CacheMemory<ValueType>::fromCacheSize(
+    unsigned int cacheSize, unsigned int lineSize, unsigned int associativity,
+    const char* policy) {
     unsigned int numSets = cacheSize / (lineSize * associativity);
-    return CacheMemory<ValueType>::fromNumSets(numSets, lineSize, associativity, policy);
+    return CacheMemory<ValueType>::fromNumSets(numSets, lineSize, associativity,
+                                               policy);
 }
 
 template <typename ValueType>
-CacheMemory<ValueType> *CacheMemory<ValueType>::fromNumSets(unsigned int numSets,
-                                      unsigned int lineSize,
-                                      unsigned int associativity,
-                                      const char *policy) {
+CacheMemory<ValueType>* CacheMemory<ValueType>::fromNumSets(
+    unsigned int numSets, unsigned int lineSize, unsigned int associativity,
+    const char* policy) {
     if (associativity == 0) return NULL;
-    if (!checkIfPowerOfTwo(numSets)){
+    if (!checkIfPowerOfTwo(numSets)) {
         SINUCA3_ERROR_PRINTF(
-            "CacheMemory: numSets cannot be %u because it is not power of two.\n", numSets);
+            "CacheMemory: numSets cannot be %u because it is not power of "
+            "two.\n",
+            numSets);
     }
     if (!checkIfPowerOfTwo(lineSize)) {
         SINUCA3_ERROR_PRINTF(
-            "CacheMemory: lineSize cannot be %u because it is not power of two.\n", lineSize);
+            "CacheMemory: lineSize cannot be %u because it is not power of "
+            "two.\n",
+            lineSize);
         return NULL;
     }
 
     unsigned int indexBits = getLog2(numSets);
     unsigned int offsetBits = getLog2(lineSize);
-    return CacheMemory<ValueType>::Alocate(indexBits, offsetBits, associativity, policy);
+    return CacheMemory<ValueType>::Alocate(indexBits, offsetBits, associativity,
+                                           policy);
 }
 
 template <typename ValueType>
-CacheMemory<ValueType> *CacheMemory<ValueType>::fromBits(unsigned int numIndexBits,
-                                   unsigned int numOffsetBits,
-                                   unsigned int associativity,
-                                   const char *policy) {
-    return CacheMemory<ValueType>::Alocate(numIndexBits, numOffsetBits, associativity,
-                                policy);
+CacheMemory<ValueType>* CacheMemory<ValueType>::fromBits(
+    unsigned int numIndexBits, unsigned int numOffsetBits,
+    unsigned int associativity, const char* policy) {
+    return CacheMemory<ValueType>::Alocate(numIndexBits, numOffsetBits,
+                                           associativity, policy);
 }
 
 template <typename ValueType>
-CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBits,
-                                  unsigned int numOffsetBits,
-                                  unsigned int associativity,
-                                  const char *policy) {
-    if (associativity == 0){
-        SINUCA3_ERROR_PRINTF("CacheMemory: associativity cannot be equal to 0.\n");
+CacheMemory<ValueType>* CacheMemory<ValueType>::Alocate(
+    unsigned int numIndexBits, unsigned int numOffsetBits,
+    unsigned int associativity, const char* policy) {
+    if (associativity == 0) {
+        SINUCA3_ERROR_PRINTF(
+            "CacheMemory: associativity cannot be equal to 0.\n");
         return NULL;
     }
 
     unsigned int numSets = 1u << numIndexBits;
 
-    CacheMemory<ValueType> *cm = new CacheMemory<ValueType>();
+    CacheMemory<ValueType>* cm = new CacheMemory<ValueType>();
     cm->numWays = associativity;
     cm->numSets = numSets;
 
@@ -122,14 +123,14 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
     cm->tagMask = ((1UL << cm->tagBits) - 1)
                   << (cm->offsetBits + cm->indexBits);
 
-    if(cm->SetReplacementPolicy(policy)){
+    if (cm->SetReplacementPolicy(policy)) {
         delete cm;
         SINUCA3_ERROR_PRINTF("CacheMemory: Invalid replacement policy.\n");
         return NULL;
     }
 
     size_t n = cm->numSets * cm->numWays;
-    cm->entries = new CacheLine *[cm->numSets];
+    cm->entries = new CacheLine*[cm->numSets];
     cm->entries[0] = new CacheLine[n];
     memset(cm->entries[0], 0, n * sizeof(CacheLine));
     for (int i = 1; i < cm->numSets; ++i) {
@@ -143,7 +144,7 @@ CacheMemory<ValueType> *CacheMemory<ValueType>::Alocate(unsigned int numIndexBit
         }
     }
 
-    cm->data = new ValueType *[cm->numSets];
+    cm->data = new ValueType*[cm->numSets];
     cm->data[0] = new ValueType[n];
     memset(cm->data[0], 0, n * sizeof(ValueType));
     for (int i = 1; i < cm->numSets; ++i) {
@@ -171,7 +172,7 @@ CacheMemory<ValueType>::~CacheMemory() {
 template <typename ValueType>
 const ValueType* CacheMemory<ValueType>::Read(unsigned long addr) {
     bool exist;
-    CacheLine *line;
+    CacheLine* line;
     const ValueType* result = NULL;
 
     exist = this->GetEntry(addr, &line);
@@ -191,7 +192,7 @@ const ValueType* CacheMemory<ValueType>::Read(unsigned long addr) {
 
 template <typename ValueType>
 void CacheMemory<ValueType>::Write(unsigned long addr, const ValueType* data) {
-    CacheLine *victim = NULL;
+    CacheLine* victim = NULL;
     unsigned long tag = GetTag(addr);
     unsigned long index = GetIndex(addr);
 
@@ -226,11 +227,12 @@ unsigned long CacheMemory<ValueType>::GetTag(unsigned long addr) const {
 }
 
 template <typename ValueType>
-bool CacheMemory<ValueType>::GetEntry(unsigned long addr, CacheLine **result) const {
+bool CacheMemory<ValueType>::GetEntry(unsigned long addr,
+                                      CacheLine** result) const {
     unsigned long tag = this->GetTag(addr);
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
-        CacheLine *entry = &this->entries[index][way];
+        CacheLine* entry = &this->entries[index][way];
 
         if (entry->isValid && entry->tag == tag) {
             *result = entry;
@@ -241,10 +243,11 @@ bool CacheMemory<ValueType>::GetEntry(unsigned long addr, CacheLine **result) co
 }
 
 template <typename ValueType>
-bool CacheMemory<ValueType>::FindEmptyEntry(unsigned long addr, CacheLine **result) const {
+bool CacheMemory<ValueType>::FindEmptyEntry(unsigned long addr,
+                                            CacheLine** result) const {
     unsigned long index = this->GetIndex(addr);
     for (int way = 0; way < this->numWays; ++way) {
-        CacheLine *entry = &this->entries[index][way];
+        CacheLine* entry = &this->entries[index][way];
 
         if (!entry->isValid) {
             *result = entry;
@@ -255,24 +258,22 @@ bool CacheMemory<ValueType>::FindEmptyEntry(unsigned long addr, CacheLine **resu
 }
 
 template <typename ValueType>
-int CacheMemory<ValueType>::SetReplacementPolicy(const char *policyName) {
-
-    if(strcmp(policyName, "lru") == 0){
+int CacheMemory<ValueType>::SetReplacementPolicy(const char* policyName) {
+    if (strcmp(policyName, "lru") == 0) {
         this->policy =
             new ReplacementPolicies::LRU(this->numSets, this->numWays);
         return 0;
     }
 
-
-    if(strcmp(policyName, "random") == 0){
+    if (strcmp(policyName, "random") == 0) {
         this->policy =
             new ReplacementPolicies::Random(this->numSets, this->numWays);
         return 0;
     }
 
-    if(strcmp(policyName, "roundrobin") == 0){
-        this->policy = new ReplacementPolicies::RoundRobin(this->numSets,
-                                                           this->numWays);
+    if (strcmp(policyName, "roundrobin") == 0) {
+        this->policy =
+            new ReplacementPolicies::RoundRobin(this->numSets, this->numWays);
         return 0;
     }
 
@@ -288,13 +289,19 @@ void CacheMemory<ValueType>::resetStatistics() {
 }
 
 template <typename ValueType>
-unsigned long CacheMemory<ValueType>::getStatMiss() const { return this->statMiss; }
+unsigned long CacheMemory<ValueType>::getStatMiss() const {
+    return this->statMiss;
+}
 
 template <typename ValueType>
-unsigned long CacheMemory<ValueType>::getStatHit() const { return this->statHit; }
+unsigned long CacheMemory<ValueType>::getStatHit() const {
+    return this->statHit;
+}
 
 template <typename ValueType>
-unsigned long CacheMemory<ValueType>::getStatAcess() const { return this->statAcess; }
+unsigned long CacheMemory<ValueType>::getStatAcess() const {
+    return this->statAcess;
+}
 
 template <typename ValueType>
 unsigned long CacheMemory<ValueType>::getStatEvaction() const {

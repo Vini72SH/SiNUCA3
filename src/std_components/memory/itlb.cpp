@@ -28,25 +28,26 @@
 #include "utils/cache/cacheMemory.hpp"
 #include "utils/logging.hpp"
 
-int iTLB::Configure(Config config){
-    const char *tempStr_Policy = "lru"; // lru is default
+int iTLB::Configure(Config config) {
+    const char* tempStr_Policy = "lru";  // lru is default
 
-    if(config.Integer("entries", (long*)&this->entries, true)) return 1;
-    if(config.Integer("associativity", (long*)&this->numWays, true)) return 1;
-    if(config.Integer("missPenalty", (long*)&this->missPenalty, true)) return 1;
+    if (config.Integer("entries", (long*)&this->entries, true)) return 1;
+    if (config.Integer("associativity", (long*)&this->numWays, true)) return 1;
+    if (config.Integer("missPenalty", (long*)&this->missPenalty, true))
+        return 1;
 
     // Optional
-    if(config.String("policy", &tempStr_Policy)) return 1;
-    if(config.Integer("pageSize", (long*)&this->pageSize)) return 1;
+    if (config.String("policy", &tempStr_Policy)) return 1;
+    if (config.Integer("pageSize", (long*)&this->pageSize)) return 1;
 
-    if(this->entries == 0){
+    if (this->entries == 0) {
         SINUCA3_ERROR_PRINTF(
             "Invalid value for iTLB parameter \"entries\": should be > "
             "0.");
         return 1;
     }
 
-    if(this->numWays == 0){
+    if (this->numWays == 0) {
         SINUCA3_ERROR_PRINTF(
             "Invalid value for iTLB parameter \"associativity\": should "
             "be > 0.");
@@ -54,8 +55,8 @@ int iTLB::Configure(Config config){
     }
 
     unsigned int numSets = this->entries / this->numWays;
-    this->cache = CacheMemory<unsigned long>::fromNumSets(numSets, this->pageSize,
-                                             this->numWays, tempStr_Policy);
+    this->cache = CacheMemory<unsigned long>::fromNumSets(
+        numSets, this->pageSize, this->numWays, tempStr_Policy);
     if (this->cache == NULL) {
         SINUCA3_ERROR_PRINTF("iTLB: Failed to alocate CacheMemory\n");
         return 1;
@@ -76,8 +77,8 @@ void iTLB::Clock() {
             ++this->numberOfRequests;
             newRequest.id = id;
             this->pendingRequests.Enqueue(&newRequest);
-            SINUCA3_DEBUG_PRINTF("%p: iTLB Message (%p) Received!\n",
-                                 this, (void*)newRequest.addr);
+            SINUCA3_DEBUG_PRINTF("%p: iTLB Message (%p) Received!\n", this,
+                                 (void*)newRequest.addr);
         }
     }
 
@@ -85,17 +86,19 @@ void iTLB::Clock() {
     if (this->currentPenalty > 0) {
         --this->currentPenalty;
 
-        if(this->currentPenalty == 0){
+        if (this->currentPenalty == 0) {
             this->currentPenalty = NO_PENALTY;
-            SINUCA3_DEBUG_PRINTF("%p: iTLB Waiting ended! Sending response\n", this);
-            this->SendResponseToConnection(this->curRequest.id, &this->curRequest.addr);
+            SINUCA3_DEBUG_PRINTF("%p: iTLB Waiting ended! Sending response\n",
+                                 this);
+            this->SendResponseToConnection(this->curRequest.id,
+                                           &this->curRequest.addr);
         }
 
         return;
     }
 
     struct TLBRequest request;
-    if(this->pendingRequests.Dequeue(&request)){
+    if (this->pendingRequests.Dequeue(&request)) {
         SINUCA3_DEBUG_PRINTF("%p: iTLB No work avaliable: Stall.\n", this);
         return;
     }
@@ -107,10 +110,13 @@ void iTLB::Clock() {
 
     // Read() returns NULL if it was a miss.
     if (this->cache->Read(this->curRequest.addr)) {
-        SINUCA3_DEBUG_PRINTF("%p: iTLB (%p) HIT Sending response!\n", this, (void*)this->curRequest.addr);
-        this->SendResponseToConnection(this->curRequest.id, &this->curRequest.addr);
+        SINUCA3_DEBUG_PRINTF("%p: iTLB (%p) HIT Sending response!\n", this,
+                             (void*)this->curRequest.addr);
+        this->SendResponseToConnection(this->curRequest.id,
+                                       &this->curRequest.addr);
     } else {
-        SINUCA3_DEBUG_PRINTF("%p: iTLB (%p) MISS Waiting %lu cycles!\n", this, (void*)this->curRequest.addr, this->missPenalty);
+        SINUCA3_DEBUG_PRINTF("%p: iTLB (%p) MISS Waiting %lu cycles!\n", this,
+                             (void*)this->curRequest.addr, this->missPenalty);
         this->currentPenalty = this->missPenalty;
         this->cache->Write(this->curRequest.addr, &this->curRequest.addr);
     }

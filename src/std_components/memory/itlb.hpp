@@ -60,16 +60,17 @@ class iTLB : public Component<Address> {
 
     unsigned long entries;
     unsigned long numWays;
-    unsigned long pageSize; // default 4 KiB
+    unsigned long pageSize;  // default 4 KiB
 
-    long
-        currentPenalty; /**< Counter to control the paying of penalties >*/
+    long currentPenalty; /**< Counter to control the paying of penalties >*/
     unsigned long missPenalty; /**< Amount of cycles to idle when a
                                   miss happens >*/
 
-    struct TLBRequest curRequest; /**< Address currently being processed by the iTLB >*/
+    struct TLBRequest
+        curRequest; /**< Address currently being processed by the iTLB >*/
 
-    CircularBuffer pendingRequests; /**< Stores requests that have not yet been processed. >*/
+    CircularBuffer pendingRequests; /**< Stores requests that have not yet been
+                                       processed. >*/
 
     CacheMemory<Address>* cache;
 };

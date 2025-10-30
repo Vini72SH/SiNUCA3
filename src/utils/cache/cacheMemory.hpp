@@ -41,7 +41,7 @@ struct CacheLine {
     inline CacheLine(int i, int j, unsigned long tag, unsigned long index)
         : tag(tag), index(index), isValid(false), i(i), j(j) {};
 
-    inline CacheLine(CacheLine *entry, unsigned long tag, unsigned long index)
+    inline CacheLine(CacheLine* entry, unsigned long tag, unsigned long index)
         : tag(tag), index(index), isValid(true), i(entry->i), j(entry->j) {};
 };
 
@@ -108,10 +108,10 @@ class CacheMemory {
      * @note
      * numSets = (cacheSize / (lineSize * associativity))
      */
-    static CacheMemory *fromCacheSize(
-        unsigned int cacheSize, unsigned int lineSize,
-        unsigned int associativity,
-        const char *policy);
+    static CacheMemory* fromCacheSize(unsigned int cacheSize,
+                                      unsigned int lineSize,
+                                      unsigned int associativity,
+                                      const char* policy);
 
     /**
      * @brief Creates a cache specifying the number of sets and line size.
@@ -132,9 +132,9 @@ class CacheMemory {
      * This ensures that address bits can be cleanly divided
      * into index and offset fields.
      */
-    static CacheMemory *fromNumSets(
-        unsigned int numSets, unsigned int lineSize, unsigned int associativity,
-        const char *policy);
+    static CacheMemory* fromNumSets(unsigned int numSets, unsigned int lineSize,
+                                    unsigned int associativity,
+                                    const char* policy);
 
     /**
      * @brief Creates a cache specifying the number of index and offset bits
@@ -155,10 +155,10 @@ class CacheMemory {
      * index. The remaining bits of the address not used for index or offset
      * will serve as the tag.
      */
-    static CacheMemory *fromBits(unsigned int numIndexBits,
+    static CacheMemory* fromBits(unsigned int numIndexBits,
                                  unsigned int numOffsetBits,
                                  unsigned int associativity,
-                                 const char *policy);
+                                 const char* policy);
 
     virtual ~CacheMemory();
 
@@ -179,7 +179,7 @@ class CacheMemory {
      * @return Pointer to the cached value if found (HIT), or `NULL` if not
      * found (MISS).
      */
-    const ValueType *Read(unsigned long addr);
+    const ValueType* Read(unsigned long addr);
 
     /**
      * @brief Writes a value into the cache for the specified memory address.
@@ -195,7 +195,7 @@ class CacheMemory {
      * @param addr Memory address to write to.
      * @param[in] result Pointer to the value to be written into the cache.
      */
-    void Write(unsigned long addr, const ValueType *data);
+    void Write(unsigned long addr, const ValueType* data);
 
     unsigned long GetOffset(unsigned long addr) const;
     unsigned long GetIndex(unsigned long addr) const;
@@ -207,7 +207,7 @@ class CacheMemory {
      * @param result Pointer to store search result.
      * @return True if found, false otherwise.
      */
-    bool GetEntry(unsigned long addr, CacheLine **result) const;
+    bool GetEntry(unsigned long addr, CacheLine** result) const;
 
     /**
      * @brief Can be used to find a entry that is not valid.
@@ -215,7 +215,7 @@ class CacheMemory {
      * @param result Pointer to store result.
      * @return True if victim is found, false otherwise.
      */
-    bool FindEmptyEntry(unsigned long addr, CacheLine **result) const;
+    bool FindEmptyEntry(unsigned long addr, CacheLine** result) const;
 
     void resetStatistics();
     unsigned long getStatMiss() const;
@@ -235,11 +235,11 @@ class CacheMemory {
     unsigned long indexMask;
     unsigned long tagMask;
 
-    CacheLine **entries;  // matrix [sets x ways]
+    CacheLine** entries;  // matrix [sets x ways]
 
-    ValueType **data;  // matrix [sets x ways]
+    ValueType** data;  // matrix [sets x ways]
 
-    ReplacementPolicy *policy;
+    ReplacementPolicy* policy;
 
     // Statistics
     unsigned long statMiss;
@@ -250,11 +250,10 @@ class CacheMemory {
     inline CacheMemory()
         : statMiss(0), statHit(0), statAcess(0), statEvaction(0) {};
 
-    static CacheMemory *Alocate(unsigned int numIndexBits,
+    static CacheMemory* Alocate(unsigned int numIndexBits,
                                 unsigned int numOffsetBits,
-                                unsigned int associativity,
-                                const char *policy);
-    int SetReplacementPolicy(const char *policyName);
+                                unsigned int associativity, const char* policy);
+    int SetReplacementPolicy(const char* policyName);
 };
 
 #include "cacheMemory.t.hpp"

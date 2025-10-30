@@ -33,12 +33,12 @@ class RoundRobin : public ReplacementPolicy {
     RoundRobin(int numSets, int numWays);
     virtual ~RoundRobin();
 
-    virtual void Acess(CacheLine *entry);
+    virtual void Acess(CacheLine* entry);
     virtual void SelectVictim(unsigned long tag, unsigned long index,
-                              int *resultSet, int *resultWay);
+                              int* resultSet, int* resultWay);
 
   private:
-    int *rrIndex;
+    int* rrIndex;
 };
 
 }  // namespace ReplacementPolicies

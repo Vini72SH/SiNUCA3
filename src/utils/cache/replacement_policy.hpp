@@ -31,9 +31,9 @@ class ReplacementPolicy {
         : numSets(numSets), numWays(numWays) {};
     virtual ~ReplacementPolicy() {};
 
-    virtual void Acess(CacheLine *entry) = 0;
+    virtual void Acess(CacheLine* entry) = 0;
     virtual void SelectVictim(unsigned long tag, unsigned long index,
-                              int *resultSet, int *resultWay) = 0;
+                              int* resultSet, int* resultWay) = 0;
 
   protected:
     int numSets;

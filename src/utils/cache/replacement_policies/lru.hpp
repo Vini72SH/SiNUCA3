@@ -33,12 +33,12 @@ class LRU : public ReplacementPolicy {
     LRU(int numSets, int numWays);
     virtual ~LRU();
 
-    virtual void Acess(CacheLine *entry);
+    virtual void Acess(CacheLine* entry);
     virtual void SelectVictim(unsigned long tag, unsigned long index,
-                              int *resultSet, int *resultWay);
+                              int* resultSet, int* resultWay);
 
   private:
-    unsigned int **WayUsageCounters;
+    unsigned int** WayUsageCounters;
 };
 
 }  // namespace ReplacementPolicies

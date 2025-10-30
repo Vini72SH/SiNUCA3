@@ -55,11 +55,11 @@ class iTLBDebugComponent : public Component<InstructionPacket> {
   public:
     inline iTLBDebugComponent()
         : fetch(NULL), fetchConnectionID(-1), itlb(NULL), waitingFor(0) {
-            this->fetchBuffer.Allocate(2, sizeof(FetchPacket));
-            this->tlbRequestBuffer.Allocate(2, sizeof(Address));
-        }
+        this->fetchBuffer.Allocate(2, sizeof(FetchPacket));
+        this->tlbRequestBuffer.Allocate(2, sizeof(Address));
+    }
 
-        virtual int Configure(Config config);
+    virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
 

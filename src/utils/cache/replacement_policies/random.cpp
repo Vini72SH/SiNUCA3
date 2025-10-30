@@ -33,10 +33,10 @@ Random::Random(int numSets, int numWays) : ReplacementPolicy(numSets, numWays) {
     srand(SEED);
 };
 
-void Random::Acess(CacheLine *entry) { (void)entry; }
+void Random::Acess(CacheLine* entry) { (void)entry; }
 
 void Random::SelectVictim(unsigned long tag, unsigned long index,
-                          int *resultSet, int *resultWay) {
+                          int* resultSet, int* resultWay) {
     (void)tag;
     int random = rand() % this->numWays;
     *resultSet = index;
