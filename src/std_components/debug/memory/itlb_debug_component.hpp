@@ -4,6 +4,8 @@
 #include <cstddef>
 
 #include "engine/component.hpp"
+#include "engine/default_packets.hpp"
+#include "utils/circular_buffer.hpp"
 #ifndef NDEBUG
 
 //
@@ -45,22 +47,25 @@ class iTLBDebugComponent : public Component<InstructionPacket> {
         itlb;   /** @brief iTLB component to test sending requests. */
     int itlbID; /** @brief Connection ID for `itlb`. */
 
-    int waitingFor; /** * @brief Number of pending iTLB requests.
-     *
-     * Can not be more than 2.
-     * Limiting to 1 request causes idle cycles as the TLB waits for the current
-     * request to finish, reducing instruction throughput. Allowing 2 lets requests
-     * overlap for better efficiency.
-     */
+    int waitingFor;
+    CircularBuffer fetchBuffer;
+
+    CircularBuffer tlbRequestBuffer;
 
   public:
     inline iTLBDebugComponent()
-        : fetch(NULL), fetchConnectionID(-1), itlb(NULL), waitingFor(0) {}
+        : fetch(NULL), fetchConnectionID(-1), itlb(NULL), waitingFor(0) {
+            this->fetchBuffer.Allocate(2, sizeof(FetchPacket));
+            this->tlbRequestBuffer.Allocate(2, sizeof(Address));
+        }
 
     virtual int FinishSetup();
     virtual int SetConfigParameter(const char* parameter, ConfigValue value);
     virtual void Clock();
     virtual void PrintStatistics();
+
+    void F0();
+    void F1();
 
     virtual ~iTLBDebugComponent();
 };

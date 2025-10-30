@@ -1,4 +1,5 @@
 #include "std_components/memory/itlb.hpp"
+#include "utils/logging.hpp"
 #ifndef NDEBUG
 
 //
@@ -72,39 +73,60 @@ int iTLBDebugComponent::FinishSetup() {
     return 0;
 }
 
-void iTLBDebugComponent::Clock() {
-    SINUCA3_DEBUG_PRINTF("Clock!\n");
-    Address fakePhysicalAddress;
-    if (this->waitingFor >= 2){
-
-        if(this->itlb->ReceiveResponse(this->itlbID, &fakePhysicalAddress)){
-            SINUCA3_DEBUG_PRINTF("%p: Fetcher stall\n", this);
-            return;  // stall
-        } else {
-            this->waitingFor -= 1;
-        }
-
-    }
-
+void iTLBDebugComponent::F0(){
     FetchPacket packet;
-    packet.request = 0;
-    bool received = false;
-    this->fetch->SendRequest(this->fetchConnectionID, &packet);
-    if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) == 0) {
-        received = true;
-        SINUCA3_DEBUG_PRINTF("%p: Fetched instruction %s\n", this,
+
+    if (!this->fetch->ReceiveResponse(this->fetchConnectionID, &packet)) {
+        this->fetchBuffer.Enqueue(&packet);
+        this->waitingFor -= 1;
+        SINUCA3_DEBUG_PRINTF("%p: F0: Fetched instruction %s\n", this,
                              packet.response.staticInfo->opcodeAssembly);
     }
 
-    if(!received)
-        return;
+    if(this->waitingFor < this->fetchBuffer.GetSize() && !this->fetchBuffer.IsFull()){
+        packet.request = 0;
+        this->fetch->SendRequest(this->fetchConnectionID, &packet);
+        this->waitingFor += 1;
+        SINUCA3_DEBUG_PRINTF("%p: F0: Sending new fetcher request. (%d/%d)\n", this, this->fetchBuffer.GetOccupation(), this->fetchBuffer.GetSize());
+    } else {
+        SINUCA3_DEBUG_PRINTF("%p: F0: NOT sending new fetcher request. (%d/%d)\n", this, this->fetchBuffer.GetOccupation(), this->fetchBuffer.GetSize());
+    }
+}
 
-    Address virtualAddress =
-        static_cast<Address>(packet.response.staticInfo->opcodeAddress);
-    SINUCA3_DEBUG_PRINTF("%p: Sending request %p for itlb\n", this,
-                         (void*)virtualAddress);
-    this->itlb->SendRequest(this->itlbID, &virtualAddress);
-    this->waitingFor += 1;
+void iTLBDebugComponent::F1(){
+    FetchPacket packet;
+    Address fakePhysicalAddress;
+
+    if(this->itlb->ReceiveResponse(this->itlbID, &fakePhysicalAddress)){
+        SINUCA3_DEBUG_PRINTF("%p: F1: Waiting response from iTLB.\n", this);
+    } else {
+        this->tlbRequestBuffer.Dequeue(&fakePhysicalAddress);
+        SINUCA3_DEBUG_PRINTF("%p: F1: Response from itlb received!\n", this);
+    }
+
+    if(!this->tlbRequestBuffer.IsFull() && !this->fetchBuffer.Dequeue(&packet)){
+        Address virtualAddress = static_cast<Address>(packet.response.staticInfo->opcodeAddress);
+        this->itlb->SendRequest(this->itlbID, &virtualAddress);
+        this->tlbRequestBuffer.Enqueue(&virtualAddress);
+        SINUCA3_DEBUG_PRINTF("%p: F1: Sending request %p to itlb.\n", this,
+                             (void*)virtualAddress);
+    } else {
+        if(this->tlbRequestBuffer.IsFull()){
+            SINUCA3_DEBUG_PRINTF("%p: F1: NOT sending request to itlb. Waiting response.\n", this);
+        } else {
+            SINUCA3_DEBUG_PRINTF("%p: F1: NOT sending request to itlb. Cant dequeue new instruction.\n", this);
+        }
+    }
+}
+
+void iTLBDebugComponent::Clock() {
+
+    SINUCA3_DEBUG_PRINTF("%p: iTLBDebugComponent Clock\n", this);
+
+    this->F0();
+    this->F1();
+
+    return;
 }
 
 void iTLBDebugComponent::PrintStatistics() {
