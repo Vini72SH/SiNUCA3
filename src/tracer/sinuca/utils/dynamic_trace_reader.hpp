@@ -55,12 +55,6 @@ class DynamicTraceReader {
     int recordArrayIndex;
     bool reachedEnd;
 
-    bool isThreadAwake;
-    bool isThreadStateUndefined;
-    bool createdThreads;
-    bool destroyedThreads;
-    int idOfChildThread;
-
     int LoadRecordArray();
 
   public:
@@ -77,7 +71,7 @@ class DynamicTraceReader {
     }
 
     int OpenFile(const char* sourceDir, const char* imageName, int tid);
-    ThreadState ReadDynamicRecord();
+    int ReadDynamicRecord();
 
     inline bool ReachedDynamicTraceEnd() {
         return (this->reachedEnd &&
@@ -93,25 +87,29 @@ class DynamicTraceReader {
     inline unsigned long GetTotalExecutedInstructions() {
         return this->header.data.dynamicHeader.totalExecutedInstructions;
     }
-    inline void SetThreadStateUndefined() {
-        this->isThreadStateUndefined = true;
+    inline int GetEventType() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventType;
     }
-    inline int GetIdOfChildThread() {
-        return this->idOfChildThread;
+    inline int GetCreatedThreadId() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventData.thrCreate.tid;
     }
-    inline bool CheckThreadCreation() {
-        if (this->createdThreads) {
-            this->createdThreads = false;
-            return true;
-        }
-        return false;
+    inline bool IsGlobalLock() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventData.lockInfo.isDefaultLock;
     }
-    inline bool CheckThreadDestruction() {
-        if (this->destroyedThreads) {
-            this->destroyedThreads = false;
-            return true;
-        }
-        return false;
+    inline bool IsTestLock() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventData.lockInfo.isTestLock;
+    }
+    inline bool IsNestedLock() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventData.lockInfo.isNestedLock;
+    }
+    inline unsigned long GetLockAddress() {
+        return this->recordArray[this->recordArrayIndex]
+            .data.thrEvent.eventData.lockInfo.lockAddress;
     }
 };
 

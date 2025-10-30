@@ -49,6 +49,20 @@ void TestOmpBarrier() {
     }
 }
 
+void TestOmpLock() {
+    omp_lock_t lock;
+    omp_init_lock(&lock);
+
+#pragma omp parallel
+    {
+        EnableThreadInstrumentation();
+        omp_set_lock(&lock);
+        IterativeFactorial(10);
+        omp_unset_lock(&lock);
+        DisableThreadInstrumentation();
+    }
+}
+
 void TestOmpGlobalCriticalBlock() {
 #pragma omp parallel
     {
@@ -78,8 +92,6 @@ void TestOmpNamedCriticalBlock() {
         DisableThreadInstrumentation();
     }
 }
-
-void TestOmpLock() {}
 
 void TestOmpSingleBlock() {
 #pragma omp parallel
@@ -132,7 +144,7 @@ int main(int argc, char* argv[]) {
     TEST(TestOmpGlobalCriticalBlock)
     TEST(TestOmpNamedCriticalBlock)
     TEST(TestOmpSingleBlock)
-    TEST(TestOmpMasterBlock)
+    TEST(TestOmpLock)
     TEST(TestOmpBarrier)
     TEST(TestOmpFor)
 

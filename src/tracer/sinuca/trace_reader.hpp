@@ -30,6 +30,20 @@
 #include <tracer/trace_reader.hpp>
 
 #include "engine/default_packets.hpp"
+#include "utils/circular_buffer.hpp"
+
+struct Lock {
+    unsigned long addr;
+    bool isBusy;
+    int owner;
+    int recCont;
+
+    CircularBuffer waitingThreadsQueue;
+};
+
+struct Barrier {
+    int thrCont;
+};
 
 struct ThreadData {
     DynamicTraceReader dynFile;
@@ -38,17 +52,18 @@ struct ThreadData {
     unsigned long fetchedInst;       /**<Number of instructions fetched */
     int currentInst; /**<Index of instruction inside basic block. */
     bool isInsideBasicBlock;
+    bool isThreadAwake;
 
     int Allocate(const char* sourceDir, const char* imageName, int tid);
 
     inline ThreadData()
-        : currentBasicBlock(0), currentInst(0), isInsideBasicBlock(0) {}
+        : currentBasicBlock(0), currentInst(0), isInsideBasicBlock(0), isThreadAwake(false) {}
 };
 
 /** @brief Check trace_reader.hpp documentation for details */
 class SinucaTraceReader : public TraceReader {
   private:
-    std::vector<ThreadData*> threadDataVec;
+    ThreadData** threadDataArr;
     StaticTraceReader* staticTrace;
     StaticInstructionInfo** instructionDict;
     StaticInstructionInfo* instructionPool;
@@ -57,11 +72,35 @@ class SinucaTraceReader : public TraceReader {
     int totalStaticInst;
     int totalThreads;
 
+    Lock globalLock;
+    Barrier globalBarrier;
+    std::vector<Lock> privateLockVec;
+    int numberOfActiveThreads;
+
     /**
      * @brief Fill instructions dictionary.
      * @return 1 on failure, 0 otherwise.
      */
     int GenerateInstructionDict();
+    int FetchBasicBlock(int tid);
+    int FetchMemoryData(InstructionPacket *ret, int tid);
+
+    inline void SetNewLock(Lock* lock) {
+        lock->waitingThreadsQueue.Allocate(0, sizeof(int));
+        lock->isBusy = false;
+        lock->recCont = 1;
+        lock->addr = 0;
+    }
+    inline void ResetLock(Lock* lock) {
+        lock->isBusy = false;
+        lock->recCont = 1;
+    }
+    inline void SetNewBarrier(Barrier* barrier) {
+        barrier->thrCont = 0;
+    }
+    inline void ResetBarrier(Barrier* barrier) {
+        barrier->thrCont = 0;
+    }
 
   public:
     inline SinucaTraceReader()
@@ -70,11 +109,12 @@ class SinucaTraceReader : public TraceReader {
           instructionPool(0),
           basicBlockSizeArr(0),
           totalBasicBlocks(0),
-          totalThreads(0) {}
+          totalThreads(0),
+          numberOfActiveThreads(1) {}
     virtual inline ~SinucaTraceReader() {
-        for (unsigned long i = 0; i < this->threadDataVec.size(); ++i) {
-            if (this->threadDataVec[i]) {
-                delete this->threadDataVec[i];
+        for (int i = 0; i < this->totalThreads; ++i) {
+            if (this->threadDataArr[i]) {
+                delete this->threadDataArr[i];
             }
         }
         delete[] this->instructionDict;
@@ -88,10 +128,10 @@ class SinucaTraceReader : public TraceReader {
     virtual void PrintStatistics();
 
     virtual unsigned long GetNumberOfFetchedInst(int tid) {
-        return this->threadDataVec[tid]->fetchedInst;
+        return this->threadDataArr[tid]->fetchedInst;
     }
     virtual unsigned long GetTotalInstToBeFetched(int tid) {
-        return this->threadDataVec[tid]->dynFile.GetTotalExecutedInstructions();
+        return this->threadDataArr[tid]->dynFile.GetTotalExecutedInstructions();
     }
 
     virtual inline int GetTotalThreads() { return this->totalThreads; }
