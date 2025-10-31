@@ -29,10 +29,12 @@
  * A knob is
  */
 
+// #define NDEBUG
+
 #include <sinuca3.hpp>
 
 #include "pin.H"
-#include "tracer/sinuca/file_handler.hpp"
+
 #include "utils/dynamic_trace_writer.hpp"
 #include "utils/memory_trace_writer.hpp"
 #include "utils/static_trace_writer.hpp"
@@ -140,12 +142,10 @@ VOID StopInstrumentation() {
 
 bool WasThreadCreated(THREADID tid) {
     bool wasCreated = (threadDataVec.size() - tid > 0);
-
     if (!wasCreated) {
         SINUCA3_DEBUG_PRINTF("[WasThreadCreated] Thread [%d] not created!\n",
                              tid);
     }
-
     return wasCreated;
 }
 
