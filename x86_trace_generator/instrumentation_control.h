@@ -45,26 +45,4 @@ __attribute__((noinline)) void EndInstrumentationBlock() {
     __asm__ volatile("" :::);
 }
 
-/**
- * @brief Enables thread instrumentation for the current thread. Must be called
- * inside an instrumentation block (i.e., after BeginInstrumentationBlock and
- * before EndInstrumentationBlock).
- */
-/**
- * @brief Enables analysis code execution for the current thread.
- *
- * This function allows the execution of previously inserted instrumentation
- * code (analysis) for the calling thread.
- */
-__attribute__((noinline)) void EnableThreadInstrumentation() {
-    __asm__ volatile("" :::);
-}
-
-/**
- * @brief Disables analysis code execution for the current thread.
- */
-__attribute__((noinline)) void DisableThreadInstrumentation() {
-    __asm__ volatile("" :::);
-}
-
 #endif

@@ -12,8 +12,6 @@ int main() {
 
 #pragma omp parallel
     {
-        EnableThreadInstrumentation();
-
         double x;
         double sum = 0.0;
 #pragma omp for
@@ -25,7 +23,7 @@ int main() {
 #pragma omp critical
         pi += step * sum;
 
-        DisableThreadInstrumentation();
+#pragma omp barrier
     }
 
     EndInstrumentationBlock();

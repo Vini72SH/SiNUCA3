@@ -68,7 +68,8 @@ enum ThreadEventType : uint8_t {
     ThreadEventHaltThread,
     ThreadEventLockRequest,
     ThreadEventUnlockRequest,
-    ThreadEventBarrier
+    ThreadEventBarrier,
+    ThreadEventAbruptEnd
 };
 
 enum MemoryRecordType : uint8_t {

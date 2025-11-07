@@ -75,6 +75,8 @@ class DynamicTraceWriter {
     int AddUnlockEventGlobalLock();
     int AddLockEventGlobalLock();
     int AddBarrierEvent();
+    int AddThreadAbruptEndEvent();
+
     int AddUnlockEventPrivateLock(unsigned long lockAddress, bool isNested);
     int AddLockEventPrivateLock(unsigned long lockAddress, bool isNested,
                                 bool isTest);

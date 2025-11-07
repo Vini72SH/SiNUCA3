@@ -72,6 +72,18 @@ int DynamicTraceWriter::AddThreadHaltEvent() {
     return 0;
 }
 
+int DynamicTraceWriter::AddThreadAbruptEndEvent() {
+    this->SetRecordTypeThreadEvent();
+
+    this->recordArray[this->recordArrayOccupation].data.thrEvent.eventType =
+        ThreadEventAbruptEnd;
+
+    ++this->recordArrayOccupation;
+    if (this->CheckRecordArray()) return 1;
+
+    return 0;
+}
+
 int DynamicTraceWriter::AddThreadCreateEvent(int tid) {
     this->SetRecordTypeThreadEvent();
 
