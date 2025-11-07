@@ -26,7 +26,6 @@
 #include "engine/default_packets.hpp"
 #include "tracer/sinuca/file_handler.hpp"
 #include "tracer/trace_reader.hpp"
-#include "utils/logging.hpp"
 
 int SinucaTraceReader::OpenTrace(const char *imageName, const char *sourceDir) {
     this->staticTrace = new StaticTraceReader;
@@ -54,6 +53,7 @@ int SinucaTraceReader::OpenTrace(const char *imageName, const char *sourceDir) {
     }
 
     this->threadDataArr[0]->isThreadAwake = true;
+    this->reachedAbruptEnd = false;
     this->SetNewLock(&this->globalLock);
     this->SetNewBarrier(&this->globalBarrier);
 
@@ -129,6 +129,9 @@ int SinucaTraceReader::GenerateInstructionDict() {
 }
 
 bool SinucaTraceReader::HasExecutionEnded() {
+    if (this->reachedAbruptEnd) {
+        return true;
+    }
     if (this->threadDataArr[0]->dynFile.ReachedDynamicTraceEnd()) {
         for (int i = 1; i < this->totalThreads; ++i) {
             if (this->threadDataArr[i]->isThreadAwake) {
@@ -181,7 +184,7 @@ FetchResult SinucaTraceReader::Fetch(InstructionPacket *ret, int tid) {
     return FetchResultOk;
 }
 
-int SinucaTraceReader::FetchMemoryData(InstructionPacket* ret, int tid) {
+int SinucaTraceReader::FetchMemoryData(InstructionPacket *ret, int tid) {
     unsigned long arraySize;
     if (this->threadDataArr[tid]->memFile.ReadMemoryOperations()) {
         SINUCA3_ERROR_PRINTF("Failed to read memory operations\n");
@@ -196,14 +199,14 @@ int SinucaTraceReader::FetchMemoryData(InstructionPacket* ret, int tid) {
     arraySize = sizeof(ret->dynamicInfo.readsAddr) / sizeof(unsigned long);
 
     if (this->threadDataArr[tid]->memFile.CopyLoadOperations(
-            ret->dynamicInfo.readsAddr, arraySize,
-            ret->dynamicInfo.readsSize, arraySize)) {
+            ret->dynamicInfo.readsAddr, arraySize, ret->dynamicInfo.readsSize,
+            arraySize)) {
         SINUCA3_ERROR_PRINTF("Failed to copy load operations!\n");
         return 1;
     }
     if (this->threadDataArr[tid]->memFile.CopyStoreOperations(
-            ret->dynamicInfo.writesAddr, arraySize,
-            ret->dynamicInfo.writesSize, arraySize)) {
+            ret->dynamicInfo.writesAddr, arraySize, ret->dynamicInfo.writesSize,
+            arraySize)) {
         SINUCA3_ERROR_PRINTF("Failed to copy store operations!\n");
         return 1;
     }
@@ -222,7 +225,12 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
         }
 
         int eventType = this->threadDataArr[tid]->dynFile.GetEventType();
-        if (eventType == ThreadEventCreateThread) {
+        if (eventType == ThreadEventAbruptEnd) {
+            this->reachedAbruptEnd = true;
+            SINUCA3_WARNING_PRINTF(
+                "Trace reader fetched abrupt end event in thread [%d]!\n", tid);
+            return 1;
+        } else if (eventType == ThreadEventCreateThread) {
             if (tid != 0) {
                 SINUCA3_ERROR_PRINTF(
                     "Thread [%d] is not expected to create new threads!\n",

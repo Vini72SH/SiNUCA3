@@ -30,7 +30,6 @@
 
 #include "engine/default_packets.hpp"
 #include "utils/circular_buffer.hpp"
-#include "utils/logging.hpp"
 
 struct Lock {
     unsigned long addr;
@@ -80,6 +79,7 @@ class SinucaTraceReader : public TraceReader {
     Barrier globalBarrier;
     std::vector<Lock> privateLockVec;
     int numberOfActiveThreads;
+    bool reachedAbruptEnd;
 
     /**
      * @brief Fill instructions dictionary.
@@ -100,8 +100,8 @@ class SinucaTraceReader : public TraceReader {
         lock->isBusy = false;
         lock->recCont = 1;
     }
-    inline void SetNewBarrier(Barrier* barrier) { barrier->thrCont = 0; }
     inline void ResetBarrier(Barrier* barrier) { barrier->thrCont = 0; }
+    inline void SetNewBarrier(Barrier* barrier) { this->ResetBarrier(barrier); }
     inline bool IsThreadSleeping(int tid) {
         return (this->threadDataArr[tid]->isThreadAwake == false);
     }
