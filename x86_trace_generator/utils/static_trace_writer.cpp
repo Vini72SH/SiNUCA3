@@ -75,7 +75,7 @@ int StaticTraceWriter::AddBasicBlockSize(unsigned int basicBlockSize) {
     this->basicBlock[0].data.basicBlockSize = basicBlockSize;
     this->currentBasicBlockSize = basicBlockSize;
 
-    if (this->IsBasicBlockReadyToFlush()) {
+    if (this->IsBasicBlockReadyToBeFlushed()) {
         if (this->FlushBasicBlock()) {
             SINUCA3_ERROR_PRINTF("[1] Failed to flush basic block!\n");
             return 1;
@@ -86,82 +86,7 @@ int StaticTraceWriter::AddBasicBlockSize(unsigned int basicBlockSize) {
     return 0;
 }
 
-int StaticTraceWriter::TranslatePinInst(Instruction* inst, const INS* pinInst) {
-    if (inst == NULL) {
-        SINUCA3_ERROR_PRINTF("TranslatePinInst inst is nil\n");
-        return 1;
-    }
-    if (pinInst == NULL) {
-        SINUCA3_ERROR_PRINTF("TranslatePinInst pinInst is nil\n");
-        return 1;
-    }
-
-    memset(inst, 0, sizeof(*inst));
-
-    std::string mnemonic = INS_Mnemonic(*pinInst);
-    unsigned long size = sizeof(inst->instructionMnemonic) - 1;
-    strncpy(inst->instructionMnemonic, mnemonic.c_str(), size);
-    if (size < mnemonic.size()) {
-        SINUCA3_WARNING_PRINTF("Insufficient space to store inst mnemonic\n");
-    }
-
-    inst->instructionAddress = INS_Address(*pinInst);
-    /* 16, 32 or 64 bits */
-    inst->effectiveAddressWidth = INS_EffectiveAddressWidth(*pinInst);
-    /* at most 15 bytes len (for now) */
-    inst->instructionSize = INS_Size(*pinInst);
-    /* manual flush with CLFLUSH/CLFLUSHOPT/CLWB/WBINVD/INVD */
-    /* or cache coherence induced flush */
-    inst->instCausesCacheLineFlush = INS_IsCacheLineFlush(*pinInst);
-    /* false for any instruction which in practice is a system call */
-    inst->isCallInstruction = INS_IsCall(*pinInst);
-    inst->isSyscallInstruction = INS_IsSyscall(*pinInst);
-    /* i guess its false if inst is a sysret, need to test */
-    inst->isRetInstruction = INS_IsRet(*pinInst);
-    inst->isSysretInstruction = INS_IsSysret(*pinInst);
-    /* false for unconditional branches and calls */
-    inst->instHasFallthrough = INS_HasFallThrough(*pinInst);
-    /* false for any instruction which in practice is a system call */
-    inst->isBranchInstruction = INS_IsBranch(*pinInst);
-    inst->isIndirectCtrlFlowInst = INS_IsIndirectControlFlow(*pinInst);
-    /* field checked before reading from memory trace */
-    inst->instReadsMemory = INS_IsMemoryRead(*pinInst);
-    inst->instWritesMemory = INS_IsMemoryWrite(*pinInst);
-    /* e.g. CMOV */
-    inst->isPredicatedInst = INS_IsPredicated(*pinInst);
-
-    for (unsigned int i = 0; i < INS_OperandCount(*pinInst); ++i) {
-        /* interest only in register operands */
-        if (!INS_OperandIsReg(*pinInst, i)) {
-            continue;
-        }
-
-        unsigned short reg = INS_OperandReg(*pinInst, i);
-        if (INS_OperandRead(*pinInst, i)) {
-            if (inst->rRegsArrayOccupation >= sizeof(inst->readRegsArray)) {
-                SINUCA3_ERROR_PRINTF(
-                    "More registers read than readRegsArray can store\n");
-                return 1;
-            }
-            inst->readRegsArray[inst->rRegsArrayOccupation] = reg;
-            ++inst->rRegsArrayOccupation;
-        }
-        if (INS_OperandWritten(*pinInst, i)) {
-            if (inst->wRegsArrayOccupation >= sizeof(inst->writtenRegsArray)) {
-                SINUCA3_ERROR_PRINTF(
-                    "More registers written than writtenRegsArray can "
-                    "store\n");
-                return 1;
-            }
-            inst->writtenRegsArray[inst->wRegsArrayOccupation] = reg;
-            ++inst->wRegsArrayOccupation;
-        }
-    }
-
-    return 0;
-}
-
-int StaticTraceWriter::AddInstruction(const INS* pinInst) {
+int StaticTraceWriter::AddInstruction(const Instruction* inst) {
     if (this->IsBasicBlockArrayFull()) {
         if (this->ReallocBasicBlock()) {
             SINUCA3_ERROR_PRINTF("[2] Failed to realloc basic block!\n");
@@ -169,17 +94,13 @@ int StaticTraceWriter::AddInstruction(const INS* pinInst) {
         }
     }
 
-    Instruction* inst = &this->basicBlock[this->basicBlockOccupation].data.instruction;
-
     this->basicBlock[this->basicBlockOccupation].recordType =
         StaticRecordInstruction;
-    if (this->TranslatePinInst(inst, pinInst)) {
-        SINUCA3_ERROR_PRINTF("Failed to properly translate instruction!\n");
-    }
+    this->basicBlock[this->basicBlockOccupation].data.instruction = *inst;
 
     ++this->basicBlockOccupation;
 
-    if (this->IsBasicBlockReadyToFlush()) {
+    if (this->IsBasicBlockReadyToBeFlushed()) {
         if (this->FlushBasicBlock()) {
             SINUCA3_ERROR_PRINTF("[2] Failed to flush basic block!\n");
             return 1;

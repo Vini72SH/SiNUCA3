@@ -35,7 +35,9 @@
 
 #include "pin.H"
 
+#include "tracer/sinuca/file_handler.hpp"
 #include "utils/dynamic_trace_writer.hpp"
+#include "utils/logging.hpp"
 #include "utils/memory_trace_writer.hpp"
 #include "utils/static_trace_writer.hpp"
 
@@ -276,6 +278,81 @@ VOID AppendToMemTrace(THREADID tid, PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     PIN_ReleaseLock(&threadAnalysisLock);
 }
 
+int TranslatePinInst(Instruction* inst, const INS* pinInst) {
+    if (inst == NULL) {
+        SINUCA3_ERROR_PRINTF("TranslatePinInst inst is nil\n");
+        return 1;
+    }
+    if (pinInst == NULL) {
+        SINUCA3_ERROR_PRINTF("TranslatePinInst pinInst is nil\n");
+        return 1;
+    }
+
+    memset(inst, 0, sizeof(*inst));
+
+    std::string mnemonic = INS_Mnemonic(*pinInst);
+    unsigned long size = sizeof(inst->instructionMnemonic) - 1;
+    strncpy(inst->instructionMnemonic, mnemonic.c_str(), size);
+    if (size < mnemonic.size()) {
+        SINUCA3_WARNING_PRINTF("Insufficient space to store inst mnemonic\n");
+    }
+
+    inst->instructionAddress = INS_Address(*pinInst);
+    /* 16, 32 or 64 bits */
+    inst->effectiveAddressWidth = INS_EffectiveAddressWidth(*pinInst);
+    /* at most 15 bytes len (for now) */
+    inst->instructionSize = INS_Size(*pinInst);
+    /* manual flush with CLFLUSH/CLFLUSHOPT/CLWB/WBINVD/INVD */
+    /* or cache coherence induced flush */
+    inst->instCausesCacheLineFlush = INS_IsCacheLineFlush(*pinInst);
+    /* false for any instruction which in practice is a system call */
+    inst->isCallInstruction = INS_IsCall(*pinInst);
+    inst->isSyscallInstruction = INS_IsSyscall(*pinInst);
+    /* i guess its false if inst is a sysret, need to test */
+    inst->isRetInstruction = INS_IsRet(*pinInst);
+    inst->isSysretInstruction = INS_IsSysret(*pinInst);
+    /* false for unconditional branches and calls */
+    inst->instHasFallthrough = INS_HasFallThrough(*pinInst);
+    /* false for any instruction which in practice is a system call */
+    inst->isBranchInstruction = INS_IsBranch(*pinInst);
+    inst->isIndirectCtrlFlowInst = INS_IsIndirectControlFlow(*pinInst);
+    /* field checked before reading from memory trace */
+    inst->instReadsMemory = INS_IsMemoryRead(*pinInst);
+    inst->instWritesMemory = INS_IsMemoryWrite(*pinInst);
+    /* e.g. CMOV */
+    inst->isPredicatedInst = INS_IsPredicated(*pinInst);
+
+    for (unsigned int i = 0; i < INS_OperandCount(*pinInst); ++i) {
+        /* interest only in register operands */
+        if (!INS_OperandIsReg(*pinInst, i)) {
+            continue;
+        }
+
+        unsigned short reg = INS_OperandReg(*pinInst, i);
+        if (INS_OperandRead(*pinInst, i)) {
+            if (inst->rRegsArrayOccupation >= sizeof(inst->readRegsArray)) {
+                SINUCA3_ERROR_PRINTF(
+                    "More registers read than readRegsArray can store\n");
+                return 1;
+            }
+            inst->readRegsArray[inst->rRegsArrayOccupation] = reg;
+            ++inst->rRegsArrayOccupation;
+        }
+        if (INS_OperandWritten(*pinInst, i)) {
+            if (inst->wRegsArrayOccupation >= sizeof(inst->writtenRegsArray)) {
+                SINUCA3_ERROR_PRINTF(
+                    "More registers written than writtenRegsArray can "
+                    "store\n");
+                return 1;
+            }
+            inst->writtenRegsArray[inst->wRegsArrayOccupation] = reg;
+            ++inst->wRegsArrayOccupation;
+        }
+    }
+
+    return 0;
+}
+
 /**
  * @brief
  * @note pin already holds VM Lock before calling any instrumentation routine.
@@ -328,7 +405,11 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
         staticTrace->IncBasicBlockCount();
 
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-            if (staticTrace->AddInstruction(&ins)) {
+            static Instruction sinucaInstruction;
+            if (TranslatePinInst(&sinucaInstruction, &ins)) {
+                SINUCA3_ERROR_PRINTF("[OnTrace] Failed to translate ins\n");
+            }
+            if (staticTrace->AddInstruction(&sinucaInstruction)) {
                 SINUCA3_ERROR_PRINTF("[OnTrace] Failed to add instruction to file\n");
             }
             /*

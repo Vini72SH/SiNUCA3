@@ -26,8 +26,6 @@
 #include <cstdlib>
 #include <tracer/sinuca/file_handler.hpp>
 
-#include "pin.H"
-
 /** @brief Check static_trace_writer.hpp documentation for details */
 class StaticTraceWriter {
   private:
@@ -45,7 +43,6 @@ class StaticTraceWriter {
 
     int FlushBasicBlock();
     int ReallocBasicBlock();
-    int TranslatePinInst(Instruction* inst, const INS* pinInst);
 
   public:
     inline StaticTraceWriter()
@@ -71,10 +68,10 @@ class StaticTraceWriter {
     }
 
     int OpenFile(const char* sourceDir, const char* imageName);
-    int AddInstruction(const INS* pinInst);
+    int AddInstruction(const Instruction* inst);
     int AddBasicBlockSize(unsigned int basicBlockSize);
 
-    inline int IsBasicBlockReadyToFlush() {
+    inline int IsBasicBlockReadyToBeFlushed() {
         return (this->currentBasicBlockSize == this->basicBlockOccupation - 1);
     }
     inline int WasBasicBlockReset() {
