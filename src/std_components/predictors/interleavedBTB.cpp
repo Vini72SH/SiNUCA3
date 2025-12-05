@@ -21,6 +21,8 @@
 #include <cstdio>
 #include <sinuca3.hpp>
 
+#include "utils/logging.hpp"
+
 BTBEntry::BTBEntry()
     : valid(false),
       numBanks(0),
@@ -130,9 +132,10 @@ int BranchTargetBuffer::Configure(Config config) {
     if (config.ComponentReference("sendTo", &this->sendTo)) return 1;
     if (this->sendTo != NULL) this->sendToID = this->sendTo->Connect(0);
 
-    this->interleavingBits = floor(log(this->interleavingFactor));
-    this->entriesBits = floor(log(this->numEntries));
+    this->interleavingBits = floor(log2(this->interleavingFactor));
+    this->entriesBits = floor(log2(this->numEntries));
     this->interleavingFactor = (1 << this->interleavingBits);
+    this->numEntries = (1 << this->entriesBits);
     this->btb = new BTBEntry*[this->numEntries];
 
     for (unsigned int i = 0; i < this->numEntries; ++i) {
@@ -264,16 +267,32 @@ void BranchTargetBuffer::Clock() {
         while (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             switch (packet.type) {
                 case BTBPacketTypeRequestQuery:
+                    SINUCA3_DEBUG_PRINTF(
+                        "[BranchTargetBuffer] %p: consulting instruction [%lx] "
+                        "%s\n",
+                        this, packet.data.requestQuery->opcodeAddress,
+                        packet.data.requestQuery->opcodeAssembly);
                     this->Query(packet.data.requestQuery, i);
                     break;
+
                 case BTBPacketTypeRequestAddEntry:
+                    SINUCA3_DEBUG_PRINTF(
+                        "[BranchTargetBuffer] %p: adding entry [%lx] %s\n",
+                        this, packet.data.requestQuery->opcodeAddress,
+                        packet.data.requestQuery->opcodeAssembly);
                     this->AddEntry(packet.data.requestAddEntry.instruction,
                                    packet.data.requestAddEntry.target);
                     break;
+
                 case BTBPacketTypeRequestUpdate:
+                    SINUCA3_DEBUG_PRINTF(
+                        "[BranchTargetBuffer] %p: updating [%lx] %s\n", this,
+                        packet.data.requestQuery->opcodeAddress,
+                        packet.data.requestQuery->opcodeAssembly);
                     this->Update(packet.data.requestUpdate.instruction,
                                  packet.data.requestUpdate.branchState);
                     break;
+
                 case BTBPacketTypeResponseBTBHit:
                 case BTBPacketTypeResponseBTBMiss:
                     SINUCA3_WARNING_PRINTF(
