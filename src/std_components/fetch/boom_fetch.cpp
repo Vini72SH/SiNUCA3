@@ -40,15 +40,15 @@ int BoomFetch::Configure(Config config) {
     if (this->misspredictPenalty <= 0)
         return config.Error("misspredictPenalty", "not > 0");
 
-    if (config.Integer("fetchInterval", (long*)&this->fetchInterval, true))
-        return 1;
+    if (config.Integer("fetchInterval", (long*)&this->fetchInterval)) return 1;
     if (this->fetchInterval <= 0)
         return config.Error("fetchInterval", "not > 0");
 
-    if (config.Integer("fetchSize", (long*)&this->fetchSize, true)) return 1;
+    if (config.Integer("fetchSize", (long*)&this->fetchSize)) return 1;
     if (this->fetchSize <= 0) return config.Error("fetchSize", "not > 0");
 
-    if (config.ComponentReference("predictor", &this->predictor)) return 1;
+    if (config.ComponentReference("predictor", &this->predictor, true))
+        return 1;
     if (config.ComponentReference("instructionMemory", &this->instructionMemory,
                                   true))
         return 1;
@@ -76,8 +76,8 @@ int BoomFetch::Configure(Config config) {
 
     this->fetchBuffer = new BoomFetchBufferEntry[this->fetchSize];
 
-    this->flagsToCheck = BoomFetchBufferEntryFlagsSentToMemory;
-    this->flagsToCheck |= BoomFetchBufferEntryFlagsPredictorCheck;
+    this->flagsToCheck = BoomFetchBufferEntryFlagsSentToMemory |
+                         BoomFetchBufferEntryFlagsPredictorCheck;
 
     return 0;
 }
@@ -370,18 +370,26 @@ void BoomFetch::ClockFetch() {
 }
 
 void BoomFetch::Clock() {
-    if (this->currentPenalty > 0) {
-        --this->currentPenalty;
-        return;
-    }
-
     this->ClockSendBuffered();
     const int predictionResult = this->ClockCheckPredictor();
     const int rasResult = this->ClockCheckRas();
     const int btbResult = this->ClockCheckBTB();
     this->ClockUnbuffer();
 
-    if (((predictionResult != 0) || (rasResult != 0)) || (btbResult != 0)) {
+    bool forceFetch = false;
+    // If paying a misspredict penalty.
+    if (this->currentPenalty > 0) {
+        --this->currentPenalty;
+        // In the last cycle of paying the prediction, we need to force fetching
+        // new instructions.
+        if (this->currentPenalty > 0) return;
+        forceFetch = true;
+    }
+
+    // Don't fetch if a misspredict happened. The fetchClock is set to 0 so when
+    // the missprediction is paid, we start fetching immediatly.
+    if (!forceFetch && predictionResult == 0 && rasResult == 0 &&
+        btbResult == 0) {
         ++this->misspredictions;
         this->currentPenalty = this->misspredictPenalty;
         this->fetchClock = 0;

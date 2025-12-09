@@ -141,6 +141,7 @@ class BoomFetch : public Component<FetchPacket> {
           instructionMemory(NULL),
           btb(NULL),
           ras(NULL),
+          predictor(NULL),
           fetchBuffer(NULL),
           fetchBufferUsage(0),
           fetchSize(1),

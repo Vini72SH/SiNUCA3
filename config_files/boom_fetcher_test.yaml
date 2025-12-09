@@ -1,12 +1,14 @@
-instantiate:
+fetcher: &fetcher
   class: BoomFetch
   fetch: *ENGINE
   fetchSize: 16
   fetchInterval: 4
   misspredictPenalty: 12
-  interleavingFactor: 1
-  numberOfEntries: 1024
-  size: 1024
+  btb:
+    interleavingFactor: 1
+    numberOfEntries: 1024
+  ras:
+    size: 1024
   instructionMemory:
     class: SimpleInstructionMemory
     sendTo:
@@ -19,4 +21,3 @@ instantiate:
     uncond: false
     cond: false
     noBranch: false
-  
