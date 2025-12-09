@@ -31,9 +31,9 @@ const unsigned int TRACE_LINE_SIZE = 256;
 
 /** @brief Enumerates the types of branches. */
 enum Branch {
+    BranchReturn,
     BranchSyscall,
     BranchCall,
-    BranchReturn,
     BranchUncond,
     BranchCond
 };
@@ -98,8 +98,8 @@ struct DynamicInstructionInfo {
 struct InstructionPacket {
     const StaticInstructionInfo* staticInfo;
     DynamicInstructionInfo dynamicInfo;
-    long nextInstruction; /** @brief The engine fills this as it buffers the
-                             next instruction. */
+    unsigned long nextInstruction; /** @brief The engine fills this as it
+                             buffers the next instruction. */
 };
 
 /**
@@ -132,7 +132,8 @@ typedef unsigned long MemoryPacket;
  */
 enum PredictorPacketType {
     PredictorPacketTypeRequestQuery,
-    PredictorPacketTypeRequestUpdate,
+    PredictorPacketTypeRequestTargetUpdate,
+    PredictorPacketTypeRequestDirectionUpdate,
     PredictorPacketTypeResponseUnknown,
     PredictorPacketTypeResponseTake,
     PredictorPacketTypeResponseTakeToAddress,
