@@ -26,6 +26,8 @@
 #include <cstring>
 #include <sinuca3.hpp>
 
+#include "engine/default_packets.hpp"
+
 int HardwiredPredictor::Configure(Config config) {
     if (config.Bool("syscall", &this->syscall)) return 1;
     if (config.Bool("call", &this->call)) return 1;
@@ -41,7 +43,9 @@ int HardwiredPredictor::Configure(Config config) {
 }
 
 void HardwiredPredictor::Respond(int id, PredictorPacket request) {
-    if (request.type == PredictorPacketTypeRequestUpdate) return;
+    if (request.type == PredictorPacketTypeRequestTargetUpdate ||
+        request.type == PredictorPacketTypeRequestDirectionUpdate)
+        return;
     const InstructionPacket instruction = request.data.requestQuery;
     bool predict = true;
 

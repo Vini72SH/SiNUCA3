@@ -132,7 +132,8 @@ typedef unsigned long MemoryPacket;
  */
 enum PredictorPacketType {
     PredictorPacketTypeRequestQuery,
-    PredictorPacketTypeRequestUpdate,
+    PredictorPacketTypeRequestTargetUpdate,
+    PredictorPacketTypeRequestDirectionUpdate,
     PredictorPacketTypeResponseUnknown,
     PredictorPacketTypeResponseTake,
     PredictorPacketTypeResponseTakeToAddress,

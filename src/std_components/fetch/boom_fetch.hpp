@@ -19,12 +19,8 @@
 //
 
 #include <sinuca3.hpp>
-
-#include "config/config.hpp"
-#include "engine/component.hpp"
-#include "engine/default_packets.hpp"
-#include "std_components/predictors/interleavedBTB.hpp"
-#include "std_components/predictors/ras.hpp"
+#include <std_components/predictors/interleavedBTB.hpp>
+#include <std_components/predictors/ras.hpp>
 
 /**
  * @brief Enum for flags for the fetch buffer of the fetcher.
@@ -118,19 +114,6 @@ class BoomFetch : public Component<FetchPacket> {
    instruction was predicted. If there's no predictor, we
    don't need to check anything >*/
 
-    /** @brief Helper to set the fetch config parameter. */
-    int FetchConfigParameter(ConfigValue value);
-    /** @brief Helper to set the instruction memory config parameter. */
-    int InstructionMemoryConfigParameter(ConfigValue value);
-    /** @brief Helper to set the Predictor config parameter. */
-    int PredictorConfigParameter(ConfigValue value);
-    /** @brief Helper to set the fetch size config parameter. */
-    int FetchSizeConfigParameter(ConfigValue value);
-    /** @brief Helper to set the fetch interval config parameter. */
-    int FetchIntervalConfigParameter(ConfigValue value);
-    /** @brief Helper to set the missprediction penalty config parameter. */
-    int MisspredictPenaltyConfigParameter(ConfigValue value);
-
     /** @brief Helper for sending instructions to the RAS. */
     bool SentToRas(unsigned long i);
     /** @brief Helper for sending instructions to the RAS. */
@@ -174,8 +157,7 @@ class BoomFetch : public Component<FetchPacket> {
           rasID(-1),
           flagsToCheck(BoomFetchBufferEntryFlagsSentToMemory) {}
 
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
-    virtual int FinishSetup();
+    virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
     virtual ~BoomFetch();

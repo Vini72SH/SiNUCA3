@@ -285,10 +285,7 @@ class BranchTargetBuffer : public Component<struct BTBPacket> {
   public:
     BranchTargetBuffer();
 
-    virtual int SetConfigParameter(const char* parameter, ConfigValue value);
-
-    virtual int FinishSetup();
-
+    virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();
 

@@ -25,161 +25,47 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdio>
+#include <sinuca3.hpp>
+#include <std_components/predictors/interleavedBTB.hpp>
 
-#include "config/config.hpp"
-#include "engine/component.hpp"
-#include "engine/default_packets.hpp"
-#include "std_components/predictors/interleavedBTB.hpp"
-#include "utils/logging.hpp"
+#include "utils/map.hpp"
 
-int BoomFetch::FetchConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->fetch = dynamic_cast<Component<FetchPacket>*>(
-            value.value.componentReference);
-        if (this->fetch != NULL) {
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `fetch` is not a Component<FetchPacket>.\n");
-    return 1;
-}
+int BoomFetch::Configure(Config config) {
+    this->btb = new BranchTargetBuffer;
+    this->ras = new Ras;
 
-int BoomFetch::InstructionMemoryConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->instructionMemory = dynamic_cast<Component<InstructionPacket>*>(
-            value.value.componentReference);
-        if (this->instructionMemory != NULL) {
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `instructionMemory` is not a "
-        "Component<InstructionPacket>.\n");
-    return 1;
-}
-
-int BoomFetch::PredictorConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeComponentReference) {
-        this->predictor = dynamic_cast<Component<PredictorPacket>*>(
-            value.value.componentReference);
-        if (this->predictor != NULL) {
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `predictor` is not a "
-        "Component<PredictorPacket>.\n");
-
-    return 1;
-}
-
-int BoomFetch::FetchSizeConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->fetchSize = value.value.integer;
-            return 0;
-        }
-    }
-
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `fetchSize` is not a integer > 0.\n");
-    return 1;
-}
-
-int BoomFetch::FetchIntervalConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->fetchInterval = value.value.integer;
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `fetchInterval` is not a integer > 0.\n");
-    return 1;
-}
-
-int BoomFetch::MisspredictPenaltyConfigParameter(ConfigValue value) {
-    if (value.type == ConfigValueTypeInteger) {
-        if (value.value.integer > 0) {
-            this->misspredictPenalty = value.value.integer;
-            return 0;
-        }
-    }
-    SINUCA3_ERROR_PRINTF(
-        "Boom Fetch parameter `misspredictPenalty` is not a integer > 0.\n");
-    return 1;
-}
-
-int BoomFetch::SetConfigParameter(const char* parameter, ConfigValue value) {
-    if (this->btb == NULL) {
-        this->btb = new BranchTargetBuffer;
-    }
-
-    if (this->ras == NULL) {
-        this->ras = new Ras;
-    }
-
-    if (strcmp(parameter, "fetch") == 0) {
-        return this->FetchConfigParameter(value);
-    } else if (strcmp(parameter, "instructionMemory") == 0) {
-        return this->InstructionMemoryConfigParameter(value);
-    } else if (strcmp(parameter, "fetchSize") == 0) {
-        return this->FetchSizeConfigParameter(value);
-    } else if (strcmp(parameter, "fetchInterval") == 0) {
-        return this->FetchIntervalConfigParameter(value);
-    } else if (strcmp(parameter, "predictor") == 0) {
-        return this->PredictorConfigParameter(value);
-    } else if (strcmp(parameter, "misspredictPenalty") == 0) {
-        return this->MisspredictPenaltyConfigParameter(value);
-    } else if (strcmp(parameter, "interleavingFactor") == 0) {
-        return this->btb->SetConfigParameter(parameter, value);
-    } else if (strcmp(parameter, "numberOfEntries") == 0) {
-        return this->btb->SetConfigParameter(parameter, value);
-    } else if (strcmp(parameter, "size") == 0) {
-        return this->ras->SetConfigParameter(parameter, value);
-    }
-
-    SINUCA3_ERROR_PRINTF("Boom Fetch received unknown parameter %s.\n",
-                         parameter);
-
-    return 1;
-}
-
-void binprintf(int v) {
-    unsigned int mask = 1 << ((sizeof(int) << 3) - 1);
-    while (mask) {
-        printf("%d", (v & mask ? 1 : 0));
-        mask >>= 1;
-    }
-    printf("\n");
-}
-
-int BoomFetch::FinishSetup() {
-    if (this->fetch == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Boom Fetch didn't received required parameter `fetch`.\n");
+    if (config.Integer("misspredictPenalty", (long*)&this->misspredictPenalty,
+                       true))
         return 1;
-    }
+    if (this->misspredictPenalty <= 0)
+        return config.Error("misspredictPenalty", "not > 0");
 
-    if (this->instructionMemory == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Boom Fetch didn't received required parameter "
-            "`instructionMemory`.\n");
+    if (config.Integer("fetchInterval", (long*)&this->fetchInterval, true))
         return 1;
-    }
+    if (this->fetchInterval <= 0)
+        return config.Error("fetchInterval", "not > 0");
 
-    if (this->btb == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Boom Fetch didn't received required parameter `btb`.\n");
-        return 1;
-    }
+    if (config.Integer("fetchSize", (long*)&this->fetchSize, true)) return 1;
+    if (this->fetchSize <= 0) return config.Error("fetchSize", "not > 0");
 
-    if (this->ras == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Boom Fetch didn't received required parameter `ras`.\n");
+    if (config.ComponentReference("predictor", &this->predictor)) return 1;
+    if (config.ComponentReference("instructionMemory", &this->instructionMemory,
+                                  true))
         return 1;
-    }
+    if (config.ComponentReference("fetch", &this->fetch, true)) return 1;
+
+    Map<yaml::YamlValue>* yaml = config.RawYaml();
+    yaml::YamlValue* btbConfigYaml = yaml->Get("btb");
+    yaml::YamlValue* rasConfigYaml = yaml->Get("ras");
+
+    Config btbConfig;
+    Config rasConfig;
+    if (config.Fork(btbConfigYaml, &btbConfig))
+        return config.Error("btb", "not a mapping");
+    if (config.Fork(rasConfigYaml, &rasConfig))
+        return config.Error("ras", "not a mapping");
+    if (btb->Configure(btbConfig)) return 1;
+    if (ras->Configure(rasConfig)) return 1;
 
     this->fetchID = this->fetch->Connect(this->fetchSize);
     this->instructionMemoryID =
@@ -193,15 +79,16 @@ int BoomFetch::FinishSetup() {
     this->flagsToCheck = BoomFetchBufferEntryFlagsSentToMemory;
     this->flagsToCheck |= BoomFetchBufferEntryFlagsPredictorCheck;
 
-    if (this->btb->FinishSetup()) {
-        return 1;
-    }
-
-    if (this->ras->FinishSetup()) {
-        return 1;
-    }
-
     return 0;
+}
+
+void binprintf(int v) {
+    unsigned int mask = 1 << ((sizeof(int) << 3) - 1);
+    while (mask) {
+        printf("%d", (v & mask ? 1 : 0));
+        mask >>= 1;
+    }
+    printf("\n");
 }
 
 bool BoomFetch::SentToRas(unsigned long i) {
@@ -212,10 +99,10 @@ bool BoomFetch::SentToRas(unsigned long i) {
          * We found a call instruction and want to insert its target into
          * the ras.
          */
-        rasPacket.type = PredictorPacketTypeRequestUpdate;
-        rasPacket.data.requestUpdate.instruction =
+        rasPacket.type = PredictorPacketTypeRequestTargetUpdate;
+        rasPacket.data.targetUpdate.instruction =
             this->fetchBuffer[i].instruction;
-        rasPacket.data.requestUpdate.target =
+        rasPacket.data.targetUpdate.target =
             this->fetchBuffer[i].instruction.nextInstruction;
         this->ras->SendRequest(this->rasID, &rasPacket);
 
@@ -319,7 +206,7 @@ int BoomFetch::ClockCheckPredictor() {
     while (this->predictor->ReceiveResponse(this->predictorID, &response) ==
            0) {
         assert(this->fetchBuffer[i].instruction.staticInfo ==
-               response.data.response.instruction.staticInfo);
+               response.data.targetResponse.instruction.staticInfo);
         unsigned long target =
             this->fetchBuffer[i].instruction.staticInfo->opcodeAddress +
             this->fetchBuffer[i].instruction.staticInfo->opcodeSize;
@@ -331,7 +218,7 @@ int BoomFetch::ClockCheckPredictor() {
          * expect the instruction to be at the next logical PC.
          */
         if (response.type == PredictorPacketTypeResponseTakeToAddress) {
-            target = response.data.response.target;
+            target = response.data.targetResponse.target;
         }
 
         /* If a missprediction happened. */
@@ -355,10 +242,11 @@ int BoomFetch::ClockCheckRas() {
     this->ras->PosClock();
 
     while (this->ras->ReceiveResponse(this->rasID, &response) == 0) {
-        target = response.data.response.target;
+        target = response.data.targetResponse.target;
 
         /* The return address does not match the next address */
-        if (response.data.response.instruction.nextInstruction != target) {
+        if (response.data.targetResponse.instruction.nextInstruction !=
+            target) {
             return 1;
         }
     }

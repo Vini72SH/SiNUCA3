@@ -225,18 +225,6 @@ class Linkable {
     bool IsConnectionAvailable(int connectionID);
 
     /**
-     * @brief This method should be declared here so the simulator can send the
-     * finish setup message.
-     * @details This method is called after the config file is and all
-     * parameters are set, so to finish any setup required by the component.
-     * Non-zero should be returned if any problem occurred (e.g., a required
-     * configuration parameter was not provided). The component is responsible
-     * for printing a proper error message describing what happened.
-     * @returns Non-zero on error, 0 otherwise.
-     */
-    virtual int FinishSetup() = 0;
-
-    /**
      * @brief This method should be declared here so the simulator can send
      * config parameters.
      * @details This method is called if the config file defines a configuration

@@ -21,8 +21,6 @@
 #include <cstdio>
 #include <sinuca3.hpp>
 
-#include "utils/logging.hpp"
-
 BTBEntry::BTBEntry()
     : valid(false),
       numBanks(0),
@@ -109,7 +107,7 @@ BranchTargetBuffer::BranchTargetBuffer()
       totalBranch(0),
       queries(0),
       occupation(0),
-      replacements(0){};
+      replacements(0) {};
 
 int BranchTargetBuffer::Configure(Config config) {
     long interleavingFactor;

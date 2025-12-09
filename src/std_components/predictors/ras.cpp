@@ -71,7 +71,7 @@ void Ras::Clock() {
                     ++this->numQueries;
                     this->RequestQuery(packet.data.requestQuery, i);
                     break;
-                case PredictorPacketTypeRequestUpdate:
+                case PredictorPacketTypeRequestTargetUpdate:
                     ++this->numUpdates;
                     this->RequestUpdate(packet.data.targetUpdate.target);
                     break;
@@ -108,7 +108,7 @@ int TestRas() {
     ras.PosClock();
 
     PredictorPacket msg;
-    msg.type = PredictorPacketTypeRequestUpdate;
+    msg.type = PredictorPacketTypeRequestTargetUpdate;
 
     ras.Clock();
     msg.data.targetUpdate.target = 0xcafebabe;
@@ -151,7 +151,7 @@ int TestRas() {
     ras.PosClock();
 
     ras.Clock();
-    msg.type = PredictorPacketTypeRequestUpdate;
+    msg.type = PredictorPacketTypeRequestTargetUpdate;
     msg.data.targetUpdate.target = 0xb16b00b5;
     ras.SendRequest(id, &msg);
     ras.PosClock();
