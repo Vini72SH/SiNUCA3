@@ -101,6 +101,11 @@ int StaticTraceWriter::AddStaticRecord(StaticTraceRecord record, int pos) {
 int StaticTraceWriter::AddBasicBlockSize(unsigned int basicBlockSize) {
     if (!this->WasBasicBlockReset()) {
         SINUCA3_ERROR_PRINTF("Basic block control variables were not reset!\n");
+        return 1;
+    }
+    if (basicBlockSize == 0) {
+        SINUCA3_ERROR_PRINTF("Basic block size is not expected to be 0!\n");
+        return 1;
     }
 
     StaticTraceRecord record;
@@ -113,6 +118,11 @@ int StaticTraceWriter::AddBasicBlockSize(unsigned int basicBlockSize) {
 }
 
 int StaticTraceWriter::AddInstruction(const Instruction* inst) {
+    if (inst == NULL) {
+        SINUCA3_ERROR_PRINTF("Instruction pointer is nil!\n");
+        return 1;
+    }
+
     StaticTraceRecord record;
 
     record.recordType = StaticRecordInstruction;

@@ -44,7 +44,7 @@ class StaticTraceWriter {
     StaticTraceRecord* basicBlock; /**<Current basic block. */
     int basicBlockArraySize;       /**<Current size of the buffer. */
     int basicBlockOccupation;
-    int currentBasicBlockSize;
+    int currentBasicBlockSize;     /**<Number of instructions in the bbl. */
 
     inline void ResetBasicBlock() {
         this->basicBlockOccupation = 1;

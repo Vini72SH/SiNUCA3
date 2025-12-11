@@ -37,7 +37,6 @@
 
 #include <sinuca3.hpp>
 
-#include "engine/default_packets.hpp"
 #include "pin.H"
 #include "tracer/sinuca/file_handler.hpp"
 #include "utils/dynamic_trace_writer.hpp"
@@ -109,7 +108,7 @@ struct ThreadData {
 std::vector<ThreadData*> threadDataVec;
 
 struct IntrinsicInfo {
-    char name[INST_MNEMONIC_LEN];
+    char name[INST_MNEMONIC_LEN - 1];
     char loaderName[INST_MNEMONIC_LEN + sizeof("__Loader")];  // Cache.
     REG read[MAX_REGISTERS];
     REG write[MAX_REGISTERS];
@@ -198,8 +197,6 @@ VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
             "[OnThreadStart] Failed to open memory trace file\n");
     }
 
-    threadData->isThreadActive = (tid == 0);
-
     PIN_GetLock(&threadAnalysisLock, tid);
     SINUCA3_DEBUG_PRINTF("[OnThreadStart] thread id [%d]\n", tid);
     threadData->isInstrumentating = isInstrumentating;
@@ -243,17 +240,6 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bblId, UINT32 numInst) {
     if (threadDataVec[tid]->dynamicTrace.AddBasicBlockId(bblId)) {
         SINUCA3_ERROR_PRINTF(
             "[AppendToDynamicTrace] Failed to add basic block id to file\n");
-    }
-
-    /*
-     * Detect thread being reused. The parent thread is always 0 because
-     * currently there is no support for nested threads.
-     */
-    if (!threadDataVec[tid]->isThreadActive) {
-        PIN_GetLock(&threadAnalysisLock, tid);
-        threadDataVec[0]->dynamicTrace.AddThreadCreateEvent(tid);
-        threadDataVec[tid]->isThreadActive = true;
-        PIN_ReleaseLock(&threadAnalysisLock);
     }
 }
 
@@ -389,22 +375,21 @@ IntrinsicInfo* GetIntrinsicInfo(const INS* ins) {
 
 int IntrinsicToSinucaInst(const INS* originalCall, IntrinsicInfo* info,
                           Instruction* inst) {
-    memset(&this->data, 0, sizeof(this->data));
+    memset(inst, 0, sizeof(*inst));
 
-    bool read = info->numReadRegs >= 1;    // nao entendi
-    bool read2 = info->numReadRegs >= 2;   // nao entendi
-    bool write = info->numWriteRegs >= 1;  // nao entendi
+    // bool read = info->numReadRegs >= 1;
+    // bool read2 = info->numReadRegs >= 2;
+    // bool write = info->numWriteRegs >= 1;
 
     unsigned long size = sizeof(inst->instructionMnemonic) - 1;
     strncpy(inst->instructionMnemonic, info->name, size);
-    if (size < mnemonic.size()) {
+    if (size < strlen(info->name)) {
         SINUCA3_WARNING_PRINTF(
-            "[IntrinsicToSinucaInst] Insufficient space to store inst "
-            "mnemonic\n");
+            "[IntrinsicToSinucaInst] Insufficient space to store mnemonic\n");
     }
 
-    this->inst.instructionAddress = INS_Address(*originalCall);
-    this->inst.instructionSize = INS_Size(*originalCall);
+    inst->instructionAddress = INS_Address(*originalCall);
+    inst->instructionSize = INS_Size(*originalCall);
     // esses campos nao existem mais // this->data.isRead = read;
     // esses campos nao existem mais // this->data.isRead2 = read2;
     // esses campos nao existem mais // this->data.isWrite = write;
@@ -412,7 +397,7 @@ int IntrinsicToSinucaInst(const INS* originalCall, IntrinsicInfo* info,
     // outros campos nao preenchidos
 
     const unsigned long readRegsArraySize =
-        sizeof(inst->readRegsArray) / sizeof(*inst.readRegsArray);
+        sizeof(inst->readRegsArray) / sizeof(*inst->readRegsArray);
     if (readRegsArraySize < info->numReadRegs) {
         SINUCA3_WARNING_PRINTF(
             "[IntrinsicToSinucaInst] Insufficient space to store read regs\n");
@@ -430,6 +415,8 @@ int IntrinsicToSinucaInst(const INS* originalCall, IntrinsicInfo* info,
     }
     memcpy(inst->writtenRegsArray, info->write,
            info->numWriteRegs * sizeof(*info->write));
+
+    return 0;
 }
 
 VOID OnTrace(TRACE trace, VOID* ptr) {
@@ -497,8 +484,15 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
             bool isIntrinsic = (intrinsic != NULL);
 
             if (isIntrinsic) {
-                IntrinsicToSinucaInst(originalCall, info, &sinucaInst);
-            } else if (TranslatePinInst(&sinucaInst, &ins)) {
+                IntrinsicToSinucaInst(&ins, intrinsic, &sinucaInst);
+                if (staticTrace->AddInstruction(&sinucaInst)) {
+                    SINUCA3_ERROR_PRINTF(
+                        "[OnTrace] Failed to add intrinsic to file\n");
+                }
+                continue;
+            }
+
+            if (TranslatePinInst(&sinucaInst, &ins)) {
                 SINUCA3_ERROR_PRINTF("[OnTrace] Failed to translate ins\n");
             }
 
@@ -507,8 +501,7 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
                     "[OnTrace] Failed to add instruction to file\n");
             }
 
-            if (isIntrinsic ||
-                !INS_IsMemoryRead(ins) && !INS_IsMemoryWrite(ins)) {
+            if (!INS_IsMemoryRead(ins) && !INS_IsMemoryWrite(ins)) {
                 continue;
             }
             /*
@@ -596,12 +589,12 @@ static inline REG RegisterNameToREG(const char* name) {
 
 static inline void SetRegistersInIntrinsicsInfo(REG* arr, unsigned char* num,
                                                 char* str) {
-    char* sections[sinucaTracer::MAX_REG_OPERANDS];
-    *num = SeparateStringInSections(str, ',', sections,
-                                    sinucaTracer::MAX_REG_OPERANDS);
-    for (unsigned char i = 0; i < *num; ++i) {
-        arr[i] = RegisterNameToREG(sections[i]);
-    }
+    // char* sections[sinucaTracer::MAX_REG_OPERANDS];
+    // *num = SeparateStringInSections(str, ',', sections,
+    //                                 sinucaTracer::MAX_REG_OPERANDS);
+    // for (unsigned char i = 0; i < *num; ++i) {
+    //     arr[i] = RegisterNameToREG(sections[i]);
+    // }
 }
 
 VOID LoadIntrinsics() {
@@ -632,8 +625,8 @@ VOID LoadIntrinsics() {
 
         // Copy the name.
         unsigned int nameSize = strlen(name);
-        if (nameSize > sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH)
-            nameSize = sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH - 1;
+        // if (nameSize > sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH)
+        //     nameSize = sinucaTracer::MAX_INSTRUCTION_NAME_LENGTH - 1;
         memcpy(&i->name[0], name, nameSize + 1);
         strcpy(&i->loaderName[0], "__");
         strcat(&i->loaderName[0], &i->name[0]);
@@ -651,25 +644,33 @@ VOID LoadIntrinsics() {
     }
 }
 
-VOID OnThreadLifeEvent(THREADID tid, bool isCreation) {
+VOID OnThreadLifeSpanEvent(THREADID tid, bool isCreation) {
     if (!WasThreadCreated(tid)) return;
 
     SINUCA3_DEBUG_PRINTF("[OnThreadCreationEvent] Thread id [%d]\n", tid);
 
     if (isCreation) {
-        /* Check if thread 0 is spawning threads. There is no support for nested
-         * parallelism. */
+        /* There is no support for nested parallelism. The number of threads
+         * is currently fixed because I still dk how to get this number. */
         if (tid != 0) {
             SINUCA3_ERROR_PRINTF(
-                "[OnThreadCreationEvent] Thr id [%d] is not zero!\n", tid);
+                "[OnThreadCreationEvent] Thr id [%d] is not supposed to spawn "
+                "threads!\n",
+                tid);
         } else {
-            threadDataVec[0]->dynamicTrace.AddThreadDestructionEvent();
+            threadDataVec[0]->dynamicTrace.AddThreadCreateEvent();
         }
     } else {
-        /* A barrier is inserted so the reader can synchronize the threads. */
-        threadDataVec[tid]->dynamicTrace.AddBarrierEvent();
-        if (tid == 0) {
-            threadDataVec->dynamicTrace.AddThreadDestructionEvent();
+        /* There is no support for nested parallelism. */
+        if (tid != 0) {
+            SINUCA3_ERROR_PRINTF(
+                "[OnThreadCreationEvent] Thr id [%d] is not "
+                "supposed to despawn threads!\n",
+                tid)
+        } else {
+            for (unsigned long i = 1; i < threadDataVec.size(); i++) {
+                threadDataVec[i]->dynamicTrace.AddThreadDestructionEvent();
+            }
         }
     }
 }
@@ -688,7 +689,7 @@ VOID OnMutexEvent(THREADID tid, CONTEXT* ctxt, BOOL isLockReq,
         PIN_ReleaseLock(&threadAnalysisLock);
     }
 
-    threadDataVec[tid]->dynamicTrace.AddMutexLockEvent(isLockReq, isGlobalMutex,
+    threadDataVec[tid]->dynamicTrace.AddMutexEvent(isLockReq, isGlobalMutex,
                                                        lockAddr);
 }
 
@@ -714,22 +715,22 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
 
     struct RtnEvent {
         std::string name;
-        bool isCreatingThreads, bool isGlobalMutex, bool isLockRequest
+        bool isCreatingThreads;
+        bool isGlobalMutex;
+        bool isLockRequest;
     };
 
-    static RtnEvent threadLifeRtns[] = {{"gomp_team_start", true, 0, 0},
-                                        {"gomp_team_end", false, 0, 0}};
-    static RtnEvent threadMutexRtns[] = {{"GOMP_critical_start", 0, true, true},
-                                         {"GOMP_critical_end", 0, true, false},
-                                         {"GOMP_critical_name_start", 0, false,
-                                          true},
-                                         {"GOMP_critical_name_end"},
-                                         0,
-                                         false,
-                                         false},
-                    {"omp_set_lock", 0, false, true},
-                    {"omp_unset_lock", 0, false, false};
-    static RtnEvent barrierRtns[] = {{"GOMP_barrier", 0, 0, 0}};
+    static RtnEvent threadLifeSpanRtns[] = {
+        {"gomp_team_start", true, 0, 0},
+        {"gomp_team_end", false, 0, 0}};
+    static RtnEvent threadMutexRtns[] = {
+        {"GOMP_critical_start", 0, true, true},
+        {"GOMP_critical_end", 0, true, false},
+        {"GOMP_critical_name_start", 0, false, true},
+        {"GOMP_critical_name_end", 0, false, false},
+        {"omp_set_lock", 0, false, true},
+        {"omp_unset_lock", 0, false, false}};
+    static RtnEvent barrierRtns[] = {{"gomp_team_barrier_wait_end", 0, 0, 0}};
 
     std::string absoluteImgPath = IMG_Name(img);
     long size = absoluteImgPath.length() + sizeof('\0');
@@ -781,28 +782,37 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                                    ev.isLockRequest, IARG_BOOL, true, IARG_END);
                 } else if (ev.isLockRequest) {
                     INS inst = FindInstInRtn(rtn, "CMPXCHG_LOCK");
+                    if (inst == INS_Invalid()) {
+                        SINUCA3_ERROR_PRINTF(
+                            "[OnImageLoad] CMPXCHG_LOCK not found!\n");
+                        continue;
+                    }
                     INS_InsertCall(inst, IPOINT_BEFORE, (AFUNPTR)OnMutexEvent,
                                    IARG_THREAD_ID, IARG_CONTEXT, IARG_BOOL,
                                    true, IARG_BOOL, false, IARG_END);
                 } else {
                     INS inst = FindInstInRtn(rtn, "XCHG");
+                    if (inst == INS_Invalid()) {
+                        SINUCA3_ERROR_PRINTF("[OnImageLoad] XCHG not found!\n");
+                        continue;
+                    }
                     INS_InsertCall(inst, IPOINT_BEFORE, (AFUNPTR)OnMutexEvent,
                                    IARG_THREAD_ID, IARG_CONTEXT, IARG_BOOL,
                                    false, IARG_BOOL, false, IARG_END);
                 }
             }
             for (RtnEvent& ev : barrierRtns) {
-                if (rtnName == barrierRtns[iter].name) {
+                if (rtnName == ev.name) {
                     RTN_InsertCall(rtn, IPOINT_BEFORE,
                                    (AFUNPTR)OnBarrierThreadEvent,
                                    IARG_THREAD_ID, IARG_END);
                     break;
                 }
             }
-            for (RtnEvent& ev : threadLifeRtns) {
-                if (rtnName == ev) {
+            for (RtnEvent& ev : threadLifeSpanRtns) {
+                if (rtnName == ev.name) {
                     RTN_InsertCall(rtn, IPOINT_AFTER,
-                                   (AFUNPTR)OnThreadLifeEvent, IARG_THREAD_ID,
+                                   (AFUNPTR)OnThreadLifeSpanEvent, IARG_THREAD_ID,
                                    IARG_UINT32, ev.isCreatingThreads, IARG_END);
                     break;
                 }
@@ -810,10 +820,10 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
             for (IntrinsicInfo& intrinsic : intrinsics) {
                 if (rtnName == intrinsic.loaderName) {
                     RTN_InsertCall(rtn, IPOINT_BEFORE,
-                                   (AFUNPTR)DisableInstrumentationInThread,
+                                   (AFUNPTR)StopInstrumentationInThread,
                                    IARG_THREAD_ID, IARG_END);
                     RTN_InsertCall(rtn, IPOINT_AFTER,
-                                   (AFUNPTR)EnableInstrumentationInThread,
+                                   (AFUNPTR)InitInstrumentationInThread,
                                    IARG_THREAD_ID, IARG_END);
                     break;
                 }

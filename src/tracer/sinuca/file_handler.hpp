@@ -95,7 +95,7 @@ struct Instruction {
     uint8_t instPerformsAtomicUpdate;
     uint8_t instReadsMemory;
     uint8_t instWritesMemory;
-    char instructionMnemonic[INST_MNEMONIC_LEN]; /**<Used for debug. */
+    char instructionMnemonic[INST_MNEMONIC_LEN];
 } _PACKED;
 
 /** @brief Written to static trace file. */
