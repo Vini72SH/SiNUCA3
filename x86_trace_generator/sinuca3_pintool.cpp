@@ -153,9 +153,9 @@ VOID InitInstrumentation() {
 }
 
 /** @brief Enables instrumentation in a thread. */
-VOID InitInstrumentationInThread(THREADID tid) {
+VOID ResumeInstrumentationInThread(THREADID tid) {
     if (!WasThreadCreated(tid)) {
-        SINUCA3_ERROR_PRINTF("[InitInstrumentationInThread] thr not created");
+        SINUCA3_ERROR_PRINTF("[ResumeInstrumentationInThread] thr not created");
         return;
     }
     threadDataVec[tid]->isInstrumentating = true;
@@ -199,7 +199,7 @@ VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
 
     PIN_GetLock(&threadAnalysisLock, tid);
     SINUCA3_DEBUG_PRINTF("[OnThreadStart] thread id [%d]\n", tid);
-    threadData->isInstrumentating = isInstrumentating;
+    threadData->isInstrumentating = true;
     threadDataVec.push_back(threadData);
     staticTrace->IncThreadCount();
     PIN_ReleaseLock(&threadAnalysisLock);
@@ -823,7 +823,7 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
             //                        (AFUNPTR)StopInstrumentationInThread,
             //                        IARG_THREAD_ID, IARG_END);
             //         RTN_InsertCall(rtn, IPOINT_AFTER,
-            //                        (AFUNPTR)InitInstrumentationInThread,
+            //                        (AFUNPTR)ResumeInstrumentationInThread,
             //                        IARG_THREAD_ID, IARG_END);
             //         break;
             //     }

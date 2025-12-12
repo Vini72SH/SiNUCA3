@@ -458,15 +458,16 @@ int TestTraceReader() {
 
             FetchResult res = reader->Fetch(&instPkt, 0);
             if (res == FetchResultNop) {
-                SINUCA3_DEBUG_PRINTF("\t Thread [%d] returned NOP!", i);
+                SINUCA3_DEBUG_PRINTF("\t Thread [%d] returned NOP!\n", i);
                 continue;
             }
             if (res == FetchResultError) {
-                SINUCA3_DEBUG_PRINTF("\t Thread [%d] fetch failed!", i);
+                SINUCA3_DEBUG_PRINTF("\t Thread [%d] fetch failed!\n", i);
                 return 1;
             }
             if (res == FetchResultEnd) {
-                break;
+                SINUCA3_DEBUG_PRINTF("\t FetchResultEnd got in thr [%d]!\n", i);
+                return 0;
             }
 
             SINUCA3_DEBUG_PRINTF("\t Instruction mnemonic is [%s]\n",
@@ -501,7 +502,7 @@ int TestTraceReader() {
             } else if (instPkt.staticInfo->branchType == BranchNone) {
                 SINUCA3_DEBUG_PRINTF("\t Branch type is BranchNone\n");
             } else {
-                SINUCA3_DEBUG_PRINTF("\t Unkown branch type!");
+                SINUCA3_DEBUG_PRINTF("\t Unkown branch type!\n");
                 return 1;
             }
 
@@ -509,7 +510,7 @@ int TestTraceReader() {
         }
     }
 
-    SINUCA3_DEBUG_PRINTF("Trace reader test was successful!\n");
+
 
     delete reader;
 
