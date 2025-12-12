@@ -59,50 +59,45 @@ int MemoryTraceReader::ReadMemoryOperations() {
     }
     if (this->recordArrayIndex == this->recordArraySize) {
         if (this->LoadRecordArray()) {
-            SINUCA3_ERROR_PRINTF("[1] Failed to read mem record array!\n");
+            SINUCA3_ERROR_PRINTF("Failed to read mem record array!\n");
             return 1;
         }
     }
 
-    ++this->recordArrayIndex;
-
     if (this->recordArray[this->recordArrayIndex].recordType !=
-        MemoryRecordOperationHeader) {
+        MemoryRecordHeader) {
         SINUCA3_ERROR_PRINTF("Expected memory operation header!\n");
         return 1;
     }
 
-    int totalMemOps = this->recordArray[this->recordArrayIndex]
-                          .data.opHeader.numberOfMemoryOps;
+    int totalMemOps =
+        this->recordArray[this->recordArrayIndex].data.numberOfMemoryOps;
+
+    ++this->recordArrayIndex;
 
     for (int i = 0; i < totalMemOps; ++i) {
-        ++this->recordArrayIndex;
-
         if (this->recordArrayIndex == this->recordArraySize) {
             if (this->LoadRecordArray()) {
-                SINUCA3_ERROR_PRINTF("[2] Failed to read mem record array!\n");
+                SINUCA3_ERROR_PRINTF("Failed to read mem record array!\n");
                 return 1;
             }
         }
-        if (this->recordArray[this->recordArrayIndex].recordType !=
-            MemoryRecordOperation) {
-            SINUCA3_ERROR_PRINTF("Expected memory operation!\n");
-            return 1;
-        }
 
         unsigned char type =
-            this->recordArray[this->recordArrayIndex].data.operation.type;
+            this->recordArray[this->recordArrayIndex].recordType;
 
-        if (type == MemoryOperationLoad) {
+        if (type == MemoryRecordLoad) {
             this->loadOperations.Enqueue(
                 &this->recordArray[this->recordArrayIndex]);
-        } else if (type == MemoryOperationStore) {
+        } else if (type == MemoryRecordStore) {
             this->storeOperations.Enqueue(
                 &this->recordArray[this->recordArrayIndex]);
         } else {
             SINUCA3_ERROR_PRINTF("Unkown memory operation! [%d]\n", type);
             return 1;
         }
+
+        ++this->recordArrayIndex;
     }
 
     this->totalLoadOps = this->loadOperations.GetOccupation();
@@ -167,11 +162,7 @@ int MemoryTraceReader::CopyStoreOperations(unsigned long* addrsArray,
 }
 
 int MemoryTraceReader::LoadRecordArray() {
-    if (this->file == NULL) {
-        return 1;
-    }
-
-    this->recordArrayIndex = -1;
+    this->recordArrayIndex = 0;
     this->recordArraySize =
         fread(this->recordArray, 1, sizeof(this->recordArray), this->file) /
         sizeof(*this->recordArray);

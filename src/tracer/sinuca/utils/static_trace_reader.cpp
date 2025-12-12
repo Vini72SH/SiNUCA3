@@ -52,13 +52,8 @@ int StaticTraceReader::OpenFile(const char *sourceDir, const char *imgName) {
         printFileErrorLog(staticPath, "PROT_READ MAP_PRIVATE");
         return 1;
     }
-    /* read header */
-    void *readData = this->ReadData(sizeof(this->header));
-    if (readData == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to read static trace header\n");
-        return 1;
-    }
-    this->header = *(FileHeader *)readData;
+
+    this->header.LoadHeader(&this->mmapPtr);
 
     return 0;
 }
@@ -81,7 +76,8 @@ int StaticTraceReader::ReadStaticRecordFromFile() {
     return 0;
 }
 
-void StaticTraceReader::GetInstruction(StaticInstructionInfo *instInfo) {
+void StaticTraceReader::TranslateRawInstructionToSinucaInst(
+    StaticInstructionInfo *instInfo) {
     if (instInfo == NULL) return;
 
     Instruction *rawInst = &this->record->data.instruction;

@@ -29,22 +29,6 @@
 
 #include "utils/logging.hpp"
 
-typedef int THREADID;
-
-enum ThreadState {
-    ThreadStateUndefined,
-    ThreadStateSleeping,
-    ThreadStateActive
-};
-
-struct ThreadLock {
-    bool busy;
-};
-
-struct ThreadBarrier {
-    int cont;
-};
-
 /** @brief Check dynamic_trace_reader.hpp documentation for details */
 class DynamicTraceReader {
   private:
@@ -73,6 +57,15 @@ class DynamicTraceReader {
     int OpenFile(const char* sourceDir, const char* imageName, int tid);
     int ReadDynamicRecord();
 
+    inline unsigned long GetTotalExecutedInstructions() {
+        return this->header.data.dynamicHeader.totalExecutedInstructions;
+    }
+    inline unsigned int GetVersionInt() {
+        return this->header.traceVersion;
+    }
+    inline unsigned int GetTargetInt() {
+        return this->header.targetArch;
+    }
     inline bool ReachedDynamicTraceEnd() {
         return (this->reachedEnd &&
                 this->recordArrayIndex == this->recordArraySize);
@@ -82,34 +75,15 @@ class DynamicTraceReader {
     }
     inline unsigned long GetBasicBlockIdentifier() {
         return this->recordArray[this->recordArrayIndex]
-            .data.bbl.basicBlockIdentifier;
-    }
-    inline unsigned long GetTotalExecutedInstructions() {
-        return this->header.data.dynamicHeader.totalExecutedInstructions;
-    }
-    inline int GetEventType() {
-        return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventType;
-    }
-    inline int GetCreatedThreadId() {
-        return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventData.thrCreate.tid;
+            .data.basicBlockIdentifier;
     }
     inline bool IsGlobalLock() {
         return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventData.lockInfo.isDefaultLock;
-    }
-    inline bool IsTestLock() {
-        return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventData.lockInfo.isTestLock;
-    }
-    inline bool IsNestedLock() {
-        return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventData.lockInfo.isNestedLock;
+            .data.lockInfo.isGlobalMutex;
     }
     inline unsigned long GetLockAddress() {
         return this->recordArray[this->recordArrayIndex]
-            .data.thrEvent.eventData.lockInfo.lockAddress;
+            .data.lockInfo.mutexAddress;
     }
 };
 

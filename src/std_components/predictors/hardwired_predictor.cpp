@@ -45,8 +45,8 @@ void HardwiredPredictor::Respond(int id, PredictorPacket request) {
     const InstructionPacket instruction = request.data.requestQuery;
     bool predict = true;
 
-    // check if this is right fix
-    if (instruction.staticInfo->branchType != None) {
+    // TODO: check if this is the right fix
+    if (instruction.staticInfo->branchType != BranchNone) {
         ++this->numberOfNoBranchs;
         predict = this->noBranch;
     } else {
@@ -71,7 +71,7 @@ void HardwiredPredictor::Respond(int id, PredictorPacket request) {
                 predict = this->cond;
                 ++this->numberOfConds;
                 break;
-            default: // check if this is right fix
+            default:
                 break;
         }
     }

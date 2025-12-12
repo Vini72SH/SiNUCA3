@@ -80,8 +80,10 @@ class MemoryTraceReader {
         return (this->reachedEnd &&
                 this->recordArrayIndex == this->recordArraySize);
     }
-    inline int GetNumberOfLoads() { return this->totalLoadOps; }
-    inline int GetNumberOfStores() { return this->totalStoreOps; }
+    inline int GetNumberOfLoadOps() { return this->totalLoadOps; }
+    inline int GetNumberOfStoreOps() { return this->totalStoreOps; }
+    inline unsigned int GetVersionInt() { return this->header.traceVersion; }
+    inline unsigned int GetTargetInt() { return this->header.targetArch; }
 };
 
 #endif

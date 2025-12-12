@@ -68,6 +68,7 @@ class StaticTraceWriter {
     inline StaticTraceWriter()
         : file(0), basicBlock(0), basicBlockArraySize(128) {
         this->header.fileType = FileTypeStaticTrace;
+        this->header.traceVersion = CURRENT_TRACE_VERSION;
         this->ResetBasicBlock();
         this->basicBlock = (StaticTraceRecord*)malloc(
             sizeof(StaticTraceRecord) * this->basicBlockArraySize);
@@ -106,6 +107,9 @@ class StaticTraceWriter {
     }
     inline unsigned int GetBasicBlockCount() {
         return this->header.data.staticHeader.bblCount;
+    }
+    inline void SetTargetArch(unsigned char target) {
+        this->header.targetArch = target;
     }
 };
 

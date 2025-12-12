@@ -31,14 +31,16 @@
  * coexist.
  */
 
+#include <cstdio>
 #include <cstring>
 
 #include "engine/default_packets.hpp"
+#include "utils/logging.hpp"
 
 extern "C" {
+#include <alloca.h>
 #include <errno.h>
 #include <stdint.h>
-#include <alloca.h>
 }
 
 #define _PACKED __attribute__((packed))
@@ -46,20 +48,23 @@ extern "C" {
 const int MAX_IMAGE_NAME_SIZE = 255;
 const int RECORD_ARRAY_SIZE = 10000;
 const int CURRENT_TRACE_VERSION = 1;
-const int TRACE_TARGET_X86 = 2;
-const int TRACE_TARGET_ARM = 3;
-const int TRACE_TARGET_RISCV = 4;
 const short MAGIC_NUMBER = 187;
 
+const char TRACE_TARGET_X86[] = "X86";
+const char TRACE_TARGET_ARM[] = "ARM";
+const char TRACE_TARGET_RISCV[] = "RISCV";
 const char PREFIX_STATIC_FILE[] = "S3S";
 const char PREFIX_DYNAMIC_FILE[] = "S3D";
 const char PREFIX_MEMORY_FILE[] = "S3M";
+const int PREFIX_SIZE = sizeof(PREFIX_STATIC_FILE);
 
 enum FileType : uint8_t {
     FileTypeStaticTrace,
     FileTypeDynamicTrace,
     FileTypeMemoryTrace
 };
+
+enum TargetArch : uint8_t { TargetArchX86, TargetArchARM, TargetArchRISCV };
 
 enum StaticTraceRecordType : uint8_t {
     StaticRecordInstruction,
@@ -87,8 +92,8 @@ struct Instruction {
     uint64_t instructionAddress;
     uint64_t instructionSize;
     uint32_t effectiveAddressWidth;
-    uint16_t readRegsArray[MAX_REGISTERS];    /**<Enum defined in reg_ia32.PH */
-    uint16_t writtenRegsArray[MAX_REGISTERS]; /**<Enum defined in reg_ia32.PH */
+    uint16_t readRegsArray[MAX_REGISTERS];
+    uint16_t writtenRegsArray[MAX_REGISTERS];
     uint8_t wRegsArrayOccupation;
     uint8_t rRegsArrayOccupation;
     uint8_t instHasFallthrough;
@@ -146,7 +151,7 @@ struct MemoryTraceRecord {
     inline MemoryTraceRecord() { memset(this, 0, sizeof(*this)); }
 } _PACKED;
 
-/** @brief General usage. */
+/** @brief File header for general usage. */
 struct FileHeader {
     union _PACKED {
         struct _PACKED {
@@ -159,52 +164,56 @@ struct FileHeader {
         } dynamicHeader;
     } data;
     uint8_t fileType;
-    uint8_t targetArch; // adapt files
-    uint8_t traceVersion; // adapt files
+    uint8_t traceVersion;
+    uint8_t targetArch;
 
-    inline FileHeader() { memset(this, 0, sizeof(*this)); }
-    inline int FlushHeader(FILE *file) {
+    inline FileHeader() {
+        memset(this, 0, sizeof(*this));
+    }
+    int FlushHeader(FILE *file) {
         if (!file) return 1;
         rewind(file);
 
-        unsigned long prefixSize = sizeof(MAGIC_NUMBER);
-        if (this->fileType == FileTypeStaticTrace) {
-            prefixSize += sizeof(PREFIX_STATIC_FILE);
-        } else if (this->fileType == FileTypeDynamicTrace) {
-            prefixSize += sizeof(PREFIX_DYNAMIC_FILE);
-        } else {
-            prefixSize += sizeof(PREFIX_MEMORY_FILE);
-        }
-
-        char* prefix = (char *)alloca(prefixSize);
-        memcpy(prefix, &MAGIC_NUMBER, sizeof(MAGIC_NUMBER));
-        prefix[sizeof(MAGIC_NUMBER)] = '\0';
+        unsigned long magicNumAndPrefSize = sizeof(MAGIC_NUMBER) + PREFIX_SIZE;
+        char *magicNumAndPref = (char *)alloca(magicNumAndPrefSize);
+        memcpy(magicNumAndPref, &MAGIC_NUMBER, sizeof(MAGIC_NUMBER));
+        magicNumAndPref[sizeof(MAGIC_NUMBER)] = '\0';
 
         if (this->fileType == FileTypeStaticTrace) {
-            strcat(prefix, PREFIX_STATIC_FILE);
+            strcat(magicNumAndPref, PREFIX_STATIC_FILE);
         } else if (this->fileType == FileTypeDynamicTrace) {
-            strcat(prefix, PREFIX_DYNAMIC_FILE);
+            strcat(magicNumAndPref, PREFIX_DYNAMIC_FILE);
         } else {
-            strcat(prefix, PREFIX_MEMORY_FILE);
+            strcat(magicNumAndPref, PREFIX_MEMORY_FILE);
         }
 
-        fwrite(prefix, 1, prefixSize, file);
-        return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+        if (fwrite(magicNumAndPref, 1, magicNumAndPrefSize, file) !=
+            magicNumAndPrefSize) {
+            return 1;
+        }
+        if (fwrite(this, 1, sizeof(*this), file) != sizeof(*this)) {
+            return 1;
+        }
+
+        return 0;
     }
     inline int LoadHeader(FILE *file) {
         if (!file) return 1;
+        unsigned long magicNumAndPrefSize = sizeof(MAGIC_NUMBER) + PREFIX_SIZE;
+        fseek(file, magicNumAndPrefSize, SEEK_SET);
         return (fread(this, 1, sizeof(*this), file) != sizeof(*this));
     }
+    inline int LoadHeader(char **file) {
+        if (!(*file)) return 1;
+        unsigned long magicNumAndPrefSize = sizeof(MAGIC_NUMBER) + PREFIX_SIZE;
+        *file = &(*file)[magicNumAndPrefSize];
+        memcpy(this, *file, sizeof(*this));
+        *file = &(*file)[sizeof(*this)];
+        return 0;
+    }
     inline void ReserveHeaderSpace(FILE *file) {
-        unsigned long prefixSize = sizeof(MAGIC_NUMBER);
-        if (this->fileType == FileTypeStaticTrace) {
-            prefixSize += sizeof(PREFIX_STATIC_FILE);
-        } else if (this->fileType == FileTypeDynamicTrace) {
-            prefixSize += sizeof(PREFIX_DYNAMIC_FILE);
-        } else {
-            prefixSize += sizeof(PREFIX_MEMORY_FILE);
-        }
-        fseek(file, prefixSize + sizeof(*this), SEEK_SET);
+        int magicNumAndPrefSize = sizeof(MAGIC_NUMBER) + PREFIX_SIZE;
+        fseek(file, magicNumAndPrefSize + sizeof(*this), SEEK_SET);
     }
 } _PACKED;
 

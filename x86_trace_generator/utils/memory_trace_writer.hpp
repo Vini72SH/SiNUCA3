@@ -57,6 +57,7 @@ class MemoryTraceWriter {
   public:
     inline MemoryTraceWriter() : file(0), recordArrayOccupation(0) {
         this->header.fileType = FileTypeMemoryTrace;
+        this->header.traceVersion = CURRENT_TRACE_VERSION;
     };
     inline ~MemoryTraceWriter() {
         if (this->header.FlushHeader(this->file)) {
@@ -83,6 +84,10 @@ class MemoryTraceWriter {
      * @param isLoad True if it is a load op, false if it is a store op.
      */
     int AddMemOp(unsigned long address, unsigned int size, bool isLoadOp);
+
+    inline void SetTargetArch(unsigned char target) {
+        this->header.targetArch = target;
+    }
 };
 
 #endif

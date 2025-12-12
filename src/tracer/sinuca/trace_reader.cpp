@@ -43,7 +43,7 @@ int SinucaTraceReader::OpenTrace(const char *imageName, const char *sourceDir) {
     this->traceFilesVersion = this->staticTrace->GetVersionInt();
     this->traceFilesTargetArch = this->staticTrace->GetTargetInt();
 
-    SINUCA3_WARNING_PRINTF("Trace files: ");
+    SINUCA3_WARNING_PRINTF("Trace files:\n");
     SINUCA3_WARNING_PRINTF("\t Version: %d\n", this->traceFilesVersion);
     SINUCA3_WARNING_PRINTF("\t Target: %s\n", staticTrace->GetTargetString());
 
@@ -170,7 +170,11 @@ FetchResult SinucaTraceReader::Fetch(InstructionPacket *ret, int tid) {
     if (!this->threadDataArr[tid]->isInsideBasicBlock) {
         this->threadDataArr[tid]->currentInst = 0;
         if (this->FetchBasicBlock(tid)) {
-            return FetchResultNop;
+            if (this->fetchFailed) {
+                return FetchResultError;
+            } else {
+                return FetchResultNop;
+            }
         }
     }
 
@@ -231,6 +235,7 @@ int SinucaTraceReader::FetchMemoryData(InstructionPacket *ret, int tid) {
 int SinucaTraceReader::FetchBasicBlock(int tid) {
     if (this->threadDataArr[tid]->dynFile.ReadDynamicRecord()) {
         SINUCA3_ERROR_PRINTF("Failed to get dyn record in tid [%d]!\n", tid);
+        this->fetchFailed = true;
         return 1;
     }
 
@@ -247,6 +252,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
             if (tid != 0) {
                 SINUCA3_ERROR_PRINTF(
                     "Thr [%d] is not expected to create new threads!\n", tid);
+                this->fetchFailed = true;
                 return 1;
             }
 
@@ -257,13 +263,19 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 this->numberOfActiveThreads++;
             }
         } else if (recordType == DynamicRecordDestroyThread) {
+            if (tid == 0) {
+                SINUCA3_ERROR_PRINTF(
+                    "Thread 0 should not have destruction event!\n");
+                this->fetchFailed = true;
+                return 1;
+            }
             /* Current thread goes to sleep. */
             this->threadDataArr[tid]->isThreadAwake = false;
         } else if (recordType == DynamicRecordLockRequest) {
             if (this->threadDataArr[tid]->dynFile.IsGlobalLock()) {
                 if (this->globalLock.isBusy) {
                     this->threadDataArr[tid]->isThreadAwake = false;
-                    this->globalLock.waitingThreadsQueue.Enqueue(&tid);
+                    this->globalLock.waitingThreadsQueue->Enqueue(&tid);
                     return 1; /* no basic block to be fetched. */
                 } else {
                     this->globalLock.isBusy = true;
@@ -283,7 +295,6 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 }
                 if (lock == NULL) {
                     Lock newLock;
-                    this->SetNewLock(&newLock);
                     this->privateLockVec.push_back(newLock);
                     this->privateLockVec.back().addr = lockAddr;
                     lock = &newLock;
@@ -291,7 +302,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
 
                 if (lock->isBusy) {
                     this->threadDataArr[tid]->isThreadAwake = false;
-                    this->globalLock.waitingThreadsQueue.Enqueue(&tid);
+                    this->globalLock.waitingThreadsQueue->Enqueue(&tid);
                     return 0; /* no basic block to be fetched */
                 } else {
                     lock->isBusy = true;
@@ -303,23 +314,25 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 if (!this->globalLock.isBusy) {
                     SINUCA3_ERROR_PRINTF(
                         "Lock cant be unlocked because its not busy!\n");
+                    this->fetchFailed = true;
                     return 1;
                 }
                 if (this->globalLock.owner != tid) {
                     SINUCA3_ERROR_PRINTF(
                         "Thr [%d] isnt the current owner of glob lock!\n", tid);
+                    this->fetchFailed = true;
                     return 1;
                 }
 
-                if (!this->globalLock.waitingThreadsQueue.IsEmpty()) {
+                if (!this->globalLock.waitingThreadsQueue->IsEmpty()) {
                     int sleepingThr;
-                    this->globalLock.waitingThreadsQueue.Dequeue(&sleepingThr);
+                    this->globalLock.waitingThreadsQueue->Dequeue(&sleepingThr);
                     this->threadDataArr[sleepingThr]->isThreadAwake = true;
                     /* Change to new lock owner. */
                     this->globalLock.owner = sleepingThr;
                 } else {
                     /* Lock is free. */
-                    this->ResetLock(&this->globalLock);
+                    this->globalLock.ResetLock();
                 }
             } else {
                 unsigned long lockAddr =
@@ -335,12 +348,14 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 if (lock == NULL) {
                     SINUCA3_ERROR_PRINTF("Lock with addr [%ld] wasnt created\n",
                                          lockAddr);
+                    this->fetchFailed = true;
                     return 1;
                 }
 
                 if (!lock->isBusy) {
                     SINUCA3_ERROR_PRINTF("Lock with addr [%ld] isnt busy!\n",
                                          lockAddr);
+                    this->fetchFailed = true;
                     return 1;
                 }
                 if (lock->owner != tid) {
@@ -348,18 +363,19 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                         "Thr [%d] isnt the current owner of lock with addr "
                         "[%ld]!\n",
                         tid, lockAddr);
+                    this->fetchFailed = true;
                     return 1;
                 }
 
-                if (!lock->waitingThreadsQueue.IsEmpty()) {
+                if (!lock->waitingThreadsQueue->IsEmpty()) {
                     int sleepingThr;
-                    lock->waitingThreadsQueue.Dequeue(&sleepingThr);
+                    lock->waitingThreadsQueue->Dequeue(&sleepingThr);
                     this->threadDataArr[sleepingThr]->isThreadAwake = true;
                     /* Change to new lock owner. */
                     lock->owner = sleepingThr;
                 } else {
                     /* Lock is free. */
-                    this->ResetLock(lock);
+                    lock->ResetLock();
                 }
             }
         } else if (recordType == DynamicRecordBarrier) {
@@ -369,7 +385,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 this->threadDataArr[tid]->isThreadAwake = false;
                 return 0; /* no basic block to be fetched. */
             } else if (this->globalBarrier.thrCont == this->totalThreads) {
-                this->ResetBarrier(&this->globalBarrier);
+                this->globalBarrier.ResetBarrier();
                 /* Wake all sleeping threads. */
                 for (int i = 0; i < this->totalThreads; i++) {
                     this->threadDataArr[i]->isThreadAwake = true;
@@ -378,6 +394,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 SINUCA3_ERROR_PRINTF(
                     "Barrier thread counter should not be greater than the "
                     "total of threads!\n");
+                this->fetchFailed = true;
                 return 1;
             }
         } else {
@@ -385,7 +402,12 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
             return 1;
         }
 
-        this->threadDataArr[tid]->dynFile.ReadDynamicRecord();
+        if (this->threadDataArr[tid]->dynFile.ReadDynamicRecord()) {
+            SINUCA3_ERROR_PRINTF("Failed to get dyn record in tid [%d]!\n",
+                                 tid);
+            this->fetchFailed = true;
+            return 1;
+        }
         recordType = this->threadDataArr[tid]->dynFile.GetRecordType();
     }
 
@@ -429,15 +451,65 @@ int TestTraceReader() {
     reader->OpenTrace(imageName, traceDir);
 
     InstructionPacket instPkt;
-    FetchResult res = reader->Fetch(&instPkt, 0);
     while (1) {
         for (int i = 0; i < reader->GetTotalThreads(); i++) {
+            SINUCA3_DEBUG_PRINTF("\n");
+            SINUCA3_DEBUG_PRINTF("Fetching for thread [%d]: \n", i);
+
+            FetchResult res = reader->Fetch(&instPkt, 0);
+            if (res == FetchResultNop) {
+                SINUCA3_DEBUG_PRINTF("\t Thread [%d] returned NOP!", i);
+                continue;
+            }
+            if (res == FetchResultError) {
+                SINUCA3_DEBUG_PRINTF("\t Thread [%d] fetch failed!", i);
+                return 1;
+            }
+            if (res == FetchResultEnd) {
+                break;
+            }
+
+            SINUCA3_DEBUG_PRINTF("\t Instruction mnemonic is [%s]\n",
+                                 instPkt.staticInfo->instMnemonic);
+            SINUCA3_DEBUG_PRINTF("\t Instruction size is [%ld]\n",
+                                 instPkt.staticInfo->instSize);
+            SINUCA3_DEBUG_PRINTF("\t Effective addr width [%d]\n",
+                                 instPkt.staticInfo->effectiveAddressWidth);
+            SINUCA3_DEBUG_PRINTF("\t Store regs total [%d]\n",
+                                 instPkt.staticInfo->numberOfWriteRegs);
+            SINUCA3_DEBUG_PRINTF("\t Load regs total [%d]\n",
+                                 instPkt.staticInfo->numberOfReadRegs);
+            SINUCA3_DEBUG_PRINTF("\t Store mem total ops [%d]\n",
+                                 instPkt.dynamicInfo.numWritings);
+            SINUCA3_DEBUG_PRINTF("\t Load mem total ops [%d]\n",
+                                 instPkt.dynamicInfo.numReadings);
+            SINUCA3_DEBUG_PRINTF("\t Instruction is [%s]\n",
+                                 instPkt.staticInfo->instMnemonic);
+
+            if (instPkt.staticInfo->branchType == BranchCall) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchCall\n");
+            } else if (instPkt.staticInfo->branchType == BranchSyscall) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchSyscall\n");
+            } else if (instPkt.staticInfo->branchType == BranchCond) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchCond\n");
+            } else if (instPkt.staticInfo->branchType == BranchUncond) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchUncond\n");
+            } else if (instPkt.staticInfo->branchType == BranchRet) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchRet\n");
+            } else if (instPkt.staticInfo->branchType == BranchSysret) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchSysret\n");
+            } else if (instPkt.staticInfo->branchType == BranchNone) {
+                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchNone\n");
+            } else {
+                SINUCA3_DEBUG_PRINTF("\t Unkown branch type!");
+                return 1;
+            }
+
+            SINUCA3_DEBUG_PRINTF("\n");
         }
     }
 
-    if (res == FetchResultError) {
-        SINUCA3_ERROR_PRINTF("Fetch result error!\n");
-    }
+    SINUCA3_DEBUG_PRINTF("Trace reader test was successful!\n");
 
     delete reader;
 

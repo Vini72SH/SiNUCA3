@@ -55,6 +55,7 @@ class DynamicTraceWriter {
   public:
     inline DynamicTraceWriter() : file(0), recordArrayOccupation(0) {
         this->header.fileType = FileTypeDynamicTrace;
+        this->header.traceVersion = CURRENT_TRACE_VERSION;
     };
     inline ~DynamicTraceWriter() {
         if (this->header.FlushHeader(this->file)) {
@@ -88,6 +89,9 @@ class DynamicTraceWriter {
 
     inline void IncExecutedInstructions(int ins) {
         this->header.data.dynamicHeader.totalExecutedInstructions += ins;
+    }
+    inline void SetTargetArch(unsigned char target) {
+        this->header.targetArch = target;
     }
 };
 

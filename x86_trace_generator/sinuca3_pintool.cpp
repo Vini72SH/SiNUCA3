@@ -480,17 +480,17 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
              */
             staticTrace->IncStaticInstructionCount();
 
-            IntrinsicInfo* intrinsic = GetIntrinsicInfo(&ins);
-            bool isIntrinsic = (intrinsic != NULL);
+            // IntrinsicInfo* intrinsic = GetIntrinsicInfo(&ins);
+            // bool isIntrinsic = (intrinsic != NULL);
 
-            if (isIntrinsic) {
-                IntrinsicToSinucaInst(&ins, intrinsic, &sinucaInst);
-                if (staticTrace->AddInstruction(&sinucaInst)) {
-                    SINUCA3_ERROR_PRINTF(
-                        "[OnTrace] Failed to add intrinsic to file\n");
-                }
-                continue;
-            }
+            // if (isIntrinsic) {
+            //     IntrinsicToSinucaInst(&ins, intrinsic, &sinucaInst);
+            //     if (staticTrace->AddInstruction(&sinucaInst)) {
+            //         SINUCA3_ERROR_PRINTF(
+            //             "[OnTrace] Failed to add intrinsic to file\n");
+            //     }
+            //     continue;
+            // }
 
             if (TranslatePinInst(&sinucaInst, &ins)) {
                 SINUCA3_ERROR_PRINTF("[OnTrace] Failed to translate ins\n");
@@ -817,17 +817,17 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                     break;
                 }
             }
-            for (IntrinsicInfo& intrinsic : intrinsics) {
-                if (rtnName == intrinsic.loaderName) {
-                    RTN_InsertCall(rtn, IPOINT_BEFORE,
-                                   (AFUNPTR)StopInstrumentationInThread,
-                                   IARG_THREAD_ID, IARG_END);
-                    RTN_InsertCall(rtn, IPOINT_AFTER,
-                                   (AFUNPTR)InitInstrumentationInThread,
-                                   IARG_THREAD_ID, IARG_END);
-                    break;
-                }
-            }
+            // for (IntrinsicInfo& intrinsic : intrinsics) {
+            //     if (rtnName == intrinsic.loaderName) {
+            //         RTN_InsertCall(rtn, IPOINT_BEFORE,
+            //                        (AFUNPTR)StopInstrumentationInThread,
+            //                        IARG_THREAD_ID, IARG_END);
+            //         RTN_InsertCall(rtn, IPOINT_AFTER,
+            //                        (AFUNPTR)InitInstrumentationInThread,
+            //                        IARG_THREAD_ID, IARG_END);
+            //         break;
+            //     }
+            // }
 
             RTN_Close(rtn);
         }

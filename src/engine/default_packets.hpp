@@ -42,7 +42,7 @@ enum Branch {
     BranchRet,
     BranchUncond,
     BranchCond,
-    None
+    BranchNone
 };
 
 /**
@@ -72,12 +72,12 @@ struct StaticInstructionInfo {
     bool instReadsMemory;
     bool instWritesMemory;
 
-    char instMnemonic[INST_MNEMONIC_LEN]; /**<For debug. */
+    char instMnemonic[INST_MNEMONIC_LEN];
 
     inline StaticInstructionInfo() {
         memset(this, 0, sizeof(*this));
         memcpy(this->instMnemonic, "N/A", 4);
-        this->branchType = None;
+        this->branchType = BranchNone;
     }
 };
 

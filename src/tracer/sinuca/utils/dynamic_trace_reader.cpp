@@ -54,7 +54,6 @@ int DynamicTraceReader::OpenFile(const char *sourceDir, const char *imageName,
 
 int DynamicTraceReader::ReadDynamicRecord() {
     if (this->ReachedDynamicTraceEnd()) {
-        SINUCA3_ERROR_PRINTF("Already reached trace end!\n");
         return 1;
     }
     if (this->recordArrayIndex == this->recordArraySize) {

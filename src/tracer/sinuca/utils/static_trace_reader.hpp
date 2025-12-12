@@ -21,27 +21,13 @@
 /**
  * @file static_trace_reader.hpp
  * @brief Class implementation of the static trace reader.
- * @details The x86 based static trace is a binary file having the number
- * of instructions and the instructions themselves of each basic block.
+ * @details This file defines the StaticTraceReader class which encapsulates
+ * the static trace file and read operations. It is allows one to open a
+ * static trace, read its header and the subsequent records stored. No dedicated
+ * buffering is done because the file is already mapped to virtual memory.
  *
- * "In compiler construction, a basic block is a straight-line code sequence
- * with no branches in except to the entry and no branches out except at the
- * exit" - Wikipedia "Basic block".
- *
- * The definition above guarantees that when entering a basic block,
- * the program should execute all of its instructions, except in case of
- * interruption. Therefore, the flow of execution can be recorded only by
- * taking note of the indices of the basis blocks executed and storing each
- * basic block once in the static trace. This approach allows for a smaller
- * dynamic trace.
- *
- * The StaticTraceFile does not use a buffer, unlike the classes that manipulate
- * the Dynamic and Memory files, and uses mmap for file manipulation instead.
- * This is possible because the static trace tends to be small and mmap may be
- * slightly faster for the matter.
  */
 
-#include <sinuca3.hpp>
 #include <tracer/sinuca/file_handler.hpp>
 
 extern "C" {
@@ -80,7 +66,7 @@ class StaticTraceReader {
      */
     int OpenFile(const char *folderPath, const char *img);
     int ReadStaticRecordFromFile();
-    void GetInstruction(StaticInstructionInfo* instInfo);
+    void TranslateRawInstructionToSinucaInst(StaticInstructionInfo* instInfo);
 
     inline unsigned char GetStaticRecordType() {
         return this->record->recordType;
@@ -96,6 +82,26 @@ class StaticTraceReader {
     }
     inline unsigned int GetNumThreads() {
         return this->header.data.staticHeader.threadCount;
+    }
+    inline unsigned int GetVersionInt() {
+        return this->header.traceVersion;
+    }
+    inline unsigned int GetTargetInt() {
+        return this->header.targetArch;
+    }
+    inline const char* GetTargetString() {
+        if (this->header.targetArch == TargetArchX86) {
+            return TRACE_TARGET_X86;
+        }
+        if (this->header.targetArch == TargetArchARM) {
+            return TRACE_TARGET_ARM;
+        }
+        if (this->header.targetArch == TargetArchRISCV) {
+            return TRACE_TARGET_RISCV;
+        }
+
+        static const char UNKOWN[] = "UNKOWN TARGET ARCH!";
+        return UNKOWN;
     }
 };
 

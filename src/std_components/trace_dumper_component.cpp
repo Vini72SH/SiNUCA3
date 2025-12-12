@@ -62,60 +62,60 @@ void TraceDumperComponent::Clock() {
     fetch.request = 0;
     this->fetch->SendRequest(this->fetchID, &fetch);
     if (this->fetch->ReceiveResponse(this->fetchID, &fetch) == 0) {
-        InstructionPacket instruction = fetch.response;
-        if (def ^ this->IsOverride(instruction.staticInfo->opcodeAssembly)) {
-            ++this->fetched;
+        // InstructionPacket instruction = fetch.response;
+        // if (def ^ this->IsOverride(instruction.staticInfo->opcodeAssembly)) {
+        //     ++this->fetched;
 
-            SINUCA3_LOG_PRINTF("TraceDumperComponent %p: Fetched {\n", this);
-            SINUCA3_LOG_PRINTF("  opcodeAssembly: %s\n",
-                               instruction.staticInfo->opcodeAssembly);
-            SINUCA3_LOG_PRINTF("  opcodeAddress: %ld\n",
-                               instruction.staticInfo->opcodeAddress);
-            SINUCA3_LOG_PRINTF("  opcodeSize: %u\n",
-                               instruction.staticInfo->opcodeSize);
-            SINUCA3_LOG_PRINTF("  baseReg: %u\n",
-                               instruction.staticInfo->baseReg);
-            SINUCA3_LOG_PRINTF("  indexReg: %u\n",
-                               instruction.staticInfo->indexReg);
+        //     SINUCA3_LOG_PRINTF("TraceDumperComponent %p: Fetched {\n", this);
+        //     SINUCA3_LOG_PRINTF("  opcodeAssembly: %s\n",
+        //                        instruction.staticInfo->opcodeAssembly);
+        //     SINUCA3_LOG_PRINTF("  opcodeAddress: %ld\n",
+        //                        instruction.staticInfo->opcodeAddress);
+        //     SINUCA3_LOG_PRINTF("  opcodeSize: %u\n",
+        //                        instruction.staticInfo->opcodeSize);
+        //     SINUCA3_LOG_PRINTF("  baseReg: %u\n",
+        //                        instruction.staticInfo->baseReg);
+        //     SINUCA3_LOG_PRINTF("  indexReg: %u\n",
+        //                        instruction.staticInfo->indexReg);
 
-            SINUCA3_LOG_PRINTF("  readRegs: [");
-            for (unsigned char i = 0; i < instruction.staticInfo->numReadRegs;
-                 ++i) {
-                SINUCA3_LOG_PRINTF("%u", instruction.staticInfo->readRegs[i]);
-                if (i + 1 < instruction.staticInfo->numReadRegs)
-                    SINUCA3_LOG_PRINTF(", ");
-            }
-            SINUCA3_LOG_PRINTF("]\n");
+        //     SINUCA3_LOG_PRINTF("  readRegs: [");
+        //     for (unsigned char i = 0; i < instruction.staticInfo->numReadRegs;
+        //          ++i) {
+        //         SINUCA3_LOG_PRINTF("%u", instruction.staticInfo->readRegs[i]);
+        //         if (i + 1 < instruction.staticInfo->numReadRegs)
+        //             SINUCA3_LOG_PRINTF(", ");
+        //     }
+        //     SINUCA3_LOG_PRINTF("]\n");
 
-            SINUCA3_LOG_PRINTF("  writeRegs: [");
-            for (unsigned char i = 0; i < instruction.staticInfo->numWriteRegs;
-                 ++i) {
-                SINUCA3_LOG_PRINTF("%u", instruction.staticInfo->writeRegs[i]);
-                if (i + 1 < instruction.staticInfo->numWriteRegs)
-                    SINUCA3_LOG_PRINTF(", ");
-            }
-            SINUCA3_LOG_PRINTF("]\n");
+        //     SINUCA3_LOG_PRINTF("  writeRegs: [");
+        //     for (unsigned char i = 0; i < instruction.staticInfo->numWriteRegs;
+        //          ++i) {
+        //         SINUCA3_LOG_PRINTF("%u", instruction.staticInfo->writeRegs[i]);
+        //         if (i + 1 < instruction.staticInfo->numWriteRegs)
+        //             SINUCA3_LOG_PRINTF(", ");
+        //     }
+        //     SINUCA3_LOG_PRINTF("]\n");
 
-            SINUCA3_LOG_PRINTF(
-                "  branchType: %d\n",
-                static_cast<int>(instruction.staticInfo->branchType));
-            SINUCA3_LOG_PRINTF(
-                "  isNonStdMemOp: %s\n",
-                instruction.staticInfo->isNonStdMemOp ? "true" : "false");
-            SINUCA3_LOG_PRINTF(
-                "  isControlFlow: %s\n",
-                instruction.staticInfo->isControlFlow ? "true" : "false");
-            SINUCA3_LOG_PRINTF(
-                "  isIndirect: %s\n",
-                instruction.staticInfo->isIndirect ? "true" : "false");
-            SINUCA3_LOG_PRINTF(
-                "  isPredicated: %s\n",
-                instruction.staticInfo->isPredicated ? "true" : "false");
-            SINUCA3_LOG_PRINTF(
-                "  isPrefetch: %s\n",
-                instruction.staticInfo->isPrefetch ? "true" : "false");
-            SINUCA3_LOG_PRINTF("}\n");
-        }
+        //     SINUCA3_LOG_PRINTF(
+        //         "  branchType: %d\n",
+        //         static_cast<int>(instruction.staticInfo->branchType));
+        //     SINUCA3_LOG_PRINTF(
+        //         "  isNonStdMemOp: %s\n",
+        //         instruction.staticInfo->isNonStdMemOp ? "true" : "false");
+        //     SINUCA3_LOG_PRINTF(
+        //         "  isControlFlow: %s\n",
+        //         instruction.staticInfo->isControlFlow ? "true" : "false");
+        //     SINUCA3_LOG_PRINTF(
+        //         "  isIndirect: %s\n",
+        //         instruction.staticInfo->isIndirect ? "true" : "false");
+        //     SINUCA3_LOG_PRINTF(
+        //         "  isPredicated: %s\n",
+        //         instruction.staticInfo->isPredicated ? "true" : "false");
+        //     SINUCA3_LOG_PRINTF(
+        //         "  isPrefetch: %s\n",
+        //         instruction.staticInfo->isPrefetch ? "true" : "false");
+        //     SINUCA3_LOG_PRINTF("}\n");
+        // }
     }
 }
 
