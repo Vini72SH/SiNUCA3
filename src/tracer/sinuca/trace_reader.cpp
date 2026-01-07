@@ -237,6 +237,8 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 return 1;
             }
 
+            SINUCA3_DEBUG_PRINTF("Thread [0] spawned threads!\n");
+
             /* Loop activates all threads. */
             for (int i = 1; i < this->totalThreads; i++) {
                 this->threadDataArr[i]->parentThreadId = 0;
@@ -244,14 +246,18 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 this->numberOfActiveThreads++;
             }
         } else if (recordType == DynamicRecordDestroyThread) {
-            if (tid == 0) {
+            if (tid != 0) {
                 SINUCA3_ERROR_PRINTF(
-                    "Thread 0 should not have destruction event!\n");
+                    "Thr [%d] is not expected to destroy threads!\n", tid);
                 this->fetchFailed = true;
                 return 1;
             }
-            /* Current thread goes to sleep. */
-            this->threadDataArr[tid]->isThreadAwake = false;
+
+            /* Loop destroys all threads. */
+            for (int i = 1; i < this->totalThreads; i++) {
+                this->threadDataArr[i]->isThreadAwake = false;
+                this->numberOfActiveThreads--;
+            }
         } else if (recordType == DynamicRecordLockRequest) {
             if (this->threadDataArr[tid]->dynFile.IsGlobalLock()) {
                 if (this->globalLock.isBusy) {
@@ -284,7 +290,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
                 if (lock->isBusy) {
                     this->threadDataArr[tid]->isThreadAwake = false;
                     this->globalLock.waitingThreadsQueue->Enqueue(&tid);
-                    return 0; /* no basic block to be fetched */
+                    return 1; /* no basic block to be fetched */
                 } else {
                     lock->isBusy = true;
                     lock->owner = tid;
@@ -364,7 +370,7 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
 
             if (this->globalBarrier.thrCont < this->totalThreads) {
                 this->threadDataArr[tid]->isThreadAwake = false;
-                return 0; /* no basic block to be fetched. */
+                return 1; /* no basic block to be fetched. */
             } else if (this->globalBarrier.thrCont == this->totalThreads) {
                 this->globalBarrier.ResetBarrier();
                 /* Wake all sleeping threads. */
@@ -383,7 +389,10 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
             return 1;
         }
 
-        if (this->threadDataArr[tid]->dynFile.ReadDynamicRecord()) return 1;
+        if (this->threadDataArr[tid]->dynFile.ReadDynamicRecord()) {
+            this->fetchFailed = true;
+            return 1;
+        }
         recordType = this->threadDataArr[tid]->dynFile.GetRecordType();
     }
 
@@ -436,7 +445,7 @@ int TestTraceReader() {
             SINUCA3_DEBUG_PRINTF("\n");
             SINUCA3_DEBUG_PRINTF("Fetching for thread [%d]: \n", i);
 
-            FetchResult res = reader->Fetch(&instPkt, 0);
+            FetchResult res = reader->Fetch(&instPkt, i);
             if (res == FetchResultNop) {
                 SINUCA3_DEBUG_PRINTF("\t Thread [%d] returned NOP!\n", i);
                 continue;

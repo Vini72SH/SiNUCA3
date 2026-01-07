@@ -99,9 +99,7 @@ KNOB<std::string> KnobIntrinsics(KNOB_MODE_APPEND, "pintool", "i", "",
 struct ThreadData {
     DynamicTraceWriter dynamicTrace;
     MemoryTraceWriter memoryTrace;
-    /**
-     * @brief The instrumentation may be disabled in a specific thread.
-     */
+    /** @brief The instrumentation may be disabled in a specific thread. */
     bool isInstrumentating;
 };
 
@@ -650,45 +648,48 @@ VOID LoadIntrinsics() {
 
         // Copy numbers.
         int nReads = atoi(numReads);
-        i->isRead = nReads > 0;   // esse campo nao existe na struct Instruction
-        i->isRead2 = nReads > 1;  // esse campo nao existe na struct *
-        i->isWrite = atoi(numWrites) > 0;  // esse campo nao existe na struct *
+        i->isRead = nReads > 0;
+        i->isRead2 = nReads > 1;
+        i->isWrite = atoi(numWrites) > 0;
     }
 }
 
-VOID OnThreadLifeSpanEvent(THREADID tid, bool isCreation) {
+VOID OnThreadCreateEvent(THREADID tid) {
     if (!WasThreadCreated(tid)) return;
 
-    SINUCA3_DEBUG_PRINTF("[OnThreadCreationEvent] Thread id [%d]\n", tid);
+    SINUCA3_DEBUG_PRINTF("[OnThreadCreateEvent] thread [%d]\n", tid);
 
-    if (isCreation) {
-        /* There is no support for nested parallelism. The number of threads
-         * is currently fixed because I still dk how to get this number. */
-        if (tid != 0) {
-            SINUCA3_ERROR_PRINTF(
-                "[OnThreadCreationEvent] Thr id [%d] is not supposed to spawn "
-                "threads!\n",
-                tid);
-        } else {
-            threadDataVec[0]->dynamicTrace.AddThreadCreateEvent();
-        }
-    } else {
-        /* There is no support for nested parallelism. */
-        if (tid != 0) {
-            SINUCA3_ERROR_PRINTF(
-                "[OnThreadCreationEvent] Thr id [%d] is not "
-                "supposed to despawn threads!\n",
-                tid)
-        } else {
-            for (unsigned long i = 1; i < threadDataVec.size(); i++) {
-                threadDataVec[i]->dynamicTrace.AddThreadDestructionEvent();
-            }
-        }
+    if (tid != 0) {
+        SINUCA3_ERROR_PRINTF(
+            "[OnThreadCreateEvent] There is no support for nested parallel "
+            "block!\n");
+        return;
     }
+
+    threadDataVec[0]->dynamicTrace.AddThreadCreateEvent();
 }
 
-VOID OnMutexEvent(THREADID tid, CONTEXT* ctxt, BOOL isLockReq,
-                  BOOL isGlobalMutex) {
+VOID OnThreadDestroyEvent(THREADID tid) {
+    if (!WasThreadCreated(tid)) return;
+
+    SINUCA3_DEBUG_PRINTF("[OnThreadDestroyEvent] thread [%d]\n", tid);
+
+    if (tid != 0) {
+        SINUCA3_ERROR_PRINTF(
+            "[OnThreadDestroyEvent] There is no support for nested parallel "
+            "block!\n");
+        return;
+    }
+
+    for (unsigned int i = 0; i < threadDataVec.size(); i++) {
+        threadDataVec[i]->dynamicTrace.AddBarrierEvent();
+    }
+
+    threadDataVec[0]->dynamicTrace.AddThreadDestructionEvent();
+}
+
+VOID OnThreadMutexEvent(THREADID tid, CONTEXT* ctxt, BOOL isLockReq,
+                        BOOL isGlobalMutex) {
     if (!WasThreadCreated(tid)) return;
 
     SINUCA3_DEBUG_PRINTF("[OnPrivateLockThreadEvent] Thread id [%d]\n", tid);
@@ -702,13 +703,13 @@ VOID OnMutexEvent(THREADID tid, CONTEXT* ctxt, BOOL isLockReq,
     }
 
     threadDataVec[tid]->dynamicTrace.AddMutexEvent(isLockReq, isGlobalMutex,
-                                                       lockAddr);
+                                                   lockAddr);
 }
 
-VOID OnBarrierThreadEvent(THREADID tid) {
+VOID OnThreadBarrierEvent(THREADID tid) {
     if (!WasThreadCreated(tid)) return;
 
-    SINUCA3_DEBUG_PRINTF("[OnBarrierThreadEvent] Thread id [%d]:\n", tid);
+    SINUCA3_DEBUG_PRINTF("[OnBarrierThreadEvent] Thread is [%d]\n", tid);
     threadDataVec[tid]->dynamicTrace.AddBarrierEvent();
 }
 
@@ -732,9 +733,6 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
         bool isLockRequest;
     };
 
-    static RtnEvent threadLifeSpanRtns[] = {
-        {"gomp_team_start", true, 0, 0},
-        {"gomp_team_end", false, 0, 0}};
     static RtnEvent threadMutexRtns[] = {
         {"GOMP_critical_start", 0, true, true},
         {"GOMP_critical_end", 0, true, false},
@@ -742,7 +740,6 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
         {"GOMP_critical_name_end", 0, false, false},
         {"omp_set_lock", 0, false, true},
         {"omp_unset_lock", 0, false, false}};
-    static RtnEvent barrierRtns[] = {{"gomp_team_barrier_wait_end", 0, 0, 0}};
 
     std::string absoluteImgPath = IMG_Name(img);
     long size = absoluteImgPath.length() + sizeof('\0');
@@ -789,9 +786,10 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                 if (rtnName != ev.name) continue;
 
                 if (ev.isGlobalMutex) {
-                    RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)OnMutexEvent,
-                                   IARG_THREAD_ID, IARG_CONTEXT, IARG_BOOL,
-                                   ev.isLockRequest, IARG_BOOL, true, IARG_END);
+                    RTN_InsertCall(rtn, IPOINT_BEFORE,
+                                   (AFUNPTR)OnThreadMutexEvent, IARG_THREAD_ID,
+                                   IARG_CONTEXT, IARG_BOOL, ev.isLockRequest,
+                                   IARG_BOOL, true, IARG_END);
                 } else if (ev.isLockRequest) {
                     INS inst = FindInstInRtn(rtn, "CMPXCHG_LOCK");
                     if (inst == INS_Invalid()) {
@@ -799,36 +797,36 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                             "[OnImageLoad] CMPXCHG_LOCK not found!\n");
                         continue;
                     }
-                    INS_InsertCall(inst, IPOINT_BEFORE, (AFUNPTR)OnMutexEvent,
-                                   IARG_THREAD_ID, IARG_CONTEXT, IARG_BOOL,
-                                   true, IARG_BOOL, false, IARG_END);
+                    INS_InsertCall(inst, IPOINT_BEFORE,
+                                   (AFUNPTR)OnThreadMutexEvent, IARG_THREAD_ID,
+                                   IARG_CONTEXT, IARG_BOOL, true, IARG_BOOL,
+                                   false, IARG_END);
                 } else {
                     INS inst = FindInstInRtn(rtn, "XCHG");
                     if (inst == INS_Invalid()) {
                         SINUCA3_ERROR_PRINTF("[OnImageLoad] XCHG not found!\n");
                         continue;
                     }
-                    INS_InsertCall(inst, IPOINT_BEFORE, (AFUNPTR)OnMutexEvent,
-                                   IARG_THREAD_ID, IARG_CONTEXT, IARG_BOOL,
-                                   false, IARG_BOOL, false, IARG_END);
+                    INS_InsertCall(inst, IPOINT_BEFORE,
+                                   (AFUNPTR)OnThreadMutexEvent, IARG_THREAD_ID,
+                                   IARG_CONTEXT, IARG_BOOL, false, IARG_BOOL,
+                                   false, IARG_END);
                 }
             }
-            for (RtnEvent& ev : barrierRtns) {
-                if (rtnName == ev.name) {
-                    RTN_InsertCall(rtn, IPOINT_BEFORE,
-                                   (AFUNPTR)OnBarrierThreadEvent,
-                                   IARG_THREAD_ID, IARG_END);
-                    break;
-                }
+
+            if (rtnName == "gomp_team_start") {
+                RTN_InsertCall(rtn, IPOINT_BEFORE, (AFUNPTR)OnThreadCreateEvent,
+                               IARG_THREAD_ID, IARG_END);
+            } else if (rtnName == "gomp_team_end") {
+                RTN_InsertCall(rtn, IPOINT_BEFORE,
+                               (AFUNPTR)OnThreadDestroyEvent, IARG_THREAD_ID,
+                               IARG_END);
+            } else if (rtnName == "GOMP_barrier") {
+                RTN_InsertCall(rtn, IPOINT_BEFORE,
+                               (AFUNPTR)OnThreadBarrierEvent, IARG_THREAD_ID,
+                               IARG_END);
             }
-            for (RtnEvent& ev : threadLifeSpanRtns) {
-                if (rtnName == ev.name) {
-                    RTN_InsertCall(rtn, IPOINT_AFTER,
-                                   (AFUNPTR)OnThreadLifeSpanEvent, IARG_THREAD_ID,
-                                   IARG_UINT32, ev.isCreatingThreads, IARG_END);
-                    break;
-                }
-            }
+
             // for (IntrinsicInfo& intrinsic : intrinsics) {
             //     if (rtnName == intrinsic.loaderName) {
             //         RTN_InsertCall(rtn, IPOINT_BEFORE,
