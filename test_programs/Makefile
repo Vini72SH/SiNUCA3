@@ -12,7 +12,7 @@ ifndef CC
 endif
 
 NOOPT  = -O0 -fno-inline -fno-builtin -fno-omit-frame-pointer
-CFLAGS = -Wall -Wextra -std=c11 -O3 -g -I../x86_trace_generator/
+CFLAGS = -Wall -Wextra -std=c11 -O1 -g -I../x86_trace_generator/
 ADD_FILES = ../x86_trace_generator/instrumentation_control.s
 
 all: factorials intrinsics pi

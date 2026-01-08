@@ -224,8 +224,6 @@ int SinucaTraceReader::FetchBasicBlock(int tid) {
 
     while (recordType != DynamicRecordBasicBlockIdentifier) {
         if (recordType == DynamicRecordAbruptEnd) {
-            SINUCA3_DEBUG_PRINTF("Fetched DynamicRecordAbruptEnd!\n");
-
             this->reachedAbruptEnd = true;
             SINUCA3_WARNING_PRINTF(
                 "Trace reader fetched abrupt end event in thread [%d]!\n", tid);

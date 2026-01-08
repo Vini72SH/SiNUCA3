@@ -232,7 +232,8 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bblId, UINT32 numInst) {
                 threadDataVec[tid]->dynamicTrace.AddThreadEvent(
                     DynamicRecordAbruptEnd, 0);
             }
-            PIN_Detach();
+            PIN_ReleaseLock(&threadAnalysisLock);
+            PIN_ExitApplication(0);
         }
         numberOfExecInst += numInst;
     }
@@ -877,11 +878,6 @@ VOID OnFini(INT32 code, VOID* ptr) {
     }
 }
 
-VOID OnDetach(VOID* ptr) {
-    SINUCA3_WARNING_PRINTF("[OnDetach] Detaching pin!\n");
-    OnFini(0, 0);
-}
-
 int main(int argc, char* argv[]) {
     PIN_InitSymbols();
 
@@ -908,7 +904,6 @@ int main(int argc, char* argv[]) {
     IMG_AddInstrumentFunction(OnImageLoad, NULL);
     TRACE_AddInstrumentFunction(OnTrace, NULL);
     PIN_AddFiniFunction(OnFini, NULL);
-    PIN_AddDetachFunction(OnDetach, NULL);
 
     PIN_AddThreadStartFunction(OnThreadStart, NULL);
     PIN_AddThreadFiniFunction(OnThreadFini, NULL);
