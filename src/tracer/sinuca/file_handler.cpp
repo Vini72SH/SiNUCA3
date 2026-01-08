@@ -63,11 +63,15 @@ void FormatPathTidOut(char *dest, const char *sourceDir,
     snprintf(dest, destSize, "%s/%s_%s.trace", sourceDir, prefix, imageName);
 }
 
-
 int FileHeader::FlushHeader(FILE *file) {
     if (!file) return 1;
+    long orgPos = ftell(file);
     rewind(file);
-    return (fwrite(this, 1, sizeof(*this), file) != sizeof(*this));
+    if (fwrite(this, 1, sizeof(*this), file) != sizeof(*this)) {
+        return 1;
+    }
+    fseek(file, orgPos, SEEK_SET);
+    return 0;
 }
 
 int FileHeader::LoadHeader(FILE* file) {
