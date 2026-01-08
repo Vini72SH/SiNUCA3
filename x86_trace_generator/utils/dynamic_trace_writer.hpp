@@ -57,13 +57,13 @@ class DynamicTraceWriter {
         this->header.SetHeaderType(FileTypeDynamicTrace);
     };
     inline ~DynamicTraceWriter() {
-        if (this->header.FlushHeader(this->file)) {
-            SINUCA3_ERROR_PRINTF("Failed to write dynamic file header!\n");
-        }
         if (!this->IsRecordArrayEmpty()) {
             if (this->FlushRecordArray()) {
                 SINUCA3_ERROR_PRINTF("Failed to flush dynamic records!\n");
             }
+        }
+        if (this->header.FlushHeader(this->file)) {
+            SINUCA3_ERROR_PRINTF("Failed to write dynamic file header!\n");
         }
         if (file) {
             fclose(file);

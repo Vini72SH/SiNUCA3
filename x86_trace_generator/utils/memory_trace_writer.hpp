@@ -59,13 +59,13 @@ class MemoryTraceWriter {
         this->header.SetHeaderType(FileTypeMemoryTrace);
     };
     inline ~MemoryTraceWriter() {
-        if (this->header.FlushHeader(this->file)) {
-            SINUCA3_ERROR_PRINTF("Failed to write memory file header!\n");
-        }
         if (!this->IsRecordArrayEmpty()) {
             if (this->FlushRecordArray()) {
                 SINUCA3_ERROR_PRINTF("Failed to flush memory records!\n");
             }
+        }
+        if (this->header.FlushHeader(this->file)) {
+            SINUCA3_ERROR_PRINTF("Failed to write memory file header!\n");
         }
         if (file) {
             fclose(file);

@@ -235,8 +235,9 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bblId, UINT32 numInst) {
             PIN_ReleaseLock(&threadAnalysisLock);
             PIN_ExitApplication(0);
         }
-        numberOfExecInst += numInst;
     }
+
+    numberOfExecInst += numInst;
 
     threadDataVec[tid]->dynamicTrace.IncExecutedInstructions(numInst);
 
@@ -863,6 +864,8 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
 }
 
 VOID OnFini(INT32 code, VOID* ptr) {
+    SINUCA3_DEBUG_PRINTF(
+        "[OnFini] Total of [%lu] inst exec and stored!\n", numberOfExecInst);
     SINUCA3_DEBUG_PRINTF("[OnFini] End of tool execution!\n");
 
     if (imageName) {
