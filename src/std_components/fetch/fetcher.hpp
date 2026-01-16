@@ -126,7 +126,6 @@ class Fetcher : public Component<int> {
           currentPenalty(0),
           fetchedInstructions(0),
           flagsToCheck(FetchBufferEntryFlagsSentToMemory) {}
-    virtual int FinishSetup();
     virtual int Configure(Config config);
     virtual void Clock();
     virtual void PrintStatistics();

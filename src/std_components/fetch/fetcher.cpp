@@ -26,34 +26,6 @@
 #include <cassert>
 #include <sinuca3.hpp>
 
-int Fetcher::FinishSetup() {
-    if (this->fetch == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Fetcher didn't received required parameter `fetch`.\n");
-        return 1;
-    }
-    if (this->instructionMemory == NULL) {
-        SINUCA3_ERROR_PRINTF(
-            "Fetcher didn't received required parameter "
-            "`instructionMemory`.\n");
-        return 1;
-    }
-
-    this->fetchID = this->fetch->Connect(this->fetchSize);
-    this->instructionMemoryID =
-        this->instructionMemory->Connect(this->fetchSize);
-
-    this->fetchBuffer = new FetchBufferEntry[this->fetchSize];
-
-    // Maybe connect to a predictor.
-    if (this->predictor != NULL) {
-        this->predictorID = this->predictor->Connect(this->fetchSize);
-        this->flagsToCheck |= FetchBufferEntryFlagsPredicted;
-    }
-
-    return 0;
-}
-
 int Fetcher::Configure(Config config) {
     if (config.ComponentReference("fetch", &this->fetch, true)) return 1;
     if (config.ComponentReference("instructionMemory", &this->instructionMemory,
@@ -96,7 +68,9 @@ void Fetcher::ClockSendBuffered() {
     unsigned long i = 0;
 
     // Skip instructions we already sent.
-    while (this->fetchBuffer[i].flags & FetchBufferEntryFlagsSentToMemory) ++i;
+    while (i < this->fetchBufferUsage &&
+           (this->fetchBuffer[i].flags & FetchBufferEntryFlagsSentToMemory))
+        ++i;
 
     while (i < this->fetchBufferUsage &&
            (this->instructionMemory->SendRequest(
@@ -139,7 +113,7 @@ int Fetcher::ClockCheckPredictor() {
         assert(this->fetchBuffer[i].instruction.staticInfo ==
                response.data.targetResponse.instruction.staticInfo);
         this->fetchBuffer[i].flags |= FetchBufferEntryFlagsPredicted;
-        long target =
+        unsigned long target =
             this->fetchBuffer[i].instruction.staticInfo->instAddress +
             this->fetchBuffer[i].instruction.staticInfo->instSize;
         // "Redirect" the fetch only if the predictor has an address, otherwise
@@ -189,7 +163,8 @@ void Fetcher::ClockFetch() {
     // the cycle right after we asked.
     while (this->fetch->ReceiveResponse(
                this->fetchID,
-               (FetchPacket*)&this->fetchBuffer[this->fetchBufferUsage]) == 0) {
+               (FetchPacket*)&this->fetchBuffer[this->fetchBufferUsage]
+                   .instruction) == 0) {
         this->fetchBuffer[this->fetchBufferUsage].flags = 0;
         ++this->fetchBufferUsage;
         ++this->fetchedInstructions;

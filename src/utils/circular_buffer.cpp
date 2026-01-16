@@ -23,6 +23,7 @@
 #include "circular_buffer.hpp"
 
 #include <cstdlib>
+#include <cstring>
 
 const int defaultBufferSize = 8;
 
@@ -56,7 +57,7 @@ void CircularBuffer::Deallocate() {
     }
 }
 
-bool CircularBuffer::Enqueue(void* elementInput) {
+int CircularBuffer::Enqueue(void* elementInput) {
     if (this->IsFull()) {
         if (this->maxBufferSize != 0) {
             return 1;
@@ -64,16 +65,20 @@ bool CircularBuffer::Enqueue(void* elementInput) {
 
         void* newBuffer =
             (void*)malloc(this->bufferSize * 2 * this->elementSize);
-        if (this->startOfBuffer >= this->endOfBuffer) {
-            long offset = this->bufferSize - this->startOfBuffer;
-            memcpy(newBuffer, &((char*)this->buffer)[this->startOfBuffer],
-                   offset);
-            memcpy(&((char*)newBuffer)[offset], this->buffer,
-                   this->bufferSize - offset);
+        if (this->startOfBuffer != 0) {
+            int offset = (this->bufferSize - this->startOfBuffer);
+            memcpy(
+                newBuffer,
+                &((char*)this->buffer)[this->startOfBuffer * this->elementSize],
+                offset * this->elementSize);
+            memcpy(&((char*)newBuffer)[offset * this->elementSize],
+                   this->buffer,
+                   (this->bufferSize - offset) * this->elementSize);
             this->startOfBuffer = 0;
-            this->endOfBuffer = this->bufferSize - 1;
+            this->endOfBuffer = this->bufferSize;
         } else {
             memcpy(newBuffer, this->buffer, this->bufferSize * elementSize);
+            this->endOfBuffer = this->bufferSize;
         }
 
         this->bufferSize *= 2;
@@ -100,7 +105,7 @@ bool CircularBuffer::Enqueue(void* elementInput) {
     return 0;
 }
 
-bool CircularBuffer::Dequeue(void* elementOutput) {
+int CircularBuffer::Dequeue(void* elementOutput) {
     if (!this->IsEmpty()) {
         /*
          * Element stores the memory address of the oldest element in the Buffer
@@ -127,7 +132,7 @@ bool CircularBuffer::Dequeue(void* elementOutput) {
     return 1;
 }
 
-void CircularBuffer::Flush(){
+void CircularBuffer::Flush() {
     this->occupation = 0;
     this->startOfBuffer = this->endOfBuffer;
 }
