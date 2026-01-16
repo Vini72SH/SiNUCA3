@@ -30,8 +30,8 @@ int SimpleExecutionUnit::Configure(Config config) {
 }
 
 void SimpleExecutionUnit::Clock() {
-    unsigned long numberOfConnections = this->GetNumberOfConnections();
-    for (unsigned long i = 0; i < numberOfConnections; ++i) {
+    long numberOfConnections = this->GetNumberOfConnections();
+    for (long i = 0; i < numberOfConnections; ++i) {
         InstructionPacket packet;
         while (this->ReceiveRequestFromConnection(i, &packet) == 0) {
             SINUCA3_DEBUG_PRINTF("[SimpleExecutionUnit] %p: executing %s.\n",

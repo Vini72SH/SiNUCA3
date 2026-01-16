@@ -98,7 +98,7 @@ class CircularBuffer {
      * @param elementInput A pointer to the element to be inserted.
      * @return 0 if successfuly, 1 otherwise.
      */
-    bool Enqueue(void* elementInput);
+    int Enqueue(void* elementInput);
 
     /**
      * @brief Removes and returns the element contained in the "base" of the
@@ -107,7 +107,7 @@ class CircularBuffer {
      * will be returned.
      * @return 0 if successfuly, 1 otherwise.
      */
-    bool Dequeue(void* elementOutput);
+    int Dequeue(void* elementOutput);
 
     /* @brief Removes all elements from the CircularBuffer. */
     void Flush();
