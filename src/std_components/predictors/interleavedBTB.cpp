@@ -107,7 +107,7 @@ BranchTargetBuffer::BranchTargetBuffer()
       totalBranch(0),
       queries(0),
       occupation(0),
-      replacements(0) {};
+      replacements(0){};
 
 int BranchTargetBuffer::Configure(Config config) {
     long interleavingFactor;
@@ -198,8 +198,8 @@ inline void BranchTargetBuffer::Query(const StaticInstructionInfo* instruction,
     response.data.response.instruction = instruction;
     response.data.response.target =
         instruction->instAddress + ((this->interleavingFactor == 1)
-                                          ? instruction->instSize
-                                          : (this->interleavingFactor));
+                                        ? instruction->instSize
+                                        : (this->interleavingFactor));
     response.data.response.numberOfInstructions = this->interleavingFactor;
     response.data.response.interleavingBits = this->interleavingBits;
 
@@ -216,7 +216,7 @@ inline void BranchTargetBuffer::Query(const StaticInstructionInfo* instruction,
         response.data.response.instruction = instruction;
         response.data.response.target =
             instruction->instAddress + this->interleavingFactor;
-        
+
         // TODO: change numberOfBits field; not present in struct response
         // response.data.response.numberOfBits = this->interleavingFactor;
 
@@ -244,8 +244,7 @@ inline void BranchTargetBuffer::Query(const StaticInstructionInfo* instruction,
         response.data.response.instruction = instruction;
         response.data.response.target =
             instruction->instAddress + this->interleavingFactor;
-        // TODO: change numberOfBits field; not present in struct response
-        // response.data.response.numberOfBits = this->interleavingFactor;
+        response.data.response.interleavingBits = this->interleavingBits;
         for (unsigned int i = 0; i < this->interleavingFactor; ++i) {
             response.data.response.validBits[i] = true;
         }
