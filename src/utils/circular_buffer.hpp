@@ -50,7 +50,7 @@ class CircularBuffer {
           bufferSize(0),
           elementSize(0),
           startOfBuffer(0),
-          endOfBuffer(0) {};
+          endOfBuffer(0){};
 
     /**
      * @brief Returns a boolean indicating whether the Buffer is allocated.
@@ -108,6 +108,20 @@ class CircularBuffer {
      * @return 0 if successfuly, 1 otherwise.
      */
     int Dequeue(void* elementOutput);
+
+    /**
+     * @brief Retrieves the first element without removing it from the Buffer.
+     * @param elementOutput A pointer to the memory region where the element
+     * will be returned
+     * @return 0 if sucessfuly, 1 otherwise.
+     */
+    int GetFirstElement(void* elementOutput);
+
+    /**
+     * @brief Removes the element contained in the "base" of the
+     * Buffer without returning it.
+     */
+    void Pop();
 
     /* @brief Removes all elements from the CircularBuffer. */
     void Flush();
