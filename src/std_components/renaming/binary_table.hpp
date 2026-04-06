@@ -21,16 +21,16 @@
 #include <cstddef>
 
 /**
- * @brief It is a table that tracks the current status of all physical
- * registers.
+ * @brief It is a binary table.
  */
-class BusyTable {
+class BinaryTable {
   private:
+    int iterator;
     int tableSize;
-    bool *busies;
+    bool *bins;
 
   public:
-    BusyTable() : tableSize(0), busies(NULL) {}
+    BinaryTable() : iterator(0), tableSize(0), bins(NULL) {}
 
     /**
      * @brief Allocate the Busy Table
@@ -40,24 +40,32 @@ class BusyTable {
     int Allocate(int sizeOfTable);
 
     inline bool IsBusy(int idx) {
-        if ((busies) && (idx < tableSize))
-            return this->busies[idx];
+        if ((bins) && (idx < tableSize))
+            return this->bins[idx];
         else
             return false;
     }
 
     inline void SetBusy(int idx) {
-        if ((busies) && (idx < tableSize)) this->busies[idx] = 1;
+        if ((bins) && (idx < tableSize)) this->bins[idx] = 1;
     };
 
     inline void ResetBusy(int idx) {
-        if ((busies) && (idx < tableSize)) this->busies[idx] = 0;
+        if ((bins) && (idx < tableSize)) this->bins[idx] = 0;
     };
 
-    ~BusyTable() {
+    inline int GetIterator() { return this->iterator; };
+
+    inline bool GetElementIterator() { return this->bins[this->iterator]; };
+
+    inline void Next() {
+        this->iterator = (this->iterator + 1) % this->tableSize;
+    };
+
+    ~BinaryTable() {
         this->tableSize = 0;
-        if (busies) delete[] busies;
-        busies = NULL;
+        if (bins) delete[] bins;
+        bins = NULL;
     };
 };
 

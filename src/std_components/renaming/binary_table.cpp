@@ -16,16 +16,16 @@
 //
 
 /**
- * @file busy_table.cpp
- * @brief Implementation of the Renaming component Busy Table.
+ * @file binary_table.cpp
+ * @brief Implementation of an Binary Table.
  */
 
-#include "busy_table.hpp"
+#include "binary_table.hpp"
 
-int BusyTable::Allocate(int sizeOfTable) {
-    this->busies = new bool[sizeOfTable]();
+int BinaryTable::Allocate(int sizeOfTable) {
+    this->bins = new bool[sizeOfTable]();
 
-    if (!(busies)) return 1;
+    if (!(bins)) return 1;
 
     this->tableSize = sizeOfTable;
 
