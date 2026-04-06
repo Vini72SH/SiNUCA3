@@ -1,5 +1,5 @@
-#ifndef SINUCA3_RENAMING_BUSY_TABLE_HPP_
-#define SINUCA3_RENAMING_BUSY_TABLE_HPP_
+#ifndef SINUCA3_UTILS_BINARY_TABLE_HPP_
+#define SINUCA3_UTILS_BINARY_TABLE_HPP_
 
 //
 // Copyright (C) 2024  HiPES - Universidade Federal do Paraná
@@ -33,25 +33,25 @@ class BinaryTable {
     BinaryTable() : iterator(0), tableSize(0), bins(NULL) {}
 
     /**
-     * @brief Allocate the Busy Table
+     * @brief Allocate the Binary Table
      * @param sizeOfTable self-explanatory.
      * @return 0 if Ok, 1 otherwise.
      */
     int Allocate(int sizeOfTable);
 
-    inline bool IsBusy(int idx) {
-        if ((bins) && (idx < tableSize))
+    inline bool GetBin(int idx) {
+        if ((this->bins) && (idx < this->tableSize))
             return this->bins[idx];
         else
             return false;
     }
 
-    inline void SetBusy(int idx) {
-        if ((bins) && (idx < tableSize)) this->bins[idx] = 1;
+    inline void SetBin(int idx) {
+        if ((this->bins) && (idx < this->tableSize)) this->bins[idx] = 1;
     };
 
-    inline void ResetBusy(int idx) {
-        if ((bins) && (idx < tableSize)) this->bins[idx] = 0;
+    inline void ResetBin(int idx) {
+        if ((this->bins) && (idx < this->tableSize)) this->bins[idx] = 0;
     };
 
     inline int GetIterator() { return this->iterator; };
@@ -64,8 +64,8 @@ class BinaryTable {
 
     ~BinaryTable() {
         this->tableSize = 0;
-        if (bins) delete[] bins;
-        bins = NULL;
+        if (this->bins) delete[] this->bins;
+        this->bins = NULL;
     };
 };
 
