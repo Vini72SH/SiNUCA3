@@ -38,7 +38,7 @@ void CircularBuffer::Allocate(int bufferSize, int elementSize) {
 
     this->maxBufferSize = bufferSize;
 
-    if (bufferSize == 0) {
+    if (bufferSize <= 0) {
         this->buffer = (void*)malloc(defaultBufferSize * elementSize);
         this->bufferSize = defaultBufferSize;
     } else {

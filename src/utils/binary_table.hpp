@@ -20,6 +20,10 @@
 
 #include <cstddef>
 
+#include "engine/default_packets.hpp"
+
+const int defaultTableSize = MAX_REGISTERS;
+
 /**
  * @brief It is a binary table.
  */

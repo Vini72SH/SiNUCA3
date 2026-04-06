@@ -16,22 +16,25 @@
 //
 
 /**
- * @file binary_table.cpp
- * @brief Implementation of an Binary Table.
+ * @file reorder_buffer.cpp
+ * @brief Implementation of the Reorder Buffer component.
  */
 
-#include "binary_table.hpp"
+#include "reorder_buffer.hpp"
 
-int BinaryTable::Allocate(int sizeOfTable) {
-    if (sizeOfTable <= 0) {
-        this->tableSize = defaultTableSize;
+#include "utils/circular_buffer.hpp"
+
+int ReorderBuffer::Allocate(int sizeOfRob) {
+    if (sizeOfRob <= 0) {
+        this->robSize = defaultBufferSize;
     } else {
-        this->tableSize = sizeOfTable;
+        this->robSize = sizeOfRob;
     };
 
-    this->bins = new bool[this->tableSize]();
+    this->robs = new CircularBuffer();
+    if (!(this->robs)) return 1;
 
-    if (!(bins)) return 1;
+    this->robs->Allocate(this->robSize, sizeof(RobData));
 
     return 0;
-};
+}
