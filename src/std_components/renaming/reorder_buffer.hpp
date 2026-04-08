@@ -34,6 +34,9 @@ const int defaultBufferSize = MAX_REGISTERS;
 class ReorderBuffer {
   private:
     typedef struct {
+        InstructionPacket instruction;
+        int newPhysicalRegisterD;
+        int oldPhysicalRegisterD;
         bool executed;
     } RobData;
 
@@ -50,9 +53,30 @@ class ReorderBuffer {
      */
     int Allocate(int sizeOfRob);
 
-    void Insert(int newprd, int oldprd);
+    /**
+     * @brief Inserts an instruction into the RoB.
+     * @param instruction Data from an instruction.
+     * @param newprd Index of the new physical register used for this
+     * instruction.
+     * @param oldprd Index of the old physical register used for this
+     * instruction
+     * @return 0 if everything is ok, 1 if the RoB is full.
+     */
+    int Insert(const InstructionPacket instruction, int newprd, int oldprd);
+
+    /**
+     *
+     */
     void SetExecuted(int idx);
+
+    /**
+     *
+     */
     void GetFirstElement();
+
+    /**
+     *
+     */
     void Commit();
 
     ~ReorderBuffer() {

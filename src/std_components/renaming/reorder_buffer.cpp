@@ -22,6 +22,7 @@
 
 #include "reorder_buffer.hpp"
 
+#include "engine/default_packets.hpp"
 #include "utils/circular_buffer.hpp"
 
 int ReorderBuffer::Allocate(int sizeOfRob) {
@@ -35,6 +36,22 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
     if (!(this->robs)) return 1;
 
     this->robs->Allocate(this->robSize, sizeof(RobData));
+
+    return 0;
+}
+
+int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
+                          int oldprd) {
+    RobData newRobEntry;
+
+    newRobEntry.instruction = instruction;
+    newRobEntry.newPhysicalRegisterD = newprd;
+    newRobEntry.oldPhysicalRegisterD = oldprd;
+    newRobEntry.executed = false;
+
+    if ((this->robs->Enqueue(&newRobEntry))) {
+        return 1;
+    }
 
     return 0;
 }
