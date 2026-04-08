@@ -112,7 +112,7 @@ class CircularBuffer {
     /**
      * @brief Retrieves the first element without removing it from the Buffer.
      * @param elementOutput A pointer to the memory region where the element
-     * will be returned
+     * will be returned.
      * @return 0 if sucessfuly, 1 otherwise.
      */
     int GetFirstElement(void* elementOutput);

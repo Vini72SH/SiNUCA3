@@ -22,8 +22,73 @@
 
 #include "reorder_buffer.hpp"
 
+#include <cstring>
+
 #include "engine/default_packets.hpp"
-#include "utils/circular_buffer.hpp"
+
+int ReorderBuffer::Enqueue(RobEntry input) {
+    if (this->IsFull()) return 1;
+
+    void *memoryAddress = (this->robs) + (this->end * this->robEntrySize);
+    memcpy(memoryAddress, &input, this->robEntrySize);
+    ++this->occupation;
+    ++this->end;
+
+    if (this->end == this->robSize) {
+        this->end = 0;
+    }
+
+    return 0;
+}
+
+int ReorderBuffer::Dequeue(RobEntry *output) {
+    if (!(this->IsEmpty())) {
+        void *memoryAddress = (this->robs) + (this->start * this->robEntrySize);
+
+        memcpy(output, memoryAddress, this->robEntrySize);
+        --this->occupation;
+        ++this->start;
+
+        if (this->start == this->robSize) {
+            this->start = 0;
+        }
+
+        return 0;
+    }
+
+    memset(output, 0, this->robEntrySize);
+
+    return 1;
+}
+
+int ReorderBuffer::GetFirstElement(RobEntry *output) {
+    if (!this->IsEmpty()) {
+        void *memoryAddress = (this->robs) + (this->start * this->robEntrySize);
+
+        memcpy(output, memoryAddress, this->robEntrySize);
+
+        return 0;
+    }
+
+    memset(output, 0, this->robEntrySize);
+
+    return 1;
+}
+
+/**
+ * @brief Removes the element contained in the "base" of the
+ * Buffer without returning it.
+ */
+void ReorderBuffer::Pop() {
+    if (!this->IsEmpty()) {
+        --this->occupation;
+        ++this->start;
+
+        if (this->start == this->robSize) {
+            this->start = 0;
+        }
+    }
+}
 
 int ReorderBuffer::Allocate(int sizeOfRob) {
     if (sizeOfRob <= 0) {
@@ -32,26 +97,27 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
         this->robSize = sizeOfRob;
     };
 
-    this->robs = new CircularBuffer();
+    this->robs = new RobEntry();
+    this->robEntrySize = sizeof(RobEntry);
     if (!(this->robs)) return 1;
-
-    this->robs->Allocate(this->robSize, sizeof(RobData));
 
     return 0;
 }
 
 int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
                           int oldprd) {
-    RobData newRobEntry;
+    RobEntry newRobEntry;
 
     newRobEntry.instruction = instruction;
     newRobEntry.newPhysicalRegisterD = newprd;
     newRobEntry.oldPhysicalRegisterD = oldprd;
     newRobEntry.executed = false;
 
-    if ((this->robs->Enqueue(&newRobEntry))) {
-        return 1;
-    }
-
     return 0;
 }
+
+void ReorderBuffer::SetExecuted(int idx) {}
+
+void ReorderBuffer::GetFirstElement() {}
+
+void ReorderBuffer::Commit() {}

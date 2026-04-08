@@ -19,9 +19,9 @@
 //
 
 #include <cstddef>
+#include <cstring>
 
 #include "engine/default_packets.hpp"
-#include "utils/circular_buffer.hpp"
 
 const int defaultBufferSize = MAX_REGISTERS;
 
@@ -38,13 +38,49 @@ class ReorderBuffer {
         int newPhysicalRegisterD;
         int oldPhysicalRegisterD;
         bool executed;
-    } RobData;
+    } RobEntry;
 
     int robSize;
-    CircularBuffer *robs;
+    int start, end;
+    int occupation;
+    unsigned long robEntrySize;
+    RobEntry *robs;
+
+    inline bool IsFull() { return this->occupation == this->robSize; }
+    inline bool IsEmpty() { return this->occupation == 0; }
+
+    /**
+     * @brief Inserts the element at the "top" of the buffer.
+     * @param input A pointer to the element to be inserted.
+     * @return 0 if successfuly, 1 otherwise.
+     */
+    int Enqueue(RobEntry input);
+
+    /**
+     * @brief Removes and returns the element contained in the "base" of the
+     * Buffer.
+     * @param output A pointer to the memory region where the element
+     * will be returned.
+     * @return 0 if successfuly, 1 otherwise.
+     */
+    int Dequeue(RobEntry *output);
+
+    /**
+     * @brief Retrieves the first element without removing it from the Buffer.
+     * @param output A pointer to the memory region where the element
+     * will be returned.
+     * @return 0 if sucessfuly, 1 otherwise.
+     */
+    int GetFirstElement(RobEntry *output);
+
+    /**
+     * @brief Removes the element contained in the "base" of the
+     * Buffer without returning it.
+     */
+    void Pop();
 
   public:
-    ReorderBuffer() : robSize(0), robs(NULL) {}
+    ReorderBuffer() : robSize(0), start(0), end(0), occupation(0), robs(NULL) {}
 
     /**
      * @brief Allocates the structure of a Reorder Buffer.
@@ -65,7 +101,8 @@ class ReorderBuffer {
     int Insert(const InstructionPacket instruction, int newprd, int oldprd);
 
     /**
-     *
+     * @brief Mark a RoB entry as executed.
+     * @param idx The index of entry
      */
     void SetExecuted(int idx);
 
