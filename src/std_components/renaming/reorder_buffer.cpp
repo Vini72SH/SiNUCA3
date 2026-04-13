@@ -29,8 +29,7 @@
 int ReorderBuffer::Enqueue(RobEntry input) {
     if (this->IsFull()) return 1;
 
-    void *memoryAddress = (this->robs) + (this->end * this->robEntrySize);
-    memcpy(memoryAddress, &input, this->robEntrySize);
+    this->robs[this->end] = input;
     ++this->occupation;
     ++this->end;
 
@@ -43,9 +42,8 @@ int ReorderBuffer::Enqueue(RobEntry input) {
 
 int ReorderBuffer::Dequeue(RobEntry *output) {
     if (!(this->IsEmpty())) {
-        void *memoryAddress = (this->robs) + (this->start * this->robEntrySize);
-
-        memcpy(output, memoryAddress, this->robEntrySize);
+        memcpy(output, &this->robs[this->start], this->robEntrySize);
+        this->robs[this->start].valid = false;
         --this->occupation;
         ++this->start;
 
@@ -97,7 +95,7 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
         this->robSize = sizeOfRob;
     };
 
-    this->robs = new RobEntry();
+    this->robs = new RobEntry[this->robSize]();
     this->robEntrySize = sizeof(RobEntry);
     if (!(this->robs)) return 1;
 
@@ -112,12 +110,40 @@ int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
     newRobEntry.newPhysicalRegisterD = newprd;
     newRobEntry.oldPhysicalRegisterD = oldprd;
     newRobEntry.executed = false;
+    newRobEntry.valid = true;
 
-    return 0;
+    return this->Enqueue(newRobEntry);
 }
 
-void ReorderBuffer::SetExecuted(int idx) {}
+void ReorderBuffer::SetExecuted(int idx) {
+    if ((idx <= 0) || (idx >= this->robSize) || !(this->robs[idx].valid))
+        return;
 
-void ReorderBuffer::GetFirstElement() {}
+    this->robs[idx].executed = true;
+}
 
-void ReorderBuffer::Commit() {}
+int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
+                                          int *newprd, int *oldprd,
+                                          bool *executed) {
+    RobEntry head;
+
+    if (this->GetFirstElement(&head)) return 1;
+
+    memcpy(instruction, &head.instruction, sizeof(InstructionPacket));
+    (*newprd) = head.newPhysicalRegisterD;
+    (*oldprd) = head.oldPhysicalRegisterD;
+    (*executed) = head.executed;
+
+    return (head.valid != 0);
+}
+
+void ReorderBuffer::Commit() {
+    this->robs[this->start].valid = false;
+
+    --this->occupation;
+    ++this->start;
+
+    if (this->start == this->robSize) {
+        this->start = 0;
+    }
+}

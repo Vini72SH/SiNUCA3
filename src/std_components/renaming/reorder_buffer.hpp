@@ -38,6 +38,7 @@ class ReorderBuffer {
         int newPhysicalRegisterD;
         int oldPhysicalRegisterD;
         bool executed;
+        bool valid;
     } RobEntry;
 
     int robSize;
@@ -107,12 +108,24 @@ class ReorderBuffer {
     void SetExecuted(int idx);
 
     /**
-     *
+     * @brief Get the instruction from the "Head" of RoB.
+     * @param instruction A pointer to an Instruction Packet; the instruction
+     * will be written to it.
+     * @param newprd A pointer to an int; the new physical register will be
+     * written to it.
+     * @param oldprd A pointer to an int; the old physical register will be
+     * written to it.
+     * @param executed A pointer to a boolean; The state of the instruction will
+     * be written to it.
+     * @return 0 if the instruction is valid, 1 otherwise.
      */
-    void GetFirstElement();
+    int GetRobFirstInstruction(InstructionPacket *instruction, int *newprd,
+                               int *oldprd, bool *executed);
 
     /**
-     *
+     * @brief Commit an instruction. In a real processor, this is the moment
+     * when the new register value is written. Basically, it updates Rob's
+     * "Head," advancing to the next instruction.
      */
     void Commit();
 
