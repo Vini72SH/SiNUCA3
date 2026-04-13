@@ -27,9 +27,10 @@
 #include "engine/default_packets.hpp"
 
 int ReorderBuffer::Enqueue(RobEntry input) {
-    if (this->IsFull()) return 1;
+    if (this->IsFull()) return -1;
 
-    this->robs[this->end] = input;
+    int idx = this->end;
+    this->robs[idx] = input;
     ++this->occupation;
     ++this->end;
 
@@ -37,7 +38,7 @@ int ReorderBuffer::Enqueue(RobEntry input) {
         this->end = 0;
     }
 
-    return 0;
+    return idx;
 }
 
 int ReorderBuffer::Dequeue(RobEntry *output) {
@@ -116,8 +117,7 @@ int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
 }
 
 void ReorderBuffer::SetExecuted(int idx) {
-    if ((idx <= 0) || (idx >= this->robSize) || !(this->robs[idx].valid))
-        return;
+    if ((idx < 0) || (idx >= this->robSize) || !(this->robs[idx].valid)) return;
 
     this->robs[idx].executed = true;
 }
@@ -138,7 +138,10 @@ int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
 }
 
 void ReorderBuffer::Commit() {
+    if (!(this->robs[this->start].executed)) return;
     this->robs[this->start].valid = false;
+
+    if (this->IsEmpty()) return;
 
     --this->occupation;
     ++this->start;

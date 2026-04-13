@@ -97,7 +97,7 @@ class ReorderBuffer {
      * instruction.
      * @param oldprd Index of the old physical register used for this
      * instruction
-     * @return 0 if everything is ok, 1 if the RoB is full.
+     * @return -1 if the RoB is full, otherwise, the rob idx.
      */
     int Insert(const InstructionPacket instruction, int newprd, int oldprd);
 
@@ -131,7 +131,7 @@ class ReorderBuffer {
 
     ~ReorderBuffer() {
         this->robSize = 0;
-        if (robs) delete robs;
+        if (robs) delete[] robs;
         robs = NULL;
     };
 };
