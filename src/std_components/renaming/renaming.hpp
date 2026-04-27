@@ -24,6 +24,7 @@
 #include "std_components/fetch/boom_fetch.hpp"
 #include "std_components/renaming/reorder_buffer.hpp"
 #include "utils/binary_table.hpp"
+#include "utils/circular_buffer.hpp"
 
 const int MAP_MAX_SIZE = MAX_REGISTERS;
 const int DEFAULT_INT_PHYSICAL_REGISTERS = 96;
@@ -53,6 +54,7 @@ class Renaming : public Component<RenamingPacket> {
     BinaryTable intFreeTable;
     BinaryTable fpFreeTable;
     ReorderBuffer rob;
+    CircularBuffer packets;
 
     int fetcherID;
     int numMapRegisters;
@@ -61,7 +63,10 @@ class Renaming : public Component<RenamingPacket> {
     int totalPhysicalRegisters;
     int robSize;
 
-    void RenameInstruction(int connectionID, const InstructionPacket packet);
+    int RenameInstruction(const InstructionPacket packet);
+
+    void PacketBuffering();
+    void PacketHandler();
 
   public:
     Renaming()

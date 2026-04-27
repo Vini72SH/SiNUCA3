@@ -38,6 +38,7 @@ class ReorderBuffer {
         int oldPhysicalRegisterD;
         int sourcePhysicalRegister1;
         int sourcePhysicalRegister2;
+        bool dispatched;
         bool executed;
         bool valid;
     } RobEntry;
@@ -109,7 +110,7 @@ class ReorderBuffer {
 
     /**
      * @brief Mark a RoB entry as executed.
-     * @param idx The index of entry
+     * @param idx The index of entry.
      */
     void SetExecuted(int idx);
 
@@ -125,13 +126,21 @@ class ReorderBuffer {
      * written to it.
      * @param spr2 A pointer to an int; the source physical register 2 will be
      * written to it.
+     * @param dispatched A pointer to a boolean; The info about tthe dispatch
+     * will be written to it.
      * @param executed A pointer to a boolean; The state of the instruction will
      * be written to it.
      * @return 0 if the instruction is valid, 1 otherwise.
      */
     int GetRobFirstInstruction(InstructionPacket *instruction, int *newprd,
                                int *oldprd, int *spr1, int *spr2,
-                               bool *executed);
+                               bool *dispatched, bool *executed);
+
+    /**
+     * @brief Define the instruction as dispatched.
+     * @param idx The index of entry.
+     */
+    void DispatchInstruction(int idx);
 
     /**
      * @brief Commit an instruction. In a real processor, this is the moment

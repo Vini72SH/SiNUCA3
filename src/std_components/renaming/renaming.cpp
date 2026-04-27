@@ -54,6 +54,8 @@ int Renaming::Configure(Config config) {
     if (this->fpFreeTable.Allocate(this->numFpPhysicalRegisters)) return 1;
     if (this->rob.Allocate(this->robSize)) return 1;
 
+    this->packets.Allocate(0, sizeof(struct RenamingPacket));
+
     /*
      * Sets all registers with free
      */
@@ -76,8 +78,7 @@ int Renaming::Configure(Config config) {
     return 0;
 }
 
-void Renaming::RenameInstruction(int connectionID,
-                                 const InstructionPacket packet) {
+int Renaming::RenameInstruction(const InstructionPacket packet) {
     /*
      * Instruction uses int registers
      */
@@ -91,7 +92,11 @@ void Renaming::RenameInstruction(int connectionID,
         int intNewPRD = -1;
 
         for (int i = 0; i < this->numIntPhysicalRegisters; ++i) {
-            if (this->intFreeTable.GetElementIterator() == true) break;
+            if (this->intFreeTable.GetElementIterator() == true) {
+                intNewPRD = this->intFreeTable.GetIterator();
+                break;
+            }
+
             this->intFreeTable.Next();
         }
 
@@ -99,31 +104,64 @@ void Renaming::RenameInstruction(int connectionID,
          * There aren't int registers available.
          */
         if (intNewPRD == -1) {
-            return;
+            return 1;
         }
 
-        intNewPRD = this->intFreeTable.GetIterator();
+        /*
+         * Allocates a new physical register for this instruction.
+         * Set the physical register as busy (the value isn't ready) and not
+         * free.
+         */
         this->intFreeTable.ResetBin(intNewPRD);
         this->intBusyTable.SetBin(intNewPRD);
 
         this->rob.Insert(packet, intNewPRD, intOldPRD, intPhysicalReg1,
                          intPhysicalReg2);
     }
+
+    return 0;
+}
+
+void Renaming::PacketBuffering() {
+    RenamingPacket packet;
+    long numberOfConnections = this->GetNumberOfConnections();
+
+    for (long i = 0; i < numberOfConnections; ++i) {
+        while (this->ReceiveResponse(i, &packet) == 0)
+            this->packets.Enqueue(&packet);
+    }
+}
+
+void Renaming::PacketHandler() {
+    RenamingPacket packet;
+    bool running = true;
+
+    while (!this->packets.IsEmpty() && running) {
+        this->packets.GetFirstElement(&packet);
+
+        switch (packet.type) {
+            case RENAME:
+                /*
+                 * Check if was possible to allocate an entry in rob or exists
+                 * free registers.
+                 */
+                if (!(this->RenameInstruction(packet.data.instruction))) {
+                    this->packets.Pop();
+
+                } else {
+                    // Should sent a stall message for the fetcher.
+                    running = false;
+                }
+
+                break;
+
+            default:
+                break;
+        }
+    }
 }
 
 void Renaming::Clock() {
-    RenamingPacket packet;
-    long numberOfConnections = this->GetNumberOfConnections();
-    for (long i = 0; i < numberOfConnections; ++i) {
-        while (this->ReceiveResponse(i, &packet) == 0) {
-            switch (packet.type) {
-                case RENAME:
-                    this->RenameInstruction(i, packet.data.instruction);
-                    break;
-
-                default:
-                    break;
-            }
-        }
-    }
+    PacketBuffering();
+    PacketHandler();
 }

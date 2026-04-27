@@ -112,6 +112,7 @@ int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
     newRobEntry.oldPhysicalRegisterD = oldprd;
     newRobEntry.sourcePhysicalRegister1 = spr1;
     newRobEntry.sourcePhysicalRegister2 = spr2;
+    newRobEntry.dispatched = false;
     newRobEntry.executed = false;
     newRobEntry.valid = true;
 
@@ -126,7 +127,8 @@ void ReorderBuffer::SetExecuted(int idx) {
 
 int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
                                           int *newprd, int *oldprd, int *spr1,
-                                          int *spr2, bool *executed) {
+                                          int *spr2, bool *dispatched,
+                                          bool *executed) {
     RobEntry head;
 
     if (this->GetFirstElement(&head)) return 1;
@@ -136,9 +138,16 @@ int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
     (*oldprd) = head.oldPhysicalRegisterD;
     (*spr1) = head.sourcePhysicalRegister1;
     (*spr2) = head.sourcePhysicalRegister2;
+    (*dispatched) = head.dispatched;
     (*executed) = head.executed;
 
     return (head.valid != 0);
+}
+
+void ReorderBuffer::DispatchInstruction(int idx) {
+    if ((idx < 0) || (idx >= this->robSize) || !(this->robs[idx].valid)) return;
+
+    this->robs[idx].dispatched = true;
 }
 
 void ReorderBuffer::Commit() {
