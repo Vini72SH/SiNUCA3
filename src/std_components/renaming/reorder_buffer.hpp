@@ -18,7 +18,6 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 
-#include <cstddef>
 #include <cstring>
 
 #include "engine/default_packets.hpp"
