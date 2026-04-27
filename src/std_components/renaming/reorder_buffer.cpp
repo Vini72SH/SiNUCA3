@@ -104,12 +104,14 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
 }
 
 int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
-                          int oldprd) {
+                          int oldprd, int spr1, int spr2) {
     RobEntry newRobEntry;
 
     newRobEntry.instruction = instruction;
     newRobEntry.newPhysicalRegisterD = newprd;
     newRobEntry.oldPhysicalRegisterD = oldprd;
+    newRobEntry.sourcePhysicalRegister1 = spr1;
+    newRobEntry.sourcePhysicalRegister2 = spr2;
     newRobEntry.executed = false;
     newRobEntry.valid = true;
 
@@ -123,8 +125,8 @@ void ReorderBuffer::SetExecuted(int idx) {
 }
 
 int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
-                                          int *newprd, int *oldprd,
-                                          bool *executed) {
+                                          int *newprd, int *oldprd, int *spr1,
+                                          int *spr2, bool *executed) {
     RobEntry head;
 
     if (this->GetFirstElement(&head)) return 1;
@@ -132,6 +134,8 @@ int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
     memcpy(instruction, &head.instruction, sizeof(InstructionPacket));
     (*newprd) = head.newPhysicalRegisterD;
     (*oldprd) = head.oldPhysicalRegisterD;
+    (*spr1) = head.sourcePhysicalRegister1;
+    (*spr2) = head.sourcePhysicalRegister2;
     (*executed) = head.executed;
 
     return (head.valid != 0);

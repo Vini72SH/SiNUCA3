@@ -36,6 +36,8 @@ class ReorderBuffer {
         InstructionPacket instruction;
         int newPhysicalRegisterD;
         int oldPhysicalRegisterD;
+        int sourcePhysicalRegister1;
+        int sourcePhysicalRegister2;
         bool executed;
         bool valid;
     } RobEntry;
@@ -96,9 +98,14 @@ class ReorderBuffer {
      * instruction.
      * @param oldprd Index of the old physical register used for this
      * instruction
+     * @param spr1 Index of the source physical register 1 used for this
+     * instruction
+     * @param spr2 Index of the source physical register 2 used for this
+     * instruction
      * @return -1 if the RoB is full, otherwise, the rob idx.
      */
-    int Insert(const InstructionPacket instruction, int newprd, int oldprd);
+    int Insert(const InstructionPacket instruction, int newprd, int oldprd,
+               int spr1, int spr2);
 
     /**
      * @brief Mark a RoB entry as executed.
@@ -114,12 +121,17 @@ class ReorderBuffer {
      * written to it.
      * @param oldprd A pointer to an int; the old physical register will be
      * written to it.
+     * @param spr1 A pointer to an int; the source physical register 1 will be
+     * written to it.
+     * @param spr2 A pointer to an int; the source physical register 2 will be
+     * written to it.
      * @param executed A pointer to a boolean; The state of the instruction will
      * be written to it.
      * @return 0 if the instruction is valid, 1 otherwise.
      */
     int GetRobFirstInstruction(InstructionPacket *instruction, int *newprd,
-                               int *oldprd, bool *executed);
+                               int *oldprd, int *spr1, int *spr2,
+                               bool *executed);
 
     /**
      * @brief Commit an instruction. In a real processor, this is the moment

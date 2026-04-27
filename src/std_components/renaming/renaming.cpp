@@ -47,12 +47,83 @@ int Renaming::Configure(Config config) {
     this->totalPhysicalRegisters =
         this->numIntPhysicalRegisters + this->numFpPhysicalRegisters;
 
-    this->fetcherId = this->fetcher->Connect(0);
+    this->fetcherID = this->fetcher->Connect(0);
     if (this->intBusyTable.Allocate(this->numIntPhysicalRegisters)) return 1;
     if (this->fpBusyTable.Allocate(this->numFpPhysicalRegisters)) return 1;
     if (this->intFreeTable.Allocate(this->numIntPhysicalRegisters)) return 1;
     if (this->fpFreeTable.Allocate(this->numFpPhysicalRegisters)) return 1;
     if (this->rob.Allocate(this->robSize)) return 1;
 
+    /*
+     * Sets all registers with free
+     */
+    for (int i = 0; i < this->numIntPhysicalRegisters; ++i)
+        this->intFreeTable.SetBin(i);
+
+    for (int i = 0; i < this->numFpPhysicalRegisters; ++i)
+        this->fpFreeTable.SetBin(i);
+
+    for (int i = 0; i < this->numMapRegisters; ++i) {
+        this->mapTable[i] = (i + 1) % this->numIntPhysicalRegisters;
+        this->intFreeTable.ResetBin((i + 1) % this->numIntPhysicalRegisters);
+    }
+    /*
+     * The physical register 0 is reserved for ZERO.
+     */
+    this->intFreeTable.ResetBin(0);
+    this->fpFreeTable.ResetBin(0);
+
     return 0;
+}
+
+void Renaming::RenameInstruction(int connectionID,
+                                 const InstructionPacket packet) {
+    /*
+     * Instruction uses int registers
+     */
+    if (1) {
+        int intPhysicalReg1 =
+            this->mapTable[packet.staticInfo->readRegsArray[0]];
+        int intPhysicalReg2 =
+            this->mapTable[packet.staticInfo->readRegsArray[1]];
+
+        int intOldPRD = this->mapTable[packet.staticInfo->writtenRegsArray[0]];
+        int intNewPRD = -1;
+
+        for (int i = 0; i < this->numIntPhysicalRegisters; ++i) {
+            if (this->intFreeTable.GetElementIterator() == true) break;
+            this->intFreeTable.Next();
+        }
+
+        /*
+         * There aren't int registers available.
+         */
+        if (intNewPRD == -1) {
+            return;
+        }
+
+        intNewPRD = this->intFreeTable.GetIterator();
+        this->intFreeTable.ResetBin(intNewPRD);
+        this->intBusyTable.SetBin(intNewPRD);
+
+        this->rob.Insert(packet, intNewPRD, intOldPRD, intPhysicalReg1,
+                         intPhysicalReg2);
+    }
+}
+
+void Renaming::Clock() {
+    RenamingPacket packet;
+    long numberOfConnections = this->GetNumberOfConnections();
+    for (long i = 0; i < numberOfConnections; ++i) {
+        while (this->ReceiveResponse(i, &packet) == 0) {
+            switch (packet.type) {
+                case RENAME:
+                    this->RenameInstruction(i, packet.data.instruction);
+                    break;
+
+                default:
+                    break;
+            }
+        }
+    }
 }
