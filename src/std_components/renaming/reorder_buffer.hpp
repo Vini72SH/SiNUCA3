@@ -49,9 +49,6 @@ class ReorderBuffer {
     unsigned long robEntrySize;
     RobEntry *robs;
 
-    inline bool IsFull() { return this->occupation == this->robSize; }
-    inline bool IsEmpty() { return this->occupation == 0; }
-
     /**
      * @brief Inserts the element at the "top" of the buffer.
      * @param input A pointer to the element to be inserted.
@@ -84,6 +81,9 @@ class ReorderBuffer {
 
   public:
     ReorderBuffer() : robSize(0), start(0), end(0), occupation(0), robs(NULL) {}
+
+    inline bool IsFull() { return this->occupation == this->robSize; }
+    inline bool IsEmpty() { return this->occupation == 0; }
 
     /**
      * @brief Allocates the structure of a Reorder Buffer.

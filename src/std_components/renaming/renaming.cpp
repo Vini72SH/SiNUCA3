@@ -79,6 +79,8 @@ int Renaming::Configure(Config config) {
 }
 
 int Renaming::RenameInstruction(const InstructionPacket packet) {
+    if (this->rob.IsFull()) return 1;
+
     /*
      * Instruction uses int registers
      */
@@ -114,6 +116,7 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
          */
         this->intFreeTable.ResetBin(intNewPRD);
         this->intBusyTable.SetBin(intNewPRD);
+        this->mapTable[packet.staticInfo->writtenRegsArray[0]] = intNewPRD;
 
         this->rob.Insert(packet, intNewPRD, intOldPRD, intPhysicalReg1,
                          intPhysicalReg2);
