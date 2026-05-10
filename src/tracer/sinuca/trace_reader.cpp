@@ -29,10 +29,10 @@ FetchResult SinucaTraceReader::Fetch(InstructionPacket* ret, int tid) {
         return FetchResultEnd;
     }
     if (this->IsThreadSleeping(tid)) {
-        if (!this->TryToWakeUpThread(tid)) return FetchResultNop;
+        if (!this->TryToWakeUpThread(tid)) return FetchResultWait;
     }
     if (!this->IsThreadInsideBasicBlock(tid)) {
-        if (this->TryToFetchNewBasicBlock(tid)) return FetchResultNop;
+        if (this->TryToFetchNewBasicBlock(tid)) return FetchResultWait;
     }
 
     this->FetchInstruction(ret, tid);

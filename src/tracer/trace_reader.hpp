@@ -29,7 +29,7 @@ enum FetchResult {
     FetchResultOk,
     FetchResultEnd,
     FetchResultError,
-    FetchResultNop  /**<No operation. */
+    FetchResultWait
 };
 
 class TraceReader {
