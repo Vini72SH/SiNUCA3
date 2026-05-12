@@ -29,21 +29,25 @@
 #include <tracer/trace_reader.hpp>
 
 #include "engine/default_packets.hpp"
+#include "utils/map.hpp"
 
-class AddressSpaceMapper {
-  private:
-    struct AddressSpace {
-        int connId;
-        int mapId;
-    };
+extern int totalCores;
 
-    std::vector<AddressSpace> mappings;
+int NewComponentDefinition(Map<Definition>* definitions,
+                           Map<Linkable*>* aliases,
+                           std::vector<InstanceWithDefinition>* instances,
+                           Map<yaml::YamlValue>* config, const char* name,
+                           const char* alias, yaml::YamlLocation location);
 
-    int GetMapping(int input, int* output);
-    int CreateNewMapping(int conn, AddressSpace* out);
-    void StoreNewMapping(AddressSpace* in);
-
+class AddressMapper {
   public:
+    AddressMapper() {}
+    bool GetAddressMapping(unsigned long address, int context, unsigned long* mappedAddress) {
+        unsigned long contextFrame = context;
+        unsigned long addressMask = (1UL << 48) - 1;
+        *mappedAddress = (address & addressMask) | (contextFrame << 48);
+        return true;
+    }
 };
 
 struct FetchBuffer {
@@ -91,11 +95,6 @@ struct FetchBuffer {
     inline long GetBytesRequested() { return this->bytesRequested; }
 };
 
-int NewComponentDefinition(Map<Definition>* definitions,
-                           Map<Linkable*>* aliases,
-                           std::vector<InstanceWithDefinition>* instances,
-                           Map<yaml::YamlValue>* config, const char* name,
-                           const char* alias, yaml::YamlLocation location);
 
 /**
  * @brief The engine itself.
@@ -123,7 +122,7 @@ class Engine : public Component<FetchPacket> {
     bool error;
 
     FetchBuffer* fetchBuffers;  /** @brief Instruction buffer managers. */
-    AddressSpaceMapper* mapper; /** @brief Translation auxiliary. */
+    AddressMapper* addressMapper;
 
     /**
      * @brief Returns the number of instructions to be executed.
@@ -143,6 +142,9 @@ class Engine : public Component<FetchPacket> {
 
     /** @brief Responds to requests. */
     void Fetch(int id);
+
+    /** @brief Respond setup request for context. */
+    void SendContextToCore(int id);
 
   public:
     inline Engine()

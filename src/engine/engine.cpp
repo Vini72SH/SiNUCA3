@@ -29,8 +29,11 @@
 #include <vector>
 
 #include "engine/default_packets.hpp"
+#include "engine/linkable.hpp"
 #include "tracer/trace_reader.hpp"
 #include "utils/logger.hpp"
+
+int totalCores = 0;
 
 int NewComponentDefinition(Map<Definition>* definitions,
                            Map<Linkable*>* aliases,
@@ -85,6 +88,8 @@ int Engine::Configure(Config config) {
     instances.reserve(32);
 
     aliases->Insert("ENGINE", this);
+    aliases->Insert("MAPPER", (Linkable*)this->addressMapper);
+    // Todo: remove the ugly casting
 
     Map<yaml::YamlValue>* map = config.RawYaml();
 
@@ -139,8 +144,7 @@ int Engine::Configure(Config config) {
 }
 
 int Engine::SendBufferedAndFetch(int id) {
-    if (!this->fetchBuffers[id].IsReady())
-        return 1;
+    if (!this->fetchBuffers[id].IsReady()) return 1;
     InstructionPacket toSend;
     this->fetchBuffers[id].GetPkt(&toSend);
     // This unfortunately drops the packet if the buffer is full. The component
@@ -169,7 +173,8 @@ void Engine::Fetch(int id) {
         if (this->SendBufferedAndFetch(id)) {
             break;
         }
-        weight += fetchBuffers[id].currPkt.staticInfo->instSize;;
+        weight += fetchBuffers[id].currPkt.staticInfo->instSize;
+        ;
     }
 }
 
@@ -178,12 +183,16 @@ void Engine::Clock() {
     const int numberOfConnections = this->GetNumberOfConnections();
 
     for (int i = 0; i < numberOfConnections; ++i) {
-        if (!this->fetchBuffers[i].HasFetcherRequested() && !this->ReceiveRequestFromConnection(i, &packet)) {
+        if (!this->fetchBuffers[i].HasFetcherRequested() &&
+            !this->ReceiveRequestFromConnection(i, &packet)) {
+            if (packet.type == FetchPacketTypeSetup) {
+                this->SendContextToCore(i);
+                return;
+            }
             this->fetchBuffers[i].RememberRequest(packet.request);
         }
         if (this->fetchBuffers[i].IsReady()) {
-            if (this->fetchBuffers[i].HasFetcherRequested())
-                this->Fetch(i);
+            if (this->fetchBuffers[i].HasFetcherRequested()) this->Fetch(i);
         } else {
             this->fetchBuffers[i].TryFetch();
         }
@@ -206,6 +215,25 @@ unsigned long Engine::GetTraceSize() {
     return size;
 }
 
+void Engine::SendContextToCore(int id) {
+    static int ctx = 0;
+    static int tid = 0;
+
+    FetchPacket resp;
+    resp.type = FetchPacketTypeSetup;
+    resp.contextId = ctx;
+
+    if (this->SendResponseToConnection(id, &resp)) {
+        SINUCA3_ERROR_PRINTF("Could not send to context to core [%d]\n", id);
+    }
+    if (tid > this->fetchBuffers[id].tracer->GetTotalThreads()) {
+        tid = 0;
+        ctx++;
+        return;
+    }
+    tid++;
+}
+
 void Engine::PrintTime(time_t start, unsigned long cycle) {
     const unsigned long remaining = this->traceSize - this->fetchedInstructions;
 
@@ -221,15 +249,16 @@ void Engine::PrintTime(time_t start, unsigned long cycle) {
 int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
     this->numberOfFetchers = this->GetNumberOfConnections();
     this->fetchBuffers = new FetchBuffer[this->numberOfFetchers];
-    /* Map each thread to a fetcher. */
-    for (unsigned long i = 0, k = 0; i < tracers->size(); i++) {
+
+    for (long i = 0, k = 0;
+         i < (long)tracers->size() && k < this->numberOfFetchers; i++) {
         int threads = tracers->at(i)->GetTotalThreads();
-        for (int j = 0; j < threads; j++, k++) {
+        for (int j = 0; j < threads && k < this->numberOfFetchers; j++, k++) {
             this->fetchBuffers[k].SetTracerAndTid(tracers->at(i), j);
         }
     }
+
     return 0;
-    // todo: configure mmu
 }
 
 int Engine::Simulate(std::vector<TraceReader*>* traceReaders) {
@@ -297,7 +326,8 @@ void FetchBuffer::TryFetch() {
         return;
     }
 
-    InstructionPacket* target = (this->isCurrentFetched) ? &this->nextPkt : &this->currPkt;
+    InstructionPacket* target =
+        (this->isCurrentFetched) ? &this->nextPkt : &this->currPkt;
 
     const FetchResult r = this->tracer->Fetch(target, this->tid);
     if (r == FetchResultError) {
@@ -307,7 +337,8 @@ void FetchBuffer::TryFetch() {
     } else if (r != FetchResultWait) {
         if (target == &this->nextPkt) {
             this->isCurrentValid = true;
-            this->currPkt.nextInstruction = this->nextPkt.staticInfo->instAddress;
+            this->currPkt.nextInstruction =
+                this->nextPkt.staticInfo->instAddress;
         } else {
             this->isCurrentFetched = true;
         }
@@ -322,8 +353,7 @@ void FetchBuffer::GetPkt(InstructionPacket* target) {
 }
 
 unsigned long FetchBuffer::GetInstToBeFetched() {
-    if (!this->IsValid())
-        return 0;
+    if (!this->IsValid()) return 0;
     return this->tracer->GetTotalInstToBeFetched(this->tid);
 }
 
