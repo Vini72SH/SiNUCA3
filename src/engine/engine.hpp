@@ -30,6 +30,67 @@
 
 #include "engine/default_packets.hpp"
 
+class AddressSpaceMapper {
+  private:
+    struct AddressSpace {
+        int connId;
+        int mapId;
+    };
+
+    std::vector<AddressSpace> mappings;
+
+    int GetMapping(int input, int* output);
+    int CreateNewMapping(int conn, AddressSpace* out);
+    void StoreNewMapping(AddressSpace* in);
+
+  public:
+};
+
+struct FetchBuffer {
+    InstructionPacket currPkt;
+    InstructionPacket nextPkt;
+    long bytesRequested;
+    bool isWaiting;
+    bool isCurrentFetched;
+    bool isCurrentValid;
+    bool hasError;
+    bool reachedEnd;
+
+    TraceReader* tracer;
+    int tid;
+
+    FetchBuffer()
+        : bytesRequested(0),
+          isWaiting(false),
+          isCurrentFetched(false),
+          isCurrentValid(false),
+          hasError(false),
+          reachedEnd(false),
+          tracer(NULL),
+          tid(-1) {}
+
+    /** @brief Returns the number of instructions to be fetched. */
+    unsigned long GetInstToBeFetched();
+    /** @brief Sets the trace reader and thread id. */
+    void SetTracerAndTid(TraceReader* tracer, int tid);
+    /** @brief Copy current (instruction) to target and update current. */
+    void GetPkt(InstructionPacket* target);
+    /** @brief Tries to fetch an instruction. */
+    void TryFetch();
+    /** @brief Remembers the request from fetcher. */
+    void RememberRequest(unsigned long request);
+    /** @brief Clears the saved request. */
+    void ClearRequest();
+    /** @brief Checks if the fetche buffer is properly set. */
+    inline bool IsValid() { return (this->tracer != NULL && this->tid >= 0); }
+    /** @brief Checks if the current instruction is ready. */
+    inline bool IsReady() { return (this->IsValid() && this->isCurrentValid); }
+    /** @brief Checks if fetcher has requested instructions. */
+    inline bool HasFetcherRequested() { return this->isWaiting; }
+    /** @brief Returns the number of bytes requested. */
+    inline long GetBytesRequested() { return this->bytesRequested; }
+};
+
 int NewComponentDefinition(Map<Definition>* definitions,
                            Map<Linkable*>* aliases,
                            std::vector<InstanceWithDefinition>* instances,
@@ -61,44 +122,8 @@ class Engine : public Component<FetchPacket> {
     /** @brief Will be set if the traceReader returns an error. */
     bool error;
 
-    struct Fetcher {
-        InstructionPacket curr;
-        InstructionPacket next;
-        long requested;
-        bool waiting;
-        bool currFetched;
-        bool currValid;
-        bool error;
-        bool end;
-
-        TraceReader* tracer;
-        int tid;
-
-        Fetcher()
-            : waiting(false),
-              currFetched(false),
-              currValid(false),
-              error(false),
-              end(false),
-              tracer(NULL),
-              tid(-1) {}
-
-        /** @brief Returns the number of instructions to be fetched. */
-        unsigned long GetInstToBeFetched() const;
-        /** @brief Sets the trace reader and thread id. */
-        void Set(TraceReader* tracer, int tid);
-        /** @brief Copy current (instruction) to target and update current. */
-        void GetPkt(InstructionPacket* target);
-        /** @brief Tries to fetch an instruction. */
-        void TryFetch();
-        /** @brief Checks if the fetcher is properly set. */
-        bool FetcherSet() const;
-        /** @brief Checks if the current instruction is ready. */
-        bool Ready() const;
-    };
-    Fetcher* fetchers; /** @brief Fetchers for each core. */
-
-    // todo: address generation unit class
+    FetchBuffer* fetchBuffers;  /** @brief Instruction buffer managers. */
+    AddressSpaceMapper* mapper; /** @brief Translation auxiliary. */
 
     /**
      * @brief Returns the number of instructions to be executed.
@@ -128,7 +153,7 @@ class Engine : public Component<FetchPacket> {
           fetchedInstructions(0),
           end(false),
           error(false),
-          fetchers(NULL) {}
+          fetchBuffers(NULL) {}
 
     /** @brief Instantiates a simulation from the array of components. */
     inline void Instantiate(Linkable** components, long numberOfComponents) {

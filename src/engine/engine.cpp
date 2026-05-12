@@ -139,9 +139,10 @@ int Engine::Configure(Config config) {
 }
 
 int Engine::SendBufferedAndFetch(int id) {
-    if (!this->fetchers[id].Ready()) return 1;
+    if (!this->fetchBuffers[id].IsReady())
+        return 1;
     InstructionPacket toSend;
-    this->fetchers[id].GetPkt(&toSend);
+    this->fetchBuffers[id].GetPkt(&toSend);
     // This unfortunately drops the packet if the buffer is full. The component
     // must ensure the buffers never fills.
     if (this->SendResponseToConnection(id, (FetchPacket*)&toSend) != 0) {
@@ -150,23 +151,25 @@ int Engine::SendBufferedAndFetch(int id) {
             "with a full buffer, instructions will be dropped.\n",
             id);
     }
-    this->fetchers[id].TryFetch();
+    this->fetchBuffers[id].TryFetch();
+
     return 0;
 }
 
 void Engine::Fetch(int id) {
-    this->fetchers[id].waiting = false;
-    if (this->fetchers[id].requested == 0) {
+    long requestedSize = this->fetchBuffers[id].GetBytesRequested();
+    this->fetchBuffers[id].ClearRequest();
+    if (requestedSize == 0) {
         this->SendBufferedAndFetch(id);
         return;
     }
 
-    long weight = fetchers[id].curr.staticInfo->instSize;
-    while (weight < this->fetchers[id].requested) {
+    long weight = fetchBuffers[id].currPkt.staticInfo->instSize;
+    while (weight < requestedSize) {
         if (this->SendBufferedAndFetch(id)) {
-            return;
+            break;
         }
-        weight += fetchers[id].curr.staticInfo->instSize;;
+        weight += fetchBuffers[id].currPkt.staticInfo->instSize;;
     }
 }
 
@@ -175,18 +178,17 @@ void Engine::Clock() {
     const int numberOfConnections = this->GetNumberOfConnections();
 
     for (int i = 0; i < numberOfConnections; ++i) {
-        if (!this->fetchers[i].waiting && !this->ReceiveRequestFromConnection(i, &packet)) {
-            this->fetchers[i].requested = packet.request;
-            this->fetchers[i].waiting = true;
+        if (!this->fetchBuffers[i].HasFetcherRequested() && !this->ReceiveRequestFromConnection(i, &packet)) {
+            this->fetchBuffers[i].RememberRequest(packet.request);
         }
-        if (this->fetchers[i].Ready()) {
-            if (this->fetchers[i].waiting)
+        if (this->fetchBuffers[i].IsReady()) {
+            if (this->fetchBuffers[i].HasFetcherRequested())
                 this->Fetch(i);
         } else {
-            this->fetchers[i].TryFetch();
+            this->fetchBuffers[i].TryFetch();
         }
-        this->end |= this->fetchers[i].end;
-        this->error |= this->fetchers[i].error;
+        this->end |= this->fetchBuffers[i].reachedEnd;
+        this->error |= this->fetchBuffers[i].hasError;
     }
 }
 
@@ -199,7 +201,7 @@ void Engine::PrintStatistics() {
 unsigned long Engine::GetTraceSize() {
     unsigned long size = 0;
     for (unsigned int i = 0; i < this->numberOfFetchers; ++i) {
-        size += this->fetchers[i].GetInstToBeFetched();
+        size += this->fetchBuffers[i].GetInstToBeFetched();
     }
     return size;
 }
@@ -218,12 +220,12 @@ void Engine::PrintTime(time_t start, unsigned long cycle) {
 
 int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
     this->numberOfFetchers = this->GetNumberOfConnections();
-    this->fetchers = new Fetcher[this->numberOfFetchers];
+    this->fetchBuffers = new FetchBuffer[this->numberOfFetchers];
     /* Map each thread to a fetcher. */
     for (unsigned long i = 0, k = 0; i < tracers->size(); i++) {
         int threads = tracers->at(i)->GetTotalThreads();
         for (int j = 0; j < threads; j++, k++) {
-            this->fetchers[k].Set(tracers->at(i), j);
+            this->fetchBuffers[k].SetTracerAndTid(tracers->at(i), j);
         }
     }
     return 0;
@@ -280,56 +282,57 @@ Engine::~Engine() {
         }
         delete[] this->components;
     }
-    if (this->fetchers != NULL) {
-        delete[] this->fetchers;
+    if (this->fetchBuffers != NULL) {
+        delete[] this->fetchBuffers;
     }
 }
 
-void Engine::Fetcher::Set(TraceReader* tracer, int tid) {
+void FetchBuffer::SetTracerAndTid(TraceReader* tracer, int tid) {
     this->tracer = tracer;
     this->tid = tid;
 }
 
-bool Engine::Fetcher::FetcherSet() const {
-    return (this->tracer != NULL && this->tid >= 0);
-}
-
-bool Engine::Fetcher::Ready() const {
-    return (this->FetcherSet() && this->currValid);
-}
-
-void Engine::Fetcher::TryFetch() {
-    if (!this->FetcherSet()) {
+void FetchBuffer::TryFetch() {
+    if (!this->IsValid()) {
         return;
     }
 
-    InstructionPacket* target = (this->currFetched) ? &this->next : &this->curr;
+    InstructionPacket* target = (this->isCurrentFetched) ? &this->nextPkt : &this->currPkt;
 
     const FetchResult r = this->tracer->Fetch(target, this->tid);
     if (r == FetchResultError) {
-        this->error = true;
+        this->hasError = true;
     } else if (r == FetchResultEnd) {
-        this->end = true;
+        this->reachedEnd = true;
     } else if (r != FetchResultWait) {
-        if (target == &this->next) {
-            this->currValid = true;
-            this->curr.nextInstruction = this->next.staticInfo->instAddress;
+        if (target == &this->nextPkt) {
+            this->isCurrentValid = true;
+            this->currPkt.nextInstruction = this->nextPkt.staticInfo->instAddress;
         } else {
-            this->currFetched = true;
+            this->isCurrentFetched = true;
         }
     }
 }
 
-void Engine::Fetcher::GetPkt(InstructionPacket* target) {
-    *target = this->curr;
-    this->curr = this->next;
-    this->currFetched = this->currValid;
-    this->currValid = false;
+void FetchBuffer::GetPkt(InstructionPacket* target) {
+    *target = this->currPkt;
+    this->currPkt = this->nextPkt;
+    this->isCurrentFetched = this->isCurrentValid;
+    this->isCurrentValid = false;
 }
 
-unsigned long Engine::Fetcher::GetInstToBeFetched() const {
-    if (!this->FetcherSet()) {
+unsigned long FetchBuffer::GetInstToBeFetched() {
+    if (!this->IsValid())
         return 0;
-    }
     return this->tracer->GetTotalInstToBeFetched(this->tid);
+}
+
+void FetchBuffer::RememberRequest(unsigned long request) {
+    this->bytesRequested = request;
+    this->isWaiting = true;
+}
+
+void FetchBuffer::ClearRequest() {
+    this->bytesRequested = 0;
+    this->isWaiting = false;
 }
