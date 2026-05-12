@@ -112,6 +112,11 @@ struct InstructionPacket {
                              buffers the next instruction. */
 };
 
+enum FetchPacketType {
+    FetchPacketTypeSetup,
+    FetchPacketTypeOther
+};
+
 /**
  * @brief Exchanged between the engine and components. It's never ambiguous
  * wether this is a request or response, so it does not need to be a tagged
@@ -126,10 +131,14 @@ struct InstructionPacket {
  *
  * @param response A fetched instruction.
  */
-union FetchPacket {
-    long request; /** @brief Amount of bytes to fetch. 0 to fetch a single
-                     instruction regardless of it's size. */
-    InstructionPacket response; /** @brief The fetched instruction. */
+struct FetchPacket {
+    FetchPacketType type;
+    union {
+        long connectionId;
+        long contextId;
+        long request; /** @brief Amount of bytes to fetch. 0 to fetch a single instruction regardless of it's size. */
+        InstructionPacket response; /** @brief The fetched instruction. */
+    };
 };
 
 /**
