@@ -1,0 +1,23 @@
+core1: &core1
+  class: Core
+  fetcher:
+    class: SimpleFetcher
+  mmu:
+    class: SimpleMmu
+    mapper: *MAPPER
+
+core2: &core2
+  class: Core
+  fetcher:
+    class: SimpleFetcher
+  mmu:
+    class: SimpleMmu
+    mapper: *MAPPER
+
+core3: &core3
+  class: Core
+  fetcher:
+    class: SimpleFetcher
+  mmu:
+    class: SimpleMmu
+    mapper: *MAPPER
