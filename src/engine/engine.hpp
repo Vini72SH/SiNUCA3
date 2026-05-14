@@ -31,24 +31,11 @@
 #include "engine/default_packets.hpp"
 #include "utils/map.hpp"
 
-extern int totalCores;
-
 int NewComponentDefinition(Map<Definition>* definitions,
                            Map<Linkable*>* aliases,
                            std::vector<InstanceWithDefinition>* instances,
                            Map<yaml::YamlValue>* config, const char* name,
                            const char* alias, yaml::YamlLocation location);
-
-class AddressMapper {
-  public:
-    AddressMapper() {}
-    bool GetAddressMapping(unsigned long address, int context, unsigned long* mappedAddress) {
-        unsigned long contextFrame = context;
-        unsigned long addressMask = (1UL << 48) - 1;
-        *mappedAddress = (address & addressMask) | (contextFrame << 48);
-        return true;
-    }
-};
 
 struct FetchBuffer {
     InstructionPacket currPkt;
@@ -73,19 +60,17 @@ struct FetchBuffer {
           tracer(NULL),
           tid(-1) {}
 
-    /** @brief Returns the number of instructions to be fetched. */
-    unsigned long GetInstToBeFetched();
     /** @brief Sets the trace reader and thread id. */
     void SetTracerAndTid(TraceReader* tracer, int tid);
     /** @brief Copy current (instruction) to target and update current. */
-    void GetPkt(InstructionPacket* target);
+    void GetReadyInstructionToSend(InstructionPacket* target);
     /** @brief Tries to fetch an instruction. */
-    void TryFetch();
+    void TryToFetchNextInstruction();
     /** @brief Remembers the request from fetcher. */
     void RememberRequest(unsigned long request);
     /** @brief Clears the saved request. */
     void ClearRequest();
-    /** @brief Checks if the fetche buffer is properly set. */
+    /** @brief Checks if the fetch buffer is properly set. */
     inline bool IsValid() { return (this->tracer != NULL && this->tid >= 0); }
     /** @brief Checks if the current instruction is ready. */
     inline bool IsReady() { return (this->IsValid() && this->isCurrentValid); }
@@ -94,7 +79,6 @@ struct FetchBuffer {
     /** @brief Returns the number of bytes requested. */
     inline long GetBytesRequested() { return this->bytesRequested; }
 };
-
 
 /**
  * @brief The engine itself.
@@ -121,8 +105,7 @@ class Engine : public Component<FetchPacket> {
     /** @brief Will be set if the traceReader returns an error. */
     bool error;
 
-    FetchBuffer* fetchBuffers;  /** @brief Instruction buffer managers. */
-    AddressMapper* addressMapper;
+    FetchBuffer* fetchBuffers; /** @brief Instruction buffer managers. */
 
     /**
      * @brief Returns the number of instructions to be executed.
@@ -142,9 +125,6 @@ class Engine : public Component<FetchPacket> {
 
     /** @brief Responds to requests. */
     void Fetch(int id);
-
-    /** @brief Respond setup request for context. */
-    void SendContextToCore(int id);
 
   public:
     inline Engine()

@@ -28,12 +28,11 @@
 #include <sinuca3.hpp>
 #include <vector>
 
+#include "engine/address_mapper.hpp"
 #include "engine/default_packets.hpp"
 #include "engine/linkable.hpp"
 #include "tracer/trace_reader.hpp"
 #include "utils/logger.hpp"
-
-int totalCores = 0;
 
 int NewComponentDefinition(Map<Definition>* definitions,
                            Map<Linkable*>* aliases,
@@ -88,8 +87,7 @@ int Engine::Configure(Config config) {
     instances.reserve(32);
 
     aliases->Insert("ENGINE", this);
-    aliases->Insert("MAPPER", (Linkable*)this->addressMapper);
-    // Todo: remove the ugly casting
+    aliases->Insert("ADDRESS_MAPPER", AddressMapper::GetInstance());
 
     Map<yaml::YamlValue>* map = config.RawYaml();
 
@@ -134,6 +132,15 @@ int Engine::Configure(Config config) {
             return 1;
         }
     }
+    for (unsigned int i = 0; i < instances.size(); ++i) {
+        Linkable* component = instances[i].component;
+        if (component->PosConfigure()) {
+            // Skip the engine.
+            for (unsigned int i = 1; i < components->size(); ++i)
+                delete (*components)[i];
+            return 1;
+        }
+    }
 
     this->numberOfComponents = components->size();
     this->components = new Linkable*[this->numberOfComponents];
@@ -146,7 +153,7 @@ int Engine::Configure(Config config) {
 int Engine::SendBufferedAndFetch(int id) {
     if (!this->fetchBuffers[id].IsReady()) return 1;
     InstructionPacket toSend;
-    this->fetchBuffers[id].GetPkt(&toSend);
+    this->fetchBuffers[id].GetReadyInstructionToSend(&toSend);
     // This unfortunately drops the packet if the buffer is full. The component
     // must ensure the buffers never fills.
     if (this->SendResponseToConnection(id, (FetchPacket*)&toSend) != 0) {
@@ -155,7 +162,7 @@ int Engine::SendBufferedAndFetch(int id) {
             "with a full buffer, instructions will be dropped.\n",
             id);
     }
-    this->fetchBuffers[id].TryFetch();
+    this->fetchBuffers[id].TryToFetchNextInstruction();
 
     return 0;
 }
@@ -174,7 +181,6 @@ void Engine::Fetch(int id) {
             break;
         }
         weight += fetchBuffers[id].currPkt.staticInfo->instSize;
-        ;
     }
 }
 
@@ -184,17 +190,15 @@ void Engine::Clock() {
 
     for (int i = 0; i < numberOfConnections; ++i) {
         if (!this->fetchBuffers[i].HasFetcherRequested() &&
-            !this->ReceiveRequestFromConnection(i, &packet)) {
-            if (packet.type == FetchPacketTypeSetup) {
-                this->SendContextToCore(i);
-                return;
-            }
+            (this->ReceiveRequestFromConnection(i, &packet) == 0)) {
             this->fetchBuffers[i].RememberRequest(packet.request);
         }
         if (this->fetchBuffers[i].IsReady()) {
-            if (this->fetchBuffers[i].HasFetcherRequested()) this->Fetch(i);
+            if (this->fetchBuffers[i].HasFetcherRequested()) {
+                this->Fetch(i);
+            }
         } else {
-            this->fetchBuffers[i].TryFetch();
+            this->fetchBuffers[i].TryToFetchNextInstruction();
         }
         this->end |= this->fetchBuffers[i].reachedEnd;
         this->error |= this->fetchBuffers[i].hasError;
@@ -209,29 +213,16 @@ void Engine::PrintStatistics() {
 
 unsigned long Engine::GetTraceSize() {
     unsigned long size = 0;
-    for (unsigned int i = 0; i < this->numberOfFetchers; ++i) {
-        size += this->fetchBuffers[i].GetInstToBeFetched();
+    for (long i = 0; i < this->numberOfFetchers; ++i) {
+        unsigned long instructionsToSimulate = 0;
+        if (this->fetchBuffers[i].IsValid()) {
+            instructionsToSimulate =
+                this->fetchBuffers[i].tracer->GetTotalInstToBeFetched(
+                    this->fetchBuffers[i].tid);
+        }
+        size += instructionsToSimulate;
     }
     return size;
-}
-
-void Engine::SendContextToCore(int id) {
-    static int ctx = 0;
-    static int tid = 0;
-
-    FetchPacket resp;
-    resp.type = FetchPacketTypeSetup;
-    resp.contextId = ctx;
-
-    if (this->SendResponseToConnection(id, &resp)) {
-        SINUCA3_ERROR_PRINTF("Could not send to context to core [%d]\n", id);
-    }
-    if (tid > this->fetchBuffers[id].tracer->GetTotalThreads()) {
-        tid = 0;
-        ctx++;
-        return;
-    }
-    tid++;
 }
 
 void Engine::PrintTime(time_t start, unsigned long cycle) {
@@ -250,10 +241,14 @@ int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
     this->numberOfFetchers = this->GetNumberOfConnections();
     this->fetchBuffers = new FetchBuffer[this->numberOfFetchers];
 
-    for (long i = 0, k = 0;
-         i < (long)tracers->size() && k < this->numberOfFetchers; i++) {
+    for (long i = 0, k = 0; i < (long)tracers->size(); i++) {
         int threads = tracers->at(i)->GetTotalThreads();
-        for (int j = 0; j < threads && k < this->numberOfFetchers; j++, k++) {
+        for (int j = 0; j < threads; j++, k++) {
+            if (this->numberOfFetchers <= k) {
+                SINUCA3_WARNING_PRINTF(
+                    "Not enough fetchers to handle all given traces!\n");
+                return 0;
+            }
             this->fetchBuffers[k].SetTracerAndTid(tracers->at(i), j);
         }
     }
@@ -314,6 +309,8 @@ Engine::~Engine() {
     if (this->fetchBuffers != NULL) {
         delete[] this->fetchBuffers;
     }
+    // Delete contexts after all components are deleted
+    DeleteAllContexts();
 }
 
 void FetchBuffer::SetTracerAndTid(TraceReader* tracer, int tid) {
@@ -321,7 +318,7 @@ void FetchBuffer::SetTracerAndTid(TraceReader* tracer, int tid) {
     this->tid = tid;
 }
 
-void FetchBuffer::TryFetch() {
+void FetchBuffer::TryToFetchNextInstruction() {
     if (!this->IsValid()) {
         return;
     }
@@ -345,16 +342,11 @@ void FetchBuffer::TryFetch() {
     }
 }
 
-void FetchBuffer::GetPkt(InstructionPacket* target) {
+void FetchBuffer::GetReadyInstructionToSend(InstructionPacket* target) {
     *target = this->currPkt;
     this->currPkt = this->nextPkt;
     this->isCurrentFetched = this->isCurrentValid;
     this->isCurrentValid = false;
-}
-
-unsigned long FetchBuffer::GetInstToBeFetched() {
-    if (!this->IsValid()) return 0;
-    return this->tracer->GetTotalInstToBeFetched(this->tid);
 }
 
 void FetchBuffer::RememberRequest(unsigned long request) {
