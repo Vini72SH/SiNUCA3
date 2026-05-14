@@ -109,7 +109,7 @@ bool Connection::RemoveFromAResponseBuffer(int id, void* messageOutput) {
 }
 
 Linkable::Linkable(int messageSize)
-    : messageSize(messageSize), numberOfConnections(0) {}
+    : messageSize(messageSize), numberOfConnections(0), context(0) {}
 
 void Linkable::AllocateConnectionsBuffer(long numberOfConnections) {
     this->numberOfConnections = numberOfConnections;
@@ -171,4 +171,66 @@ int Linkable::GetResponseUnsafe(int connectionID, void* messageOutput) {
         SOURCE_ID, messageOutput);
 }
 
+void Linkable::AddChild(Linkable* child) {
+    if (child == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Cannot add a null child component.\n");
+        return;
+    }
+    this->children.push_back(child);
+}
+
+void Linkable::SetContext(Context* context) {
+    if (context == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Cannot set a null context for a component.\n");
+        return;
+    }
+    this->context = context;
+}
+
+Context* Linkable::GetContext() const {
+    if (this->context == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Component does not have a context.\n");
+        return NULL;
+    }
+    return this->context;
+}
+
+long Linkable::GetNumberOfChildren() const {
+    return this->children.size();
+}
+
+Linkable* Linkable::GetReferenceToChild(long index) const {
+    if (index < 0 || index >= (long)this->children.size()) {
+        SINUCA3_ERROR_PRINTF(
+            "Child index out of bounds: %ld.\n", index);
+        return NULL;
+    }
+    return this->children[index];
+}
+
 Linkable::~Linkable() { DeallocateConnectionsBuffer(); }
+
+std::vector<Context*> contextInstances;
+
+Context* CreateNewContext() {
+    Context* context = new Context();
+    contextInstances.push_back(context);
+    return context;
+}
+
+void DeleteAllContexts() {
+    for (long i = 0; i < (long)contextInstances.size(); i++)
+        if (contextInstances[i])
+            delete contextInstances[i];
+    contextInstances.clear();
+}
+
+void PropagateContext(Linkable* component, Context* ctx) {
+    component->SetContext(ctx);
+
+    for (long i = 0; i < component->GetNumberOfChildren(); i++)
+        PropagateContext(component->GetReferenceToChild(i), ctx);
+}
