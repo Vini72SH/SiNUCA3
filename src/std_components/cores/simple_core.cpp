@@ -27,19 +27,35 @@
 #include <cstring>
 #include <sinuca3.hpp>
 
+int SimpleCore::coreID = 0;
+
 int SimpleCore::Configure(Config config) {
     if (config.ComponentReference("instructionMemory",
                                   &this->instructionMemory))
         return 1;
     if (config.ComponentReference("dataMemory", &this->dataMemory)) return 1;
+    if (config.ComponentReference("mmu", &this->mmu)) return 1;
     if (config.ComponentReference("fetching", &this->fetching, true)) return 1;
 
     if (this->instructionMemory != NULL)
         this->instructionConnectionID = this->instructionMemory->Connect(0);
     if (this->dataMemory != NULL)
         this->dataConnectionID = this->dataMemory->Connect(0);
+    if (this->mmu != NULL) {
+        this->mmuConnectionID = this->mmu->Connect(0);
+        this->AddChild(this->mmu);
+    }
     this->fetchingConnectionID = this->fetching->Connect(0);
 
+    return 0;
+}
+
+int SimpleCore::PosConfigure() {
+    Context* context = CreateNewContext();
+    if (context == NULL) return 1;
+    context->core.coreId = this->coreID++;
+    context->core.contextId = context->core.coreId;
+    PropagateContext(this, context);
     return 0;
 }
 

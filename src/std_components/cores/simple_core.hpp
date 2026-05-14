@@ -25,6 +25,7 @@
  */
 
 #include <sinuca3.hpp>
+#include "engine/linkable.hpp"
 
 /**
  * @details SimpleCore fetches an instruction from the required parameter
@@ -39,6 +40,7 @@ class SimpleCore : public Component<InstructionPacket> {
         instructionMemory;               /** @brief The instruction memory. */
     Component<MemoryPacket>* dataMemory; /** @brief The data memory. */
     Component<FetchPacket>* fetching;    /** @brief The fetching. */
+    Component<MemoryPacket>* mmu;        /** @brief Memory management unit. */
 
     unsigned long numFetchedInstructions; /** @brief The number of fetched
                                              instructions. */
@@ -46,14 +48,18 @@ class SimpleCore : public Component<InstructionPacket> {
                                              instructionMemory. */
     int dataConnectionID;     /** @brief The connection ID of dataMemory. */
     int fetchingConnectionID; /** @brief The connection ID of fetching. */
+    int mmuConnectionID;      /** @brief The connection ID of mmu. */
+    static int coreID;
 
   public:
     inline SimpleCore()
         : instructionMemory(NULL),
           dataMemory(NULL),
           fetching(NULL),
+          mmu(NULL),
           numFetchedInstructions(0) {}
     virtual int Configure(Config config);
+    virtual int PosConfigure();
     virtual void Clock();
     virtual void PrintStatistics();
     ~SimpleCore();
