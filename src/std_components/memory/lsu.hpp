@@ -81,7 +81,6 @@ struct MemoryRequest {
     long seqNum;
     int accSize;
     bool requestedFetch; /* For loads */
-    bool wasIssued;
     bool wasTranslated;
     bool wasCommited; /* For stores */
 };
@@ -111,20 +110,25 @@ class LoadStoreUnit : public Component<LSUPacket> {
     /** @brief Queue with pointers to pending store requests */
     CircularBuffer waitingStores;
     /** @brief Table for load requests */
-    std::vector<pair::Pair<long, MemoryRequest*> > ldTable;
+    pair::Pair<long, MemoryRequest*>* ldTable;
     /** @brief Table for store requests */
-    std::vector<pair::Pair<long, MemoryRequest*> > stTable;
+    pair::Pair<long, MemoryRequest*>* stTable;
 
-    /** @brief Number of translations not yet received by st unit */
-    long stUnitwaitingFor;
-    /** @brief Occupation of the store buffer */
-    long stBufferOccupation;
+    /** @brief Pool of memory requests to avoid dynamic allocation. */
+    MemoryRequest* pool;
+
     /** @brief Global sequence number */
     long globalSeq;
+    /** @brief Occupation of the store buffer. */
+    long stTableOccupation;
+    /** @brief Occupation of the load buffer. */
+    long ldTableOccupation;
 
     /* Configuration knobs */
     /** @brief Size of the store buffer */
-    long stBufferSize;
+    long stTableSize;
+    /** @brief Size of the load buffer */
+    long ldTableSize;
     /** @brief Whether load bypassing is enabled */
     bool ldBypassingEnabled;
     /** @brief Whether load forwarding is enabled */
@@ -252,17 +256,50 @@ class LoadStoreUnit : public Component<LSUPacket> {
         }
     }
 
-    inline void EnqueueLoadToWaitingQueue(long seqNum) {
-        this->waitingLoads.Enqueue(&seqNum);
+    inline void EnqueueLoadToWaitingQueue(MemoryRequest* req) {
+        this->waitingLoads.Enqueue(&req);
     }
-    inline void EnqueueStoreToWaitingQueue(long seqNum) {
-        this->waitingStores.Enqueue(&seqNum);
+    inline void EnqueueStoreToWaitingQueue(MemoryRequest* req) {
+        this->waitingStores.Enqueue(&req);
     }
     inline void AddLoadTableEntry(MemoryRequest* req) {
-        pair::PushBackElemWithKey(&this->ldTable, req->seqNum, req);
+        pair::PushBackElemWithKey(this->ldTable, req->seqNum, req, &this->ldTableOccupation, this->ldTableSize);
     }
     inline void AddStoreTableEntry(MemoryRequest* req) {
-        pair::PushBackElemWithKey(&this->stTable, req->seqNum, req);
+        pair::PushBackElemWithKey(this->stTable, req->seqNum, req, &this->stTableOccupation, this->stTableSize);
+    }
+    inline MemoryRequest* RemoveLoadTableEntry(long seqNum) {
+        return pair::ErasePairWithKey(this->ldTable, seqNum, &this->ldTableOccupation);
+    }
+    inline MemoryRequest* RemoveStoreTableEntry(long seqNum) {
+        return pair::ErasePairWithKey(this->stTable, seqNum, &this->stTableOccupation);
+    }
+    inline MemoryRequest* FindLoadTableEntry(long seqNum) {
+        return pair::GetElemWithKey(this->ldTable, seqNum, this->ldTableOccupation);
+    }
+    inline MemoryRequest* FindStoreTableEntry(long seqNum) {
+        return pair::GetElemWithKey(this->stTable, seqNum, this->stTableOccupation);
+    }
+
+    inline long GetPoolSize() {
+        return this->stTableSize + this->ldTableSize;
+    }
+    inline void PoolAllocate() {
+        if (!this->pool)
+            this->pool = new MemoryRequest[this->GetPoolSize()];
+    }
+    inline void PoolDeallocate() {
+        if (this->pool) {
+            delete[] this->pool;
+            this->pool = NULL;
+        }
+    }
+    inline MemoryRequest* GetPoolElem(long seqNum) {
+        if (!this->pool) {
+            SINUCA3_ERROR_PRINTF("Pool not allocated!\n");
+            return NULL;
+        }
+        return &this->pool[seqNum % this->GetPoolSize()];
     }
 
   public:
@@ -270,18 +307,20 @@ class LoadStoreUnit : public Component<LSUPacket> {
         : tlb(NULL),
           cache(NULL),
           sendTo(NULL),
-          stUnitwaitingFor(0),
-          stBufferOccupation(0),
+          pool(NULL),
           globalSeq(0),
-          stBufferSize(16),
+          stTableOccupation(0),
+          ldTableOccupation(0),
+          stTableSize(16),
+          ldTableSize(32),
           ldBypassingEnabled(true),
           ldForwardingEnabled(true),
           finishedStores(0),
           finishedLoads(0),
           requestedLoads(0),
           requestedStores(0) {
-        this->waitingLoads.Allocate(0, sizeof(long));
-        this->waitingStores.Allocate(0, sizeof(long));
+        this->waitingLoads.Allocate(0, sizeof(void*));
+        this->waitingStores.Allocate(0, sizeof(void*));
 
         /* Initialize pipeline data */
         memset(this->pipeline, 0, sizeof(this->pipeline));
@@ -299,8 +338,11 @@ class LoadStoreUnit : public Component<LSUPacket> {
     virtual void Clock();
     virtual void PrintStatistics();
     virtual ~LoadStoreUnit() {
+        this->PoolDeallocate();
         this->waitingLoads.Deallocate();
         this->waitingStores.Deallocate();
+        delete[] this->ldTable;
+        delete[] this->stTable;
     }
 };
 

@@ -54,13 +54,19 @@ int LoadStoreUnit::Configure(Config config) {
     }
 
     /* Adjustable configuration knobs */
-    config.Integer("storeBufferSize", &this->stBufferSize, false);
+    config.Integer("storeTableSize", &this->stTableSize, false);
+    config.Integer("loadTableSize", &this->ldTableSize, false);
     config.Bool("loadBypassingEnabled", &this->ldBypassingEnabled, false);
     config.Bool("loadForwardingEnabled", &this->ldForwardingEnabled, false);
 
     this->connIds[CACHE_SOLVE_LOAD_DATA] = this->cache->Connect(0);
     this->connIds[CACHE_SOLVE_STORE_DATA] = this->cache->Connect(0);
     this->connIds[SEND_TO] = this->sendTo->Connect(0);
+
+    this->ldTable = new pair::Pair<long, MemoryRequest*>[this->ldTableSize];
+    this->stTable = new pair::Pair<long, MemoryRequest*>[this->stTableSize];
+
+    this->PoolAllocate();
 
     return 0;
 }
@@ -150,19 +156,19 @@ void LoadStoreUnit::ReceiveFromScheduler() {
     while (!this->ReceiveRequestFromConnection(0, &request)) {
         MemoryRequest* req = this->AllocateAndFillMemoryRequest(&request);
         if (request.type == LSUPacketTypeLoadRequest) {
-            this->EnqueueLoadToWaitingQueue(req->seqNum);
-            this->AddLoadTableEntry(req);
+            this->EnqueueLoadToWaitingQueue(req);
             this->requestedLoads++;
         } else if (request.type == LSUPacketTypeStoreRequest) {
-            this->EnqueueStoreToWaitingQueue(req->seqNum);
-            this->AddStoreTableEntry(req);
+            this->EnqueueStoreToWaitingQueue(req);
             this->requestedStores++;
         }
+        // todo: handle full tables
+        // todo: handle oldest in queue when tables are full
     }
 }
 
 void LoadStoreUnit::HandleLoadTranslation(long id, unsigned long phyAddress) {
-    MemoryRequest* entry = pair::GetElemWithKey(&this->ldTable, id);
+    MemoryRequest* entry = this->FindLoadTableEntry(id);
     if (entry == NULL) {
         SINUCA3_ERROR_PRINTF("Load entry with key [%ld] not found!\n", id);
         return;
@@ -172,7 +178,7 @@ void LoadStoreUnit::HandleLoadTranslation(long id, unsigned long phyAddress) {
 }
 
 void LoadStoreUnit::HandleStoreTranslation(long id, unsigned long phyAddress) {
-    MemoryRequest* entry = pair::GetElemWithKey(&this->stTable, id);
+    MemoryRequest* entry = this->FindStoreTableEntry(id);
     if (entry == NULL) {
         SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not found!\n", id);
         return;
@@ -180,18 +186,15 @@ void LoadStoreUnit::HandleStoreTranslation(long id, unsigned long phyAddress) {
 
     entry->phyAddress = phyAddress;
     entry->wasTranslated = true;
-    this->stBufferOccupation++;
-    this->stUnitwaitingFor--;
 
-    /* Store is finished. Notify the sendTo component. */
+    /* Notify that store is finished. */
     DebugPacketLSU update = {.address = entry->vtAddress,
                              .seqNum = entry->seqNum};
-
     this->sendTo->SendRequest(this->connIds[SEND_TO], &update);
 }
 
 void LoadStoreUnit::HandleStoreCommitAck(long id) {
-    MemoryRequest* entry = pair::GetElemWithKey(&this->stTable, id);
+    MemoryRequest* entry = this->FindStoreTableEntry(id);
     if (entry == NULL) {
         SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not found!\n", id);
         return;
@@ -210,7 +213,7 @@ void LoadStoreUnit::HandleStoreCommitAck(long id) {
 }
 
 void LoadStoreUnit::HandleLoadDataAck(long id) {
-    MemoryRequest* entry = pair::ErasePairWithKey(&this->ldTable, id);
+    MemoryRequest* entry = this->RemoveLoadTableEntry(id);
     if (entry == NULL) {
         SINUCA3_ERROR_PRINTF("Load entry with key [%ld] not found!\n", id);
         return;
@@ -221,31 +224,25 @@ void LoadStoreUnit::HandleLoadDataAck(long id) {
             entry->seqNum, entry->vtAddress);
     }
     ++this->finishedLoads;
-    delete entry;
 
-    // Todo: send confirmation to rob that load is finished
+    // todo: send confirmation to rob that load was finished
 }
 
 void LoadStoreUnit::HandleStoreUpdateAck(long id) {
-    MemoryRequest* entry = pair::ErasePairWithKey(&this->stTable, id);
-
+    MemoryRequest* entry = this->RemoveStoreTableEntry(id);
     if (entry == NULL) {
         SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not found!\n", id);
         return;
-    } else {
-        if (!entry->wasTranslated) {
-            SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not finished!\n",
-                                 id);
-        }
-        if (!entry->wasCommited) {
-            SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not commited!\n",
-                                 id);
-        }
-        delete entry;
     }
-
+    if (!entry->wasTranslated) {
+        SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not finished!\n",
+                                id);
+    }
+    if (!entry->wasCommited) {
+        SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not commited!\n",
+                                id);
+    }
     ++this->finishedStores;
-    --this->stBufferOccupation;
 }
 
 MemoryRequest* LoadStoreUnit::AllocateAndFillMemoryRequest(
@@ -255,10 +252,15 @@ MemoryRequest* LoadStoreUnit::AllocateAndFillMemoryRequest(
                          .seqNum = this->globalSeq++,
                          .accSize = lsuRequest->operation.size,
                          .requestedFetch = false,
-                         .wasIssued = false,
                          .wasTranslated = false,
                          .wasCommited = false};
-    return new MemoryRequest(req);
+    MemoryRequest* poolElem = this->GetPoolElem(req.seqNum);
+    if (poolElem == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to allocate memory request from pool!\n");
+        return NULL;
+    }
+    *poolElem = req;
+    return poolElem;
 }
 
 /* Load Unit Pipeline */
@@ -331,39 +333,32 @@ void LoadStoreUnit::TranslateStoreAddress() {
     if (this->InvalidInput(&this->pipeline[GEN_STORE].reg)) {
         return;
     }
-    if (this->MustStallStoreTrans()) {
-        this->Stall(TRANS_STORE);
-        this->InvalidateOutput(TRANS_STORE);
+    if (this->tlb) {
+        this->RequestStoreTranslation(
+            &this->pipeline[GEN_STORE].reg.op->vtAddress);
     } else {
-        if (this->tlb) {
-            this->RequestStoreTranslation(
-                &this->pipeline[GEN_STORE].reg.op->vtAddress);
-        } else {
-            this->TranslateStoreDirectly();
-        }
+        this->TranslateStoreDirectly();
     }
 }
 
 void LoadStoreUnit::TryIssueLoad(PipelineRegister* next) {
-    long seq;
-    if (this->waitingLoads.Dequeue(&seq) != 0) {
+    if (this->ldTableOccupation >= this->ldTableSize) {
         next->isValid = false;
         return;
     }
-    MemoryRequest* entry = pair::GetElemWithKey(&this->ldTable, seq);
-    if (entry == NULL) {
-        SINUCA3_ERROR_PRINTF("Load entry with key [%ld] not found!\n", seq);
+    MemoryRequest* req;
+    if (this->waitingLoads.Dequeue(&req) != 0) {
         next->isValid = false;
         return;
     }
-    next->op = entry;
+    this->AddLoadTableEntry(req);
+    next->op = req;
     next->isValid = true;
-    next->op->wasIssued = true;
 }
 
 bool LoadStoreUnit::MustStallGenLoad() {
     /* Check for older stores not finished (i.e., not translated). */
-    for (unsigned long i = 0; i < this->stTable.size(); i++) {
+    for (long i = 0; i < this->stTableOccupation; i++) {
         if (!this->stTable[i].second->wasTranslated &&
             this->stTable[i].second->seqNum <
                 this->pipeline[ISSUE_LOAD].reg.op->seqNum) {
@@ -388,7 +383,7 @@ void LoadStoreUnit::TranslateStoreDirectly() {
 }
 
 void LoadStoreUnit::TryToSelectLoadForFetch() {
-    for (unsigned long i = 0; i < this->ldTable.size(); i++) {
+    for (long i = 0; i < this->ldTableOccupation; i++) {
         if (this->ldTable[i].second->wasTranslated &&
             !this->ldTable[i].second->requestedFetch) {
             bool canBypass = this->IsLoadBypassingPossible(
@@ -405,7 +400,7 @@ void LoadStoreUnit::TryToSelectLoadForFetch() {
 
             if (canForward) {
                 this->HandleLoadDataAck(this->ldTable[i].second->seqNum);
-            } else if (this->stBufferOccupation == 0 || canBypass) {
+            } else if (this->stTableOccupation == 0 || canBypass) {
                 this->pipeline[TRANS_LOAD].regNext.op = this->ldTable[i].second;
                 this->pipeline[TRANS_LOAD].regNext.isValid = true;
             }
@@ -423,30 +418,22 @@ void LoadStoreUnit::RequestDataUpdate(MemoryPacket* physAddr) {
 }
 
 void LoadStoreUnit::TryIssueStore(PipelineRegister* next) {
-    long seq;
-    if (this->waitingStores.Dequeue(&seq) != 0) {
+    if (this->stTableOccupation >= this->stTableSize) {
         next->isValid = false;
         return;
     }
-    MemoryRequest* entry = pair::GetElemWithKey(&this->stTable, seq);
-    if (entry == NULL) {
-        SINUCA3_ERROR_PRINTF("Store entry with key [%ld] not found!\n", seq);
+    MemoryRequest* req;
+    if (this->waitingStores.Dequeue(&req) != 0) {
         next->isValid = false;
         return;
     }
-    next->op = entry;
+    this->AddStoreTableEntry(req);
+    next->op = req;
     next->isValid = true;
-    next->op->wasIssued = true;
 }
 
 void LoadStoreUnit::RequestStoreTranslation(MemoryPacket* vtAddr) {
     this->tlb->SendRequest(this->connIds[TLB_SOLVE_STORE_ADDRESS], vtAddr);
-    ++this->stUnitwaitingFor;
-}
-
-bool LoadStoreUnit::MustStallStoreTrans() {
-    return this->stUnitwaitingFor + this->stBufferOccupation >=
-           this->stBufferSize;
 }
 
 /* Optimization checks */
@@ -472,7 +459,7 @@ bool ContainsInterval(unsigned long addr1, int size1, unsigned long addr2,
 bool LoadStoreUnit::IsLoadBypassingPossible(unsigned long ldAddress,
                                             int ldSize) {
     if (!this->ldBypassingEnabled) return false;
-    for (unsigned long i = 0; i < this->stTable.size(); i++) {
+    for (long i = 0; i < this->stTableOccupation; i++) {
         if (!this->stTable[i].second->wasTranslated) {
             continue; /* Store not finished, ignore for bypassing. */
         }
@@ -489,7 +476,7 @@ bool LoadStoreUnit::IsLoadBypassingPossible(unsigned long ldAddress,
 bool LoadStoreUnit::IsLoadForwardingPossible(unsigned long ldAddress,
                                              int ldSize) {
     if (!this->ldForwardingEnabled) return false;
-    for (unsigned long i = 0; i < this->stTable.size(); i++) {
+    for (long i = 0; i < this->stTableOccupation; i++) {
         if (!this->stTable[i].second->wasTranslated) {
             continue; /* Store not finished, ignore for forwarding. */
         }
