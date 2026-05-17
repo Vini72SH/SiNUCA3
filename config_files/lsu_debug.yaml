@@ -6,10 +6,7 @@ LSUDebugComponent: &lsuDebug
     cache:
       class: SimpleMemory
     sendTo: *lsuDebug
-    storeBufSize: 16
     loadBypassingEnabled: true
     loadForwardingEnabled: true
-  storeTableSize: 64
-  loadTableSize: 96
-  loadBypassingEnabled: true
-  loadForwardingEnabled: true
+    storeTableSize: 1
+    loadTableSize: 2
