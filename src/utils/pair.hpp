@@ -52,9 +52,29 @@ U ErasePairWithKey(std::vector<Pair<T, U> >* buffer, T key) {
 }
 
 template <typename T, typename U>
+U ErasePairWithKey(Pair<T, U>* buffer, T key, long* size) {
+    for (long i = 0; i < *size; i++) {
+        if (buffer[i].first == key) {
+            U elem = buffer[i].second;
+            buffer[i] = buffer[--(*size)];
+            return elem;
+        }
+    }
+    return NULL;
+}
+
+template <typename T, typename U>
 int ContainsKey(std::vector<Pair<T, U> >* buffer, T key) {
     for (unsigned long i = 0; i < buffer->size(); i++) {
         if (buffer->at(i).first == key) return 1;
+    }
+    return 0;
+}
+
+template <typename T, typename U>
+int ContainsKey(Pair<T, U>* buffer, T key, long size) {
+    for (long i = 0; i < size; i++) {
+        if (buffer[i].first == key) return 1;
     }
     return 0;
 }
@@ -68,10 +88,31 @@ void PushBackElemWithKey(std::vector<Pair<T, U> >* buffer, T key, U elem) {
 }
 
 template <typename T, typename U>
+void PushBackElemWithKey(Pair<T, U>* buffer, T key, U elem, long* size,
+                         long capacity) {
+    Pair<T, U> pair;
+    pair.first = key;
+    pair.second = elem;
+    if (*size < capacity) {
+        buffer[(*size)++] = pair;
+    }
+}
+
+template <typename T, typename U>
 U GetElemWithKey(std::vector<Pair<T, U> >* buffer, T key) {
     for (unsigned long i = 0; i < buffer->size(); i++) {
         if (buffer->at(i).first == key) {
             return buffer->at(i).second;
+        }
+    }
+    return NULL;
+}
+
+template <typename T, typename U>
+U GetElemWithKey(Pair<T, U>* buffer, T key, long size) {
+    for (long i = 0; i < size; i++) {
+        if (buffer[i].first == key) {
+            return buffer[i].second;
         }
     }
     return NULL;
