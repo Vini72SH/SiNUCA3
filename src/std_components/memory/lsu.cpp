@@ -67,7 +67,8 @@ int LoadStoreUnit::Configure(Config config) {
     this->stTable = new pair::Pair<long, MemoryRequest*>[this->stTableSize];
 
     this->PoolAllocate();
-
+    SINUCA3_DEBUG_PRINTF("load table size is %ld\n", this->ldTableSize);
+    SINUCA3_DEBUG_PRINTF("store table size is %ld\n", this->stTableSize);
     return 0;
 }
 
@@ -154,16 +155,14 @@ void LoadStoreUnit::ReceiveFromScheduler() {
             "lsu expects to get requests from scheduler only!\n");
     }
     while (!this->ReceiveRequestFromConnection(0, &request)) {
-        MemoryRequest* req = this->AllocateAndFillMemoryRequest(&request);
+        MemoryRequest req = this->FillMemoryRequest(&request);
         if (request.type == LSUPacketTypeLoadRequest) {
-            this->EnqueueLoadToWaitingQueue(req);
+            this->EnqueueLoadToWaitingQueue(&req);
             this->requestedLoads++;
         } else if (request.type == LSUPacketTypeStoreRequest) {
-            this->EnqueueStoreToWaitingQueue(req);
+            this->EnqueueStoreToWaitingQueue(&req);
             this->requestedStores++;
         }
-        // todo: handle full tables
-        // todo: handle oldest in queue when tables are full
     }
 }
 
@@ -245,7 +244,7 @@ void LoadStoreUnit::HandleStoreUpdateAck(long id) {
     ++this->finishedStores;
 }
 
-MemoryRequest* LoadStoreUnit::AllocateAndFillMemoryRequest(
+MemoryRequest LoadStoreUnit::FillMemoryRequest(
     LSUPacket* lsuRequest) {
     MemoryRequest req = {.vtAddress = lsuRequest->operation.vtAddr,
                          .phyAddress = 0,
@@ -254,13 +253,7 @@ MemoryRequest* LoadStoreUnit::AllocateAndFillMemoryRequest(
                          .requestedFetch = false,
                          .wasTranslated = false,
                          .wasCommited = false};
-    MemoryRequest* poolElem = this->GetPoolElem(req.seqNum);
-    if (poolElem == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to allocate memory request from pool!\n");
-        return NULL;
-    }
-    *poolElem = req;
-    return poolElem;
+    return req;
 }
 
 /* Load Unit Pipeline */
@@ -346,13 +339,22 @@ void LoadStoreUnit::TryIssueLoad(PipelineRegister* next) {
         next->isValid = false;
         return;
     }
-    MemoryRequest* req;
+    MemoryRequest req;
     if (this->waitingLoads.Dequeue(&req) != 0) {
         next->isValid = false;
         return;
     }
-    this->AddLoadTableEntry(req);
-    next->op = req;
+    MemoryRequest* poolElem = this->GetPoolElem(req.seqNum);
+    if (poolElem == NULL) {
+        SINUCA3_ERROR_PRINTF("Invalid pool element!\n");
+        next->isValid = false;
+        return;
+    }
+
+    this->AddLoadTableEntry(poolElem, req.seqNum);
+
+    *poolElem = req;
+    next->op = poolElem;
     next->isValid = true;
 }
 
@@ -422,13 +424,22 @@ void LoadStoreUnit::TryIssueStore(PipelineRegister* next) {
         next->isValid = false;
         return;
     }
-    MemoryRequest* req;
+    MemoryRequest req;
     if (this->waitingStores.Dequeue(&req) != 0) {
         next->isValid = false;
         return;
     }
-    this->AddStoreTableEntry(req);
-    next->op = req;
+    MemoryRequest* poolElem = this->GetPoolElem(req.seqNum);
+    if (poolElem == NULL) {
+        SINUCA3_ERROR_PRINTF("Invalid pool element!\n");
+        next->isValid = false;
+        return;
+    }
+
+    this->AddStoreTableEntry(poolElem, req.seqNum);
+
+    *poolElem = req;
+    next->op = poolElem;
     next->isValid = true;
 }
 
