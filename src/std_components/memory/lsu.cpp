@@ -19,15 +19,16 @@
  * @file lsu.cpp
  */
 
-// The code does not work properly for now bc the tlb/cache does not respond
-// back the sequence number that uniquely identifies the load operation.
-// Todo: change MemoryPacket to support lsu requests.
+// todo: adapt MemoryPacket to support lsu requests
 
 #include "lsu.hpp"
 
 #include "engine/default_packets.hpp"
 #include "utils/logger.hpp"
 #include "utils/pair.hpp"
+
+// todo: remove this include later
+#include "std_components/debug/memory/lsu_debug_component.hpp"
 
 void LoadStoreUnit::PrintStatistics() {
     SINUCA3_LOG_PRINTF("=== LOAD STORE UNIT STATISTICS ===\n");

@@ -29,6 +29,11 @@
 #include <std_components/memory/lsu.hpp>
 #include "utils/pair.hpp"
 
+struct DebugPacketLSU {
+    unsigned long address;
+    long seqNum;
+};
+
 enum InstructionType {
     InstructionTypeLoad,
     InstructionTypeStore,

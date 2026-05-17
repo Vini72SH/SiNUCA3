@@ -28,8 +28,8 @@
  * load forwarding. These optimizations can be turned on and off via
  * configuration knobs. After the successful ending of a request, this
  * component sends a message to the next stage notifying the completion of the
- * request. Store requests must sit in the store buffer until they are committed
- * and update the cache. The size of this buffer can also be configured.
+ * request. Load and store requests are held in tables until successful
+ * completion. The sizes of these tables can also be configured.
  */
 
 #include <sinuca3.hpp>
@@ -39,11 +39,8 @@
 #include "utils/circular_buffer.hpp"
 #include "utils/pair.hpp"
 
-// todo: remove
-struct DebugPacketLSU {
-    unsigned long address;
-    long seqNum;
-};
+// todo: remove this declaration later
+struct DebugPacketLSU;
 
 enum LSUPacketType { LSUPacketTypeLoadRequest, LSUPacketTypeStoreRequest };
 
@@ -80,9 +77,9 @@ struct MemoryRequest {
     unsigned long phyAddress;
     long seqNum;
     int accSize;
-    bool requestedFetch; /* For loads */
+    bool requestedFetch;
     bool wasTranslated;
-    bool wasCommited; /* For stores */
+    bool wasCommited;
 };
 
 struct PipelineRegister {
@@ -102,7 +99,7 @@ class LoadStoreUnit : public Component<LSUPacket> {
   private:
     Component<MemoryPacket>* tlb;
     Component<MemoryPacket>* cache;
-    Component<DebugPacketLSU>* sendTo;  // change to rob pointer later
+    Component<DebugPacketLSU>* sendTo;  // todo: change to rob pointer later
     int connIds[TOTAL_CONNECTIONS];
 
     /** @brief Queue with pointers to pending load requests */
@@ -117,7 +114,7 @@ class LoadStoreUnit : public Component<LSUPacket> {
     /** @brief Pool of memory requests to avoid dynamic allocation. */
     MemoryRequest* pool;
 
-    /** @brief Global sequence number */
+    /** @brief Global sequence number. */
     long globalSeq;
     /** @brief Occupation of the store buffer. */
     long stTableOccupation;
@@ -164,42 +161,42 @@ class LoadStoreUnit : public Component<LSUPacket> {
     /** @brief Get requests from the scheduler. */
     void ReceiveFromScheduler();
 
-    /** @brief Handle load data acknowledgment */
+    /** @brief Handle load data acknowledgment. */
     void HandleLoadDataAck(long id);
-    /** @brief Handle store update acknowledgment */
+    /** @brief Handle store update acknowledgment. */
     void HandleStoreUpdateAck(long id);
-    /** @brief Handle load translation */
+    /** @brief Handle load translation. */
     void HandleLoadTranslation(long id, unsigned long address);
-    /** @brief Handle store translation */
+    /** @brief Handle store translation. */
     void HandleStoreTranslation(long id, unsigned long address);
-    /** @brief Handle store commit acknowledgment */
+    /** @brief Handle store commit acknowledgment. */
     void HandleStoreCommitAck(long id);
-    /** @brief Fill a memory request */
+    /** @brief Fill a memory request. */
     MemoryRequest FillMemoryRequest(LSUPacket* lsuRequest);
 
     /* Pipeline stages */
-    /** @brief Issue a load request */
+    /** @brief Issue a load request. */
     void IssueLoadRequest();
-    /** @brief Issue a store request */
+    /** @brief Issue a store request. */
     void IssueStoreRequest();
-    /** @brief Generate load address */
+    /** @brief Generate load address. */
     void GenerateLoadAddress();
-    /** @brief Translate load address */
+    /** @brief Translate load address. */
     void TranslateLoadAddress();
-    /** @brief Fetch load data */
+    /** @brief Fetch load data. */
     void FetchLoadData();
-    /** @brief Generate store address */
+    /** @brief Generate store address. */
     void GenerateStoreAddress();
-    /** @brief Translate store address */
+    /** @brief Translate store address. */
     void TranslateStoreAddress();
 
     /** @brief Try to issue a load request. */
     void TryIssueLoad(PipelineRegister* next);
     /** @brief Try to issue a store request. */
     void TryIssueStore(PipelineRegister* next);
-    /** @brief Request data fetch */
+    /** @brief Request data fetch. */
     void RequestDataFetch(MemoryPacket* physAddr);
-    /** @brief Request data update */
+    /** @brief Request data update. */
     void RequestDataUpdate(MemoryPacket* physAddr);
     /** @brief Called when there is a mmu. */
     void RequestStoreTranslation(MemoryPacket* vtAddr);
