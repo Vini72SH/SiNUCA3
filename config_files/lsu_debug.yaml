@@ -9,4 +9,7 @@ LSUDebugComponent: &lsuDebug
     storeBufSize: 16
     loadBypassingEnabled: true
     loadForwardingEnabled: true
-
+  storeTableSize: 64
+  loadTableSize: 96
+  loadBypassingEnabled: true
+  loadForwardingEnabled: true
