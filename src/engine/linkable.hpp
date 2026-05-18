@@ -34,13 +34,54 @@ class Config;
 static const int SOURCE_ID = 0;
 static const int DEST_ID = 1;
 
-struct Context {
-    struct {
+// Pre-declaration because of cross-references between Linkable and Context.
+class Linkable;
+
+class Context {
+  public:
+    /** @brief Structure to hold core context information. */
+    struct Core {
         int coreId;
         int contextId;
         int engineConnId;
-    } core;
-    // Add more contexts as necessary
+    };
+
+  private:
+    union {
+        Core core;
+    };
+
+    /** @brief Vector to hold all created contexts. */
+    static std::vector<Context*> contexts;
+
+    Context() {}
+
+  public:
+    /**
+     * @brief Create a new context.
+     * @return A pointer to the created context, or NULL if creation failed.
+     */
+    static Context* CreateContext();
+
+    /**
+     * @brief Destroy all created contexts.
+     */
+    static void DestroyAllContexts();
+
+    /**
+     * @brief Set the core context information.
+     */
+    void SetCoreContext(int coreId, int contextId, int engineConnId);
+
+    /**
+     * @brief Propagate the context to a component and its children.
+     * @param component The component to propagate the context to.
+     * @return 0 if successful, 1 otherwise.
+     */
+    int PropagateContext(Linkable* component);
+
+    /** @brief Return copy of the core context information. */
+    inline Core GetCoreContext() const { return this->core; }
 };
 
 struct Connection {
@@ -148,7 +189,7 @@ class Linkable {
 
     std::vector<Linkable*> children; /**< Array of sub-components. */
 
-    Context* context; /**< A shared environment. */
+    const Context* context; /**< A shared environment. */
 
   protected:
     /**
@@ -253,14 +294,15 @@ class Linkable {
     /**
      * @brief Sets the context for the component.
      * @param context A pointer to the context to set.
+     * @return 0 if successful, 1 otherwise.
      */
-    void SetContext(Context* context);
+    int SetContext(const Context* context);
 
     /**
      * @brief Gets the context for the component.
      * @return A pointer to the context.
      */
-    Context* GetContext() const;
+    const Context* GetContext() const;
 
     /**
      * @brief Gets the number of child components.
@@ -303,17 +345,5 @@ class Linkable {
 
     virtual ~Linkable();
 };
-
-/** @brief A vector containing all created context instances. */
-extern std::vector<Context*> contextInstances;
-
-/** @brief Creates a new context instance and adds it to the list. */
-Context* CreateNewContext();
-
-/** @brief Deletes all context instances and clears the list. */
-void DeleteAllContexts();
-
-/** @brief Recursively propagates a context to all child components. */
-void PropagateContext(Linkable* component, Context* ctx);
 
 #endif  // SINUCA3_ENGINE_LINKABLE_HPP_
