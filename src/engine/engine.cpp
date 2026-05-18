@@ -309,8 +309,7 @@ Engine::~Engine() {
     if (this->fetchBuffers != NULL) {
         delete[] this->fetchBuffers;
     }
-    // Delete contexts after all components are deleted
-    DeleteAllContexts();
+    Context::DestroyAllContexts();
 }
 
 void FetchBuffer::SetTracerAndTid(TraceReader* tracer, int tid) {
