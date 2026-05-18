@@ -1,0 +1,12 @@
+LSUDebugComponent: &lsuDebug
+  class: LSUDebugComponent
+  fetch: *ENGINE
+  lsu:
+    class: LoadStoreUnit
+    cache:
+      class: SimpleMemory
+    sendTo: *lsuDebug
+    loadBypassingEnabled: true
+    loadForwardingEnabled: true
+    storeTableSize: 1
+    loadTableSize: 2
