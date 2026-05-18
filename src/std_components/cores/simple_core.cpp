@@ -27,7 +27,8 @@
 #include <cstring>
 #include <sinuca3.hpp>
 
-int SimpleCore::coreID = 0;
+#include "engine/linkable.hpp"
+#include "utils/logger.hpp"
 
 int SimpleCore::Configure(Config config) {
     if (config.ComponentReference("instructionMemory",
@@ -51,11 +52,25 @@ int SimpleCore::Configure(Config config) {
 }
 
 int SimpleCore::PosConfigure() {
-    Context* context = CreateNewContext();
-    if (context == NULL) return 1;
-    context->core.coreId = this->coreID++;
-    context->core.contextId = context->core.coreId;
-    PropagateContext(this, context);
+    Context* context = Context::CreateContext();
+    if (context == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to create context for core [%d].\n",
+                             this->nextCoreID);
+        return 1;
+    }
+
+    int contextId = this->nextCoreID;
+    int coreId = this->nextCoreID;
+    context->SetCoreContext(coreId, contextId, this->fetchingConnectionID);
+
+    if (context->PropagateContext(this) != 0) {
+        SINUCA3_ERROR_PRINTF("Failed to propagate context to core [%d].\n",
+                             this->nextCoreID);
+        return 1;
+    }
+
+    SimpleCore::StepCoreID();
+
     return 0;
 }
 
@@ -92,8 +107,12 @@ void SimpleCore::Clock() {
 }
 
 void SimpleCore::PrintStatistics() {
-    SINUCA3_LOG_PRINTF("%lu instructions fetched\n",
-                       this->numFetchedInstructions);
+    Context::Core coreContext = this->GetContext()->GetCoreContext();
+    SINUCA3_LOG_PRINTF("Core [%d]: [%lu] instructions fetched\n",
+                       coreContext.coreId, this->numFetchedInstructions);
 }
 
 SimpleCore::~SimpleCore() {}
+
+// C++ requires the definition of static members outside the class declaration.
+int SimpleCore::nextCoreID = 0;

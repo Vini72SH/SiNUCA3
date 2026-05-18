@@ -49,7 +49,11 @@ class SimpleCore : public Component<InstructionPacket> {
     int dataConnectionID;     /** @brief The connection ID of dataMemory. */
     int fetchingConnectionID; /** @brief The connection ID of fetching. */
     int mmuConnectionID;      /** @brief The connection ID of mmu. */
-    static int coreID;
+
+    /** @brief Static counter to assign unique core IDs. */
+    static int nextCoreID;
+    /** @brief Increment the core ID counter. */
+    static inline void StepCoreID() { nextCoreID++; }
 
   public:
     inline SimpleCore()
