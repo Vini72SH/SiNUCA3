@@ -29,8 +29,6 @@
 #include <vector>
 
 #include "engine/address_mapper.hpp"
-#include "engine/default_packets.hpp"
-#include "engine/linkable.hpp"
 #include "tracer/trace_reader.hpp"
 #include "utils/logger.hpp"
 
@@ -132,8 +130,9 @@ int Engine::Configure(Config config) {
             return 1;
         }
     }
-    for (unsigned int i = 0; i < instances.size(); ++i) {
-        Linkable* component = instances[i].component;
+
+    for (long i = 0; i < (long)components->size(); ++i) {
+        Linkable* component = components->at(i);
         if (component->PosConfigure()) {
             // Skip the engine.
             for (unsigned int i = 1; i < components->size(); ++i)
@@ -241,16 +240,25 @@ int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
     this->numberOfFetchers = this->GetNumberOfConnections();
     this->fetchBuffers = new FetchBuffer[this->numberOfFetchers];
 
+    long numberOfFetchersNeeded = 0;
+
     for (long i = 0, k = 0; i < (long)tracers->size(); i++) {
         int threads = tracers->at(i)->GetTotalThreads();
-        for (int j = 0; j < threads; j++, k++) {
+        for (int j = 0; j < threads; j++, k++, numberOfFetchersNeeded++) {
             if (this->numberOfFetchers <= k) {
-                SINUCA3_WARNING_PRINTF(
+                SINUCA3_ERROR_PRINTF(
                     "Not enough fetchers to handle all given traces!\n");
-                return 0;
+                return 1;
             }
             this->fetchBuffers[k].SetTracerAndTid(tracers->at(i), j);
         }
+    }
+
+    this->numberOfFetchers = numberOfFetchersNeeded;
+
+    if (AddressMapper::GetInstance()->Configure(this->fetchBuffers, this->numberOfFetchers)) {
+        SINUCA3_ERROR_PRINTF("Failed to configure address mapper.\n");
+        return 1;
     }
 
     return 0;
@@ -265,6 +273,7 @@ int Engine::Simulate(std::vector<TraceReader*>* traceReaders) {
 
     const time_t start = time(NULL);
 
+    printf("\n"); // Just for better formatting of the logs.
     SINUCA3_LOG_PRINTF("Simulation started at %s", ctime(&start));
     SINUCA3_LOG_PRINTF("Total instructions: %ld.\n", this->traceSize);
 

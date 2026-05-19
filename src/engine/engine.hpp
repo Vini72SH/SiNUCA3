@@ -62,22 +62,36 @@ struct FetchBuffer {
 
     /** @brief Sets the trace reader and thread id. */
     void SetTracerAndTid(TraceReader* tracer, int tid);
+
     /** @brief Copy current (instruction) to target and update current. */
     void GetReadyInstructionToSend(InstructionPacket* target);
+
     /** @brief Tries to fetch an instruction. */
     void TryToFetchNextInstruction();
+
     /** @brief Remembers the request from fetcher. */
     void RememberRequest(unsigned long request);
+
     /** @brief Clears the saved request. */
     void ClearRequest();
+
     /** @brief Checks if the fetch buffer is properly set. */
     inline bool IsValid() { return (this->tracer != NULL && this->tid >= 0); }
+
     /** @brief Checks if the current instruction is ready. */
     inline bool IsReady() { return (this->IsValid() && this->isCurrentValid); }
+
     /** @brief Checks if fetcher has requested instructions. */
     inline bool HasFetcherRequested() { return this->isWaiting; }
+
     /** @brief Returns the number of bytes requested. */
     inline long GetBytesRequested() { return this->bytesRequested; }
+
+    /** @brief Returns the id of the thread associated with the buffer. */
+    inline int GetTid() const { return this->tid; }
+
+    /** @brief Returns the trace reader associated with the buffer. */
+    inline const TraceReader* GetTracer() const { return this->tracer; }
 };
 
 /**
