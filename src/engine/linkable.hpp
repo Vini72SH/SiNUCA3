@@ -41,7 +41,6 @@ class Context {
   public:
     /** @brief Structure to hold core context information. */
     struct Core {
-        int coreId;
         int contextId;
         int engineConnId;
     };
@@ -71,7 +70,7 @@ class Context {
     /**
      * @brief Set the core context information.
      */
-    void SetCoreContext(int coreId, int contextId, int engineConnId);
+    void SetCoreContext(int contextId, int engineConnId);
 
     /**
      * @brief Propagate the context to a component and its children.

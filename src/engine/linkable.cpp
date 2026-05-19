@@ -224,8 +224,7 @@ void Context::DestroyAllContexts() {
     contexts.clear();
 }
 
-void Context::SetCoreContext(int coreId, int contextId, int engineConnId) {
-    this->core.coreId = coreId;
+void Context::SetCoreContext(int contextId, int engineConnId) {
     this->core.contextId = contextId;
     this->core.engineConnId = engineConnId;
 }
