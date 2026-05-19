@@ -28,14 +28,20 @@
  * alias "ADDRESS_MAPPER".
  */
 
-#include "config/config.hpp"
-#include "default_packets.hpp"
-#include "engine/component.hpp"
+#include <sinuca3.hpp>
 
 class AddressMapper : public Component<MemoryPacket*> {
   private:
-    AddressMapper() : pageFrameMappingEnabled(false) {}
+    AddressMapper()
+        : contextToAddressSpace(NULL),
+          totalContexts(0),
+          pageFrameMappingEnabled(false) {}
 
+    /** @brief Array mapping contexts to address spaces. */
+    int* contextToAddressSpace;
+    /** @brief Self-explanatory. */
+    long totalContexts;
+    /** @brief Indicates whether to simulate page frames. */
     bool pageFrameMappingEnabled;
 
     /** @brief Gets the mapping for a given address using context insertion */
@@ -51,17 +57,31 @@ class AddressMapper : public Component<MemoryPacket*> {
                            unsigned long* mappedAddress);
 
   public:
+    /** @brief Gets the singleton instance of the address mapper. */
     static AddressMapper* GetInstance() {
         static AddressMapper instance;
         return &instance;
     }
+
+    /**
+     * @brief Configures the address mapper. Only the engine component should
+     * call this method.
+     */
+    int Configure(const FetchBuffer* fetchBuffers, long numFetchers,
+                  bool enablePageFrameMapping = false);
+
+    /** @brief Do not call. It is implemented just to satisfy the interface. */
     virtual int Configure(Config config) {
         (void)config;
         return 0;
     }
     virtual void Clock();
     virtual void PrintStatistics() {}
-    virtual ~AddressMapper() {}
+    virtual ~AddressMapper() {
+        if (this->contextToAddressSpace != NULL) {
+            delete[] this->contextToAddressSpace;
+        }
+    }
 };
 
 #endif  // SINUCA3_ADDRESS_MAPPER_HPP_

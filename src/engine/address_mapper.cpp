@@ -20,30 +20,64 @@
  */
 
 #include "address_mapper.hpp"
+extern "C" {
+#include <stdint.h>
+}
 
-void AddressMapper::Clock() { }
+void AddressMapper::Clock() {
+    // Todo: finish implementation of the address mapper together with mmu and
+    // page table components.
+}
 
-bool AddressMapper::GetMappingByContextInsertion(unsigned long address, int context,
-                           unsigned long* mappedAddress) {
-    unsigned long contextFrame = context;
+int AddressMapper::Configure(const FetchBuffer* fetchBuffers, long numFetchers,
+                             bool enablePageFrameMapping) {
+    this->pageFrameMappingEnabled = enablePageFrameMapping;
+    this->totalContexts = numFetchers;
+    this->contextToAddressSpace = new int[this->totalContexts];
+
+    const void* lastApplication = NULL;
+    int context = -1;
+    for (long i = 0; i < numFetchers; ++i) {
+        const void* application = fetchBuffers[i].GetTracer();
+        if (application != lastApplication) {
+            context++;
+        }
+        lastApplication = application;
+        this->contextToAddressSpace[i] = context;
+    }
+
+    for (long i = 0; i < this->totalContexts; ++i) {
+        SINUCA3_LOG_PRINTF("Context [%d] mapped to address space [%d].\n", i,
+                           this->contextToAddressSpace[i]);
+    }
+
+    return 0;
+}
+
+bool AddressMapper::GetMappingByContextInsertion(unsigned long address,
+                                                 int context,
+                                                 unsigned long* mappedAddress) {
+    unsigned long contextFrame = this->contextToAddressSpace[context];
     unsigned long addressMask = (1UL << 48) - 1;
     *mappedAddress = (address & addressMask) | (contextFrame << 48);
     return true;
 }
 
 bool AddressMapper::GetMappingByPageFrame(unsigned long address, int context,
-                        unsigned long* mappedAddress) {
+                                          unsigned long* mappedAddress) {
     // Todo: implementation for page/frame mapping
-    (void)address;  // To avoid unused parameter warning
+    (void)address;
     (void)context;
     (void)mappedAddress;
     return false;
 }
 
-bool AddressMapper::GetAddressMapping(unsigned long address, int context, unsigned long* mappedAddress) {
+bool AddressMapper::GetAddressMapping(unsigned long address, int context,
+                                      unsigned long* mappedAddress) {
     if (this->pageFrameMappingEnabled) {
         return this->GetMappingByPageFrame(address, context, mappedAddress);
     } else {
-        return this->GetMappingByContextInsertion(address, context, mappedAddress);
+        return this->GetMappingByContextInsertion(address, context,
+                                                  mappedAddress);
     }
 }
