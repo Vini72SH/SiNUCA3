@@ -25,7 +25,12 @@
  */
 
 #include <sinuca3.hpp>
+
 #include "engine/linkable.hpp"
+
+// - declare missing methodos in SimpleCore private section
+// - declare a private core id
+// - removed propate context from simple core
 
 /**
  * @details SimpleCore fetches an instruction from the required parameter
@@ -39,16 +44,27 @@ class SimpleCore : public Component<InstructionPacket> {
     Component<MemoryPacket>*
         instructionMemory;               /** @brief The instruction memory. */
     Component<MemoryPacket>* dataMemory; /** @brief The data memory. */
-    Component<FetchPacket>* fetching;    /** @brief The fetching. */
+    Component<int>* fetcher;             /** @brief The fetcher. */
     Component<MemoryPacket>* mmu;        /** @brief Memory management unit. */
 
     unsigned long numFetchedInstructions; /** @brief The number of fetched
                                              instructions. */
     int instructionConnectionID;          /** @brief The connection ID of
                                              instructionMemory. */
-    int dataConnectionID;     /** @brief The connection ID of dataMemory. */
-    int fetchingConnectionID; /** @brief The connection ID of fetching. */
-    int mmuConnectionID;      /** @brief The connection ID of mmu. */
+    int dataConnectionID;    /** @brief The connection ID of dataMemory. */
+    int fetcherConnectionID; /** @brief The connection ID of fetcher. */
+    int mmuConnectionID;     /** @brief The connection ID of mmu. */
+    int coreId;              /** @brief The ID of the core. */
+
+    /** @brief Establish the core ID for the core. */
+    int EstablishCoreID();
+    /** @brief Establish the connections for the core. */
+    int EstablishConnections(Config config);
+    /** @brief Establish the child components for the core. */
+    int EstablishChildComponents();
+    /** @brief Establish the context for the core and propagate it to the child
+     * components. */
+    int EstablishContextAndPropagate();
 
     /** @brief Static counter to assign unique core IDs. */
     static int nextCoreID;
@@ -59,7 +75,7 @@ class SimpleCore : public Component<InstructionPacket> {
     inline SimpleCore()
         : instructionMemory(NULL),
           dataMemory(NULL),
-          fetching(NULL),
+          fetcher(NULL),
           mmu(NULL),
           numFetchedInstructions(0) {}
     virtual int Configure(Config config);

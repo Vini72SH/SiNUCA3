@@ -31,12 +31,94 @@
 #include "utils/logger.hpp"
 
 int SimpleCore::Configure(Config config) {
+    if (this->EstablishCoreID() != 0) {
+        SINUCA3_ERROR_PRINTF("Failed to establish core ID for core [%p].\n",
+                             this);
+        return 1;
+    }
+    if (this->EstablishConnections(config) != 0) {
+        SINUCA3_ERROR_PRINTF("Failed to establish connections for core [%d].\n",
+                             this->coreId);
+        return 1;
+    }
+    if (this->EstablishChildComponents() != 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Failed to establish child components for core [%d].\n",
+            this->coreId);
+        return 1;
+    }
+    if (this->EstablishContextAndPropagate() != 0) {
+        SINUCA3_ERROR_PRINTF("Failed to establish context for core [%d].\n",
+                             this->coreId);
+        return 1;
+    }
+    return 0;
+}
+
+int SimpleCore::PosConfigure() {
+    SINUCA3_LOG_PRINTF("Core [%d] configured with:\n", this->coreId);
+
+    SINUCA3_LOG_PRINTF("Instruction Memory: [%s]\n",
+                       this->instructionMemory != NULL ? "ON" : "OFF");
+    SINUCA3_LOG_PRINTF("Data Memory: [%s]\n",
+                       this->dataMemory != NULL ? "ON" : "OFF");
+    SINUCA3_LOG_PRINTF("Memory Management Unit: [%s]\n\n",
+                       this->mmu != NULL ? "ON" : "OFF");
+    return 0;
+}
+
+int SimpleCore::EstablishCoreID() {
+    int coreId = this->nextCoreID;
+    if (coreId < 0) {
+        SINUCA3_ERROR_PRINTF("Core ID overflow for core [%p].\n", this);
+        return 1;
+    }
+    this->coreId = coreId;
+    SimpleCore::StepCoreID();
+    return 0;
+}
+
+int SimpleCore::EstablishContextAndPropagate() {
+    Context* context = Context::CreateContext();
+    if (context == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to create context for core [%d].\n",
+                             this->coreId);
+        return 1;
+    }
+
+    int contextId = this->coreId;
+    context->SetCoreContext(contextId, this->fetcherConnectionID);
+
+    if (context->PropagateContext(this) != 0) {
+        SINUCA3_ERROR_PRINTF(
+            "Failed to propagate context for core [%d] and its children.\n",
+            this->coreId);
+        return 1;
+    }
+
+    return 0;
+}
+
+int SimpleCore::EstablishChildComponents() {
+    if (this->mmu != NULL) this->AddChild(this->mmu);
+    if (this->fetcher == NULL) {
+        SINUCA3_ERROR_PRINTF(
+            "Fetcher component is required for core [%d] but was not "
+            "provided.\n",
+            this->coreId);
+        return 1;
+    }
+    this->AddChild(this->fetcher);
+    return 0;
+}
+
+int SimpleCore::EstablishConnections(Config config) {
     if (config.ComponentReference("instructionMemory",
                                   &this->instructionMemory))
         return 1;
     if (config.ComponentReference("dataMemory", &this->dataMemory)) return 1;
     if (config.ComponentReference("mmu", &this->mmu)) return 1;
-    if (config.ComponentReference("fetching", &this->fetching, true)) return 1;
+    if (config.ComponentReference("fetcher", &this->fetcher, true)) return 1;
 
     if (this->instructionMemory != NULL)
         this->instructionConnectionID = this->instructionMemory->Connect(0);
@@ -44,41 +126,20 @@ int SimpleCore::Configure(Config config) {
         this->dataConnectionID = this->dataMemory->Connect(0);
     if (this->mmu != NULL) {
         this->mmuConnectionID = this->mmu->Connect(0);
-        this->AddChild(this->mmu);
     }
-    this->fetchingConnectionID = this->fetching->Connect(0);
-
-    return 0;
-}
-
-int SimpleCore::PosConfigure() {
-    Context* context = Context::CreateContext();
-    if (context == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to create context for core [%d].\n",
-                             this->nextCoreID);
-        return 1;
-    }
-
-    int contextId = this->nextCoreID;
-    int coreId = this->nextCoreID;
-    context->SetCoreContext(coreId, contextId, this->fetchingConnectionID);
-
-    if (context->PropagateContext(this) != 0) {
-        SINUCA3_ERROR_PRINTF("Failed to propagate context to core [%d].\n",
-                             this->nextCoreID);
-        return 1;
-    }
-
-    SimpleCore::StepCoreID();
+    this->fetcherConnectionID = this->fetcher->Connect(0);
 
     return 0;
 }
 
 void SimpleCore::Clock() {
+/* The fetching responsibility is on the fetcher component, so this simple core
+ * is only responsible for establishing the simulated core environment for now. */
+/*
     FetchPacket fetch;
     fetch.request = 0;
-    this->fetching->SendRequest(this->fetchingConnectionID, &fetch);
-    if (this->fetching->ReceiveResponse(this->fetchingConnectionID, &fetch) ==
+    this->fetcher->SendRequest(this->fetcherConnectionID, &fetch);
+    if (this->fetcher->ReceiveResponse(this->fetcherConnectionID, &fetch) ==
         0) {
         ++this->numFetchedInstructions;
         if (this->instructionMemory != NULL) {
@@ -104,12 +165,12 @@ void SimpleCore::Clock() {
             }
         }
     }
+*/
 }
 
 void SimpleCore::PrintStatistics() {
-    Context::Core coreContext = this->GetContext()->GetCoreContext();
-    SINUCA3_LOG_PRINTF("Core [%d]: [%lu] instructions fetched\n",
-                       coreContext.coreId, this->numFetchedInstructions);
+    SINUCA3_LOG_PRINTF("Core [%d]: [%lu] instructions fetched\n", this->coreId,
+                       this->numFetchedInstructions);
 }
 
 SimpleCore::~SimpleCore() {}
