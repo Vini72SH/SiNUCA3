@@ -87,7 +87,9 @@ int SimpleCore::EstablishContextAndPropagate() {
     }
 
     int contextId = this->coreId;
-    context->SetCoreContext(contextId, this->fetcherConnectionID);
+    int engineConnId = this->engineConnectionID;
+    Linkable* engine = this->engine;
+    context->SetCoreContext(contextId, engineConnId, engine);
 
     if (context->PropagateContext(this) != 0) {
         SINUCA3_ERROR_PRINTF(
@@ -113,6 +115,7 @@ int SimpleCore::EstablishChildComponents() {
 }
 
 int SimpleCore::EstablishConnections(Config config) {
+    if (config.ComponentReference("engine", &this->engine, true)) return 1;
     if (config.ComponentReference("instructionMemory",
                                   &this->instructionMemory))
         return 1;
@@ -128,44 +131,46 @@ int SimpleCore::EstablishConnections(Config config) {
         this->mmuConnectionID = this->mmu->Connect(0);
     }
     this->fetcherConnectionID = this->fetcher->Connect(0);
-
+    this->engineConnectionID = this->engine->Connect(0);
     return 0;
 }
 
 void SimpleCore::Clock() {
-/* The fetching responsibility is on the fetcher component, so this simple core
- * is only responsible for establishing the simulated core environment for now. */
-/*
-    FetchPacket fetch;
-    fetch.request = 0;
-    this->fetcher->SendRequest(this->fetcherConnectionID, &fetch);
-    if (this->fetcher->ReceiveResponse(this->fetcherConnectionID, &fetch) ==
-        0) {
-        ++this->numFetchedInstructions;
-        if (this->instructionMemory != NULL) {
-            MemoryPacket fetchPacket = fetch.response.staticInfo->instAddress;
-            this->instructionMemory->SendRequest(this->instructionConnectionID,
-                                                 &fetchPacket);
-            if (this->dataMemory != NULL) {
-                for (long i = 0; i < fetch.response.dynamicInfo.numReadings;
-                     ++i) {
-                    this->dataMemory->SendRequest(
-                        this->dataConnectionID,
-                        (unsigned long*)&(
-                            fetch.response.dynamicInfo.readsAddr[i]));
-                }
+    /* The fetching responsibility migrated to the fetcher component, so this
+     * simple core is only responsible for establishing the simulated core
+     * environment for now. */
+    /*
+        FetchPacket fetch;
+        fetch.request = 0;
+        this->fetcher->SendRequest(this->fetcherConnectionID, &fetch);
+        if (this->fetcher->ReceiveResponse(this->fetcherConnectionID, &fetch) ==
+            0) {
+            ++this->numFetchedInstructions;
+            if (this->instructionMemory != NULL) {
+                MemoryPacket fetchPacket =
+       fetch.response.staticInfo->instAddress;
+                this->instructionMemory->SendRequest(this->instructionConnectionID,
+                                                     &fetchPacket);
+                if (this->dataMemory != NULL) {
+                    for (long i = 0; i < fetch.response.dynamicInfo.numReadings;
+                         ++i) {
+                        this->dataMemory->SendRequest(
+                            this->dataConnectionID,
+                            (unsigned long*)&(
+                                fetch.response.dynamicInfo.readsAddr[i]));
+                    }
 
-                for (long i = 0; i < fetch.response.dynamicInfo.numWritings;
-                     ++i) {
-                    this->dataMemory->SendRequest(
-                        this->dataConnectionID,
-                        (unsigned long*)&(
-                            fetch.response.dynamicInfo.writesAddr[i]));
+                    for (long i = 0; i < fetch.response.dynamicInfo.numWritings;
+                         ++i) {
+                        this->dataMemory->SendRequest(
+                            this->dataConnectionID,
+                            (unsigned long*)&(
+                                fetch.response.dynamicInfo.writesAddr[i]));
+                    }
                 }
             }
         }
-    }
-*/
+    */
 }
 
 void SimpleCore::PrintStatistics() {

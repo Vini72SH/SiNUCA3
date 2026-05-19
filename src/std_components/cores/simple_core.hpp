@@ -28,10 +28,6 @@
 
 #include "engine/linkable.hpp"
 
-// - declare missing methodos in SimpleCore private section
-// - declare a private core id
-// - removed propate context from simple core
-
 /**
  * @details SimpleCore fetches an instruction from the required parameter
  * `fetching`, a Component<InstructionPacket> and optionally queries two
@@ -41,6 +37,7 @@
  */
 class SimpleCore : public Component<InstructionPacket> {
   private:
+    Component<FetchPacket>* engine; /** @brief The engine component */
     Component<MemoryPacket>*
         instructionMemory;               /** @brief The instruction memory. */
     Component<MemoryPacket>* dataMemory; /** @brief The data memory. */
@@ -49,12 +46,13 @@ class SimpleCore : public Component<InstructionPacket> {
 
     unsigned long numFetchedInstructions; /** @brief The number of fetched
                                              instructions. */
-    int instructionConnectionID;          /** @brief The connection ID of
-                                             instructionMemory. */
-    int dataConnectionID;    /** @brief The connection ID of dataMemory. */
-    int fetcherConnectionID; /** @brief The connection ID of fetcher. */
-    int mmuConnectionID;     /** @brief The connection ID of mmu. */
-    int coreId;              /** @brief The ID of the core. */
+    int engineConnectionID;      /** @brief The connection ID of the engine. */
+    int instructionConnectionID; /** @brief The connection ID of
+                                    instructionMemory. */
+    int dataConnectionID;        /** @brief The connection ID of dataMemory. */
+    int fetcherConnectionID;     /** @brief The connection ID of fetcher. */
+    int mmuConnectionID;         /** @brief The connection ID of mmu. */
+    int coreId;                  /** @brief The ID of the core. */
 
     /** @brief Establish the core ID for the core. */
     int EstablishCoreID();
@@ -73,7 +71,8 @@ class SimpleCore : public Component<InstructionPacket> {
 
   public:
     inline SimpleCore()
-        : instructionMemory(NULL),
+        : engine(NULL),
+          instructionMemory(NULL),
           dataMemory(NULL),
           fetcher(NULL),
           mmu(NULL),

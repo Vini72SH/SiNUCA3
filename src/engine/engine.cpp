@@ -256,7 +256,8 @@ int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
 
     this->numberOfFetchers = numberOfFetchersNeeded;
 
-    if (AddressMapper::GetInstance()->Configure(this->fetchBuffers, this->numberOfFetchers)) {
+    if (AddressMapper::GetInstance()->Configure(this->fetchBuffers,
+                                                this->numberOfFetchers)) {
         SINUCA3_ERROR_PRINTF("Failed to configure address mapper.\n");
         return 1;
     }
@@ -273,7 +274,7 @@ int Engine::Simulate(std::vector<TraceReader*>* traceReaders) {
 
     const time_t start = time(NULL);
 
-    printf("\n"); // Just for better formatting of the logs.
+    printf("\n");  // Just for better formatting of the logs.
     SINUCA3_LOG_PRINTF("Simulation started at %s", ctime(&start));
     SINUCA3_LOG_PRINTF("Total instructions: %ld.\n", this->traceSize);
 
