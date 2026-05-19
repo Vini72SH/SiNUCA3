@@ -214,6 +214,9 @@ Context* Context::CreateContext() {
         SINUCA3_ERROR_PRINTF("Failed to create context.\n");
         return NULL;
     }
+    ctx->core.contextId = -1;
+    ctx->core.engineConnId = -1;
+    ctx->core.engine = NULL;
     contexts.push_back(ctx);
     return ctx;
 }
@@ -224,9 +227,10 @@ void Context::DestroyAllContexts() {
     contexts.clear();
 }
 
-void Context::SetCoreContext(int contextId, int engineConnId) {
+void Context::SetCoreContext(int contextId, int engineConnId, Linkable* engine) {
     this->core.contextId = contextId;
     this->core.engineConnId = engineConnId;
+    this->core.engine = engine;
 }
 
 int Context::PropagateContext(Linkable* component) {
