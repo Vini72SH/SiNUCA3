@@ -17,84 +17,114 @@
 
 /**
  * @file file_handler.cpp
- * @details Implementation of the file handler, a helper class for handling
- * trace files.
  */
 
 #include "file_handler.hpp"
+#include "utils/logger.hpp"
 
-#include <cassert>
-#include <cstdio>
-#include <cstring>
-#include <sinuca3.hpp>
+const char* BIN_EXT = ".bin";
+const char* TID_FORMAT = "_tid";
+const char* TID_MAX = "4294967295";
 
-const int MAX_INT_DIGITS = 7;
+const int BIN_EXT_SIZE = strlen(BIN_EXT);
+const int TID_FORMAT_SIZE = strlen(TID_FORMAT);
+const int TID_CHARS = strlen(TID_MAX);
 
-unsigned long GetPathTidInSize(const char* sourceDir, const char* prefix,
-                               const char* imageName) {
-    unsigned long sourceDirLen = strlen(sourceDir);
-    unsigned long prefixLen = strlen(prefix);
-    unsigned long imageNameLen = strlen(imageName);
-    /* 10 is the number of characters on the format string */
-    return MAX_INT_DIGITS + 10 + sourceDirLen + prefixLen + imageNameLen;
+long GetPathTidInSize(const char* dir, const char* pref) {
+    long dirLen = (long)strlen(dir);
+    long prefLen = (long)strlen(pref);
+    return TID_CHARS + TID_FORMAT_SIZE + dirLen + prefLen;
 }
 
-void FormatPathTidIn(char* dest, const char* sourceDir, const char* prefix,
-                     const char* imageName, int tid, long destSize) {
-    snprintf(dest, destSize, "%s/%s_%s_tid%u.trace", sourceDir, prefix,
-             imageName, tid);
+void FormatPathTidIn(char* dest, const char* dir, const char* pref, int tid, long destSize) {
+    snprintf(dest, destSize, "%s/%s%s%u%s", dir, pref, TID_FORMAT, tid, BIN_EXT);
 }
 
-unsigned long GetPathTidOutSize(const char* sourceDir, const char* prefix,
-                                const char* imageName) {
-    unsigned long sourceDirLen = strlen(sourceDir);
-    unsigned long prefixLen = strlen(prefix);
-    unsigned long imageNameLen = strlen(imageName);
-    /* 9 is the number characters in the format string */
-    return 9 + sourceDirLen + prefixLen + imageNameLen;
+long GetPathTidOutSize(const char* dir, const char* pref) {
+    long dirLen = (long)strlen(dir);
+    long prefLen = (long)strlen(pref);
+    return BIN_EXT_SIZE + dirLen + prefLen;
 }
 
-void FormatPathTidOut(char* dest, const char* sourceDir, const char* prefix,
-                      const char* imageName, long destSize) {
-    snprintf(dest, destSize, "%s/%s_%s.trace", sourceDir, prefix, imageName);
+void FormatPathTidOut(char* dest, const char* dir, const char* pref, long destSize) {
+    snprintf(dest, destSize, "%s/%s%s", dir, pref, BIN_EXT);
 }
 
-int FileHeader::FlushHeader(FILE* file) {
-    if (!file) return 1;
-    long orgPos = ftell(file);
-    rewind(file);
-    if (fwrite(this, 1, sizeof(*this), file) != sizeof(*this)) {
+int FileHeader::ReserveHeaderSpace(FILE* file) {
+    if (file == NULL) {
         return 1;
     }
-    fseek(file, orgPos, SEEK_SET);
-    return 0;
-}
-
-int FileHeader::LoadHeader(FILE* file) {
-    if (!file) return 1;
-    return (fread(this, 1, sizeof(*this), file) != sizeof(*this));
-}
-
-int FileHeader::LoadHeader(char* file, unsigned long* fileOffset) {
-    if (!file) return 1;
-    memcpy(this, file, sizeof(*this));
-    *fileOffset += sizeof(*this);
-    return 0;
-}
-
-void FileHeader::ReserveHeaderSpace(FILE* file) {
-    fseek(file, sizeof(*this), SEEK_SET);
-}
-
-void FileHeader::SetHeaderType(uint8_t fileType) {
-    this->fileType = fileType;
-    if (this->fileType == FileTypeStaticTrace) {
-        strcpy((char*)this->prefix, PREFIX_STATIC_FILE);
-    } else if (this->fileType == FileTypeDynamicTrace) {
-        strcpy((char*)this->prefix, PREFIX_DYNAMIC_FILE);
-    } else if (this->fileType == FileTypeMemoryTrace) {
-        strcpy((char*)this->prefix, PREFIX_MEMORY_FILE);
-    } else {
-        SINUCA3_ERROR_PRINTF("Unkown file type!\n");
+    if (fseek(file, sizeof(FileHeader), SEEK_SET) != 0) {
+        return 1;
     }
+    return 0;
+}
+
+void FileHeader::SetStaticHeader(int32_t inst, int32_t bbls, int32_t threads) {;
+    this->staticHeader.recordedInstructions = inst;
+    this->staticHeader.recordedBasicBlocks = bbls;
+    this->staticHeader.registeredThreads = threads;
+}
+
+void FileHeader::SetDynamicHeader(int64_t executedInstructions) {
+    this->dynamicHeader.executedInstructions = executedInstructions;
+}
+
+int FileHeader::GetRecordedBasicBlocks() {
+    int recordedBbls = 0;
+    if (this->IsValid()) {
+        recordedBbls = this->staticHeader.recordedBasicBlocks;
+    } else {
+        SINUCA3_ERROR_PRINTF("Invalid file header!\n");
+    }
+    return recordedBbls;
+}
+
+int FileHeader::GetRecordedInstructions() {
+    int recordedInst = 0;
+    if (this->IsValid()) {
+        recordedInst = this->staticHeader.recordedInstructions;
+    } else {
+        SINUCA3_ERROR_PRINTF("Invalid file header!\n");
+    }
+    return recordedInst;
+}
+
+int FileHeader::GetRegisteredThreads() {
+    int registeredThreads = 0;
+    if (this->IsValid()) {
+        registeredThreads = this->staticHeader.registeredThreads;
+    } else {
+        SINUCA3_ERROR_PRINTF("Invalid file header!\n");
+    }
+    return registeredThreads;
+}
+
+long FileHeader::GetExecutedInstructions() {
+    long executedInst = 0;
+    if (this->IsValid()) {
+        executedInst = this->dynamicHeader.executedInstructions;
+    } else {
+        SINUCA3_ERROR_PRINTF("Invalid file header!\n");
+    }
+    return executedInst;
+}
+
+void FileHeader::PrintVersionAndTarget() const {
+    const char* targetStr;
+    switch (this->targetArch) {
+        case TargetArchX86:
+            targetStr = "x86";
+            break;
+        case TargetArchARM:
+            targetStr = "ARM";
+            break;
+        case TargetArchRISCV:
+            targetStr = "RISC-V";
+            break;
+        default:
+            targetStr = "Unknown";
+    }
+    SINUCA3_WARNING_PRINTF("\t Version: %d\n", this->traceVersion);
+    SINUCA3_WARNING_PRINTF("\t Target: %s\n", targetStr);
 }

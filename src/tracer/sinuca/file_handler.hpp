@@ -19,7 +19,7 @@
 //
 
 /**
- * @file x86_file_handler.hpp
+ * @file file_handler.hpp
  * @brief Common trace file handling API.
  */
 
@@ -29,41 +29,38 @@
 
 extern "C" {
 #include <alloca.h>
-#include <errno.h>
 #include <stdint.h>
 }
 
-#define _PACKED __attribute__((packed))
+const uint32_t MAX_IMAGE_NAME_SIZE = 255;
+const uint32_t TRACE_VERSION = 2;
+const uint32_t TRACE_MAGIC = 0x54524345;
+const uint32_t PREFIX_SIZE = 4;
 
-const int MAX_IMAGE_NAME_SIZE = 255;
-const int RECORD_ARRAY_SIZE = 10000;
-const int CURRENT_TRACE_VERSION = 1;
-const unsigned char MAGIC_NUMBER = 187;
+const char PREFIX_STATIC_FILE[PREFIX_SIZE] = "S3S";
+const char PREFIX_DYNAMIC_FILE[PREFIX_SIZE] = "S3D";
+const char PREFIX_MEMORY_FILE[PREFIX_SIZE] = "S3M";
 
-const char TRACE_TARGET_X86[] = "X86";
-const char TRACE_TARGET_ARM[] = "ARM";
-const char TRACE_TARGET_RISCV[] = "RISCV";
-const char PREFIX_STATIC_FILE[] = "S3S";
-const char PREFIX_DYNAMIC_FILE[] = "S3D";
-const char PREFIX_MEMORY_FILE[] = "S3M";
-const int PREFIX_SIZE = sizeof(PREFIX_STATIC_FILE);
-
-enum FileType : uint8_t {
+enum FileType : int8_t {
     FileTypeStaticTrace,
     FileTypeDynamicTrace,
     FileTypeMemoryTrace
 };
 
-enum TargetArch : uint8_t { TargetArchX86, TargetArchARM, TargetArchRISCV };
-
-enum StaticTraceRecordType : uint8_t {
-    StaticRecordInstruction,
-    StaticRecordBasicBlockSize
+enum TargetArchitecture : int8_t {
+    TargetArchX86,
+    TargetArchARM,
+    TargetArchRISCV
 };
 
-enum DynamicTraceRecordType : uint8_t {
-    DynamicRecordBasicBlockIdentifier,
-    DynamicRecordThreadEvent
+enum StaticTraceEntryType : int8_t {
+    StaticEntryInstruction,
+    StaticEntryBasicBlockSize
+};
+
+enum DynamicTraceEntryType : int8_t {
+    DynamicEntryBasicBlockIdentifier,
+    DynamicEntryThreadEvent
 };
 
 enum ThreadEventType : uint32_t {
@@ -73,152 +70,172 @@ enum ThreadEventType : uint32_t {
     ThreadEventAbruptEnd
 };
 
-enum MemoryRecordType : uint8_t {
-    MemoryRecordHeader,
-    MemoryRecordLoad,
-    MemoryRecordStore
+enum MemoryEntryType : int8_t {
+    MemoryEntryAccessCount,
+    MemoryEntryLoad,
+    MemoryEntryStore
 };
 
 /** @brief Instruction extracted informations */
-struct Instruction {
-    uint64_t instructionAddress;
-    uint64_t instructionSize;
-    uint16_t readRegsArray[MAX_REGISTERS];
-    uint16_t writtenRegsArray[MAX_REGISTERS];
-    uint8_t wRegsArrayOccupation;
-    uint8_t rRegsArrayOccupation;
-    uint8_t instHasFallthrough;
-    uint8_t isBranchInstruction;
-    uint8_t isSyscallInstruction;
-    uint8_t isCallInstruction;
-    uint8_t isRetInstruction;
-    uint8_t isSysretInstruction;
-    uint8_t isPrefetchHintInst;
-    uint8_t isPredicatedInst;
-    uint8_t isIndirectCtrlFlowInst;
-    uint8_t instCausesCacheLineFlush;
-    uint8_t instPerformsAtomicUpdate;
-    uint8_t instReadsMemory;
-    uint8_t instWritesMemory;
+struct CompressedInstruction {
+    int64_t instructionAddress;
+    int64_t instructionSize;
+    int16_t readRegsArray[MAX_REGISTERS];
+    int16_t writtenRegsArray[MAX_REGISTERS];
+    int8_t wRegsArrayOccupation;
+    int8_t rRegsArrayOccupation;
+    int8_t instHasFallthrough;
+    int8_t isBranchInstruction;
+    int8_t isSyscallInstruction;
+    int8_t isCallInstruction;
+    int8_t isRetInstruction;
+    int8_t isSysretInstruction;
+    int8_t isPrefetchHintInst;
+    int8_t isPredicatedInst;
+    int8_t isIndirectCtrlFlowInst;
+    int8_t instCausesCacheLineFlush;
+    int8_t instPerformsAtomicUpdate;
+    int8_t instReadsMemory;
+    int8_t instWritesMemory;
     char instructionMnemonic[INST_MNEMONIC_LEN];
-} _PACKED;
+} __attribute__((packed));
 
-/** @brief Written to static trace file. */
-struct StaticTraceRecord {
-    union _PACKED {
-        uint16_t basicBlockSize;
-        Instruction instruction;
-    } data;
-    uint8_t recordType;
+/** @brief Written to static trace file. May contain either a basic block size
+ * or an instruction. */
+struct StaticTraceEntry {
+    union {
+        CompressedInstruction instruction;
+        int32_t basicBlockSize;
+    };
+    StaticTraceEntryType entryType;
+} __attribute__((packed));
 
-    inline StaticTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
+/** @brief Written to dynamic trace file. May contain either a basic block
+ * identifier or a thread event. */
+struct DynamicTraceEntry {
+    union {
+        ThreadEventType threadEvent;
+        int32_t basicBlock;
+    };
+    DynamicTraceEntryType entryType;
+} __attribute__((packed));
 
-/** @brief Written to dynamic trace file. */
-struct DynamicTraceRecord {
-    union _PACKED {
-        uint32_t basicBlockId;
-        uint32_t threadEvent;
-    } data;
-    uint8_t recordType;
-
-    inline DynamicTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
-
-/** @brief Written to memory trace file. */
-struct MemoryTraceRecord {
-    union _PACKED {
-        struct _PACKED {
-            uint64_t address; /**<Virtual address accessed. */
-            uint16_t size;    /**<Size in bytes of memory read or written. */
-        } operation;
-        int32_t numberOfMemoryOps;
-    } data;
-    uint8_t recordType;
-
-    inline MemoryTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
+/** @brief Written to memory trace file. May contain either a memory access or a
+ * memory header. */
+struct MemoryTraceEntry {
+    union {
+        struct {
+            int64_t virtualAddress;
+            int32_t accessSize;
+        };
+        int32_t memoryAccessCount;
+    };
+    MemoryEntryType entryType;
+} __attribute__((packed));
 
 /** @brief File header for general usage. */
 struct FileHeader {
-    uint8_t magicNumber;
+    uint32_t magicNumber;
     int8_t prefix[PREFIX_SIZE];
-    uint8_t fileType;
-    uint8_t traceVersion;
-    uint8_t targetArch;
 
-    union _PACKED {
-        struct _PACKED {
-            uint32_t instCount;
-            uint32_t bblCount;
-            uint16_t threadCount;
+    FileType fileType;
+    TargetArchitecture targetArch;
+    uint32_t traceVersion;
+
+    union {
+        struct {
+            int32_t recordedInstructions;
+            int32_t recordedBasicBlocks;
+            int32_t registeredThreads;
         } staticHeader;
         struct {
-            uint64_t totalExecutedInstructions;
+            int64_t executedInstructions;
         } dynamicHeader;
-    } data;
+    };
 
     inline FileHeader() {
         memset(this, 0, sizeof(*this));
-        magicNumber = MAGIC_NUMBER;
-        traceVersion = CURRENT_TRACE_VERSION;
+        magicNumber = TRACE_MAGIC;
+        traceVersion = TRACE_VERSION;
     }
 
-    /** @brief Write header to file. */
-    int FlushHeader(FILE* file);
-    /** @brief Read header from file. */
-    int LoadHeader(FILE* file);
-    /** @brief Read header from file if it is mapped to virtual memory. */
-    int LoadHeader(char* file, unsigned long* fileOffset);
     /** @brief Adjust file pointer. The header is generally written at file
      * clousure, so the file ptr must be moved to leave enough space for it. */
-    void ReserveHeaderSpace(FILE* file);
-    /** @brief Set header type and prefix. */
-    void SetHeaderType(uint8_t fileType);
-} _PACKED;
+    int ReserveHeaderSpace(FILE* file);
+    /** @brief Set the static header values. */
+    void SetStaticHeader(int32_t inst, int32_t bbls, int32_t threads);
+    /** @brief Set the dynamic header values. */
+    void SetDynamicHeader(int64_t executedInstructions);
+    /** @brief Get the static header values. */
+    int GetRecordedInstructions();
+    /** @brief Get the recorded basic blocks. */
+    int GetRecordedBasicBlocks();
+    /** @brief Get the registered threads. */
+    int GetRegisteredThreads();
+    /** @brief Get the dynamic header values. */
+    long GetExecutedInstructions();
+    /** @brief Print the version and target architecture. */
+    inline void PrintVersionAndTarget() const;
+    /** @brief Check if the header is valid. */
+    inline bool IsValid() const {
+        return (magicNumber == TRACE_MAGIC) && (traceVersion == TRACE_VERSION);
+    }
+};
 
-inline void printFileErrorLog(const char* path, const char* mode) {
-    SINUCA3_ERROR_PRINTF("Could not open [%s] in [%s] mode: ", path, mode);
-    SINUCA3_ERROR_PRINTF("%s\n", strerror(errno));
+/** @brief Convert a compressed instruction to a static instruction info. */
+int CompressedInstToStaticInfo(const CompressedInstruction* compressedInst, StaticInstructionInfo* staticInfo);
+
+/** @brief Write an entry to the file. */
+template<typename T>
+int WriteEntry(FILE* file, const T* entry) {
+    if (file == NULL || entry == NULL) {
+        return 1;
+    }
+    return (fwrite(entry, sizeof(*entry), 1, file) != 1);
+}
+
+/** @brief Read an entry from the file. */
+template<typename T>
+int ReadEntry(FILE* file, T* entry) {
+    if (file == NULL || entry == NULL) {
+        return 1;
+    }
+    return (fread(entry, sizeof(*entry), 1, file) != 1);
 }
 
 /**
  * @brief Get max size of the formatted path string that includes the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
+ * @param executable Name of the executable used to generate the traces.
  */
-unsigned long GetPathTidInSize(const char* sourceDir, const char* prefix,
-                               const char* imageName);
+long GetPathTidInSize(const char* directory, const char* prefix);
 
 /**
  * @brief Format the path in dest string including the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
- * @param tid Thread identier
- * @param destSize Max capacity of dest string.
+ * @param executable Name of the executable used to generate the traces.
+ * @param tid Thread identifier
+ * @param capacity Max capacity of dest string.
  */
-void FormatPathTidIn(char* dest, const char* sourceDir, const char* prefix,
-                     const char* imageName, int tid, long destSize);
+void FormatPathTidIn(char* dest, const char* directory, const char* prefix, int tid, long capacity);
 
 /**
  * @brief Get size of the formatted path string without the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'
- * @param imageName Name of the executable used to generate the traces.
+ * @param executable Name of the executable used to generate the traces.
  */
-unsigned long GetPathTidOutSize(const char* sourceDir, const char* prefix,
-                                const char* imageName);
+long GetPathTidOutSize(const char* directory, const char* prefix);
 
 /**
  * @brief Format the path in dest string without the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
- * @param destSize Max capacity of dest string.
+ * @param executable Name of the executable used to generate the traces.
+ * @param capacity Max capacity of dest string.
  */
-void FormatPathTidOut(char* dest, const char* sourceDir, const char* prefix,
-                      const char* imageName, long destSize);
+void FormatPathTidOut(char* dest, const char* directory, const char* prefix, long capacity);
 
 #endif
