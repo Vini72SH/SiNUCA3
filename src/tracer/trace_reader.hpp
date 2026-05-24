@@ -36,11 +36,10 @@ class TraceReader {
   public:
     /**
      * @brief Class attributes initializer.
-     * @param imageName Name of the executable used to generate the traces.
      * @param sourceDir Complete path to the directory that stores the traces.
      * @return Non-zero on failure.
      */
-    virtual int OpenTrace(const char *imageName, const char *sourceDir) = 0;
+    virtual int OpenTrace(const char *sourceDir) = 0;
     /**
      * @return Number of threads.
      */
@@ -49,12 +48,12 @@ class TraceReader {
      * @brief Number of currently fetched instructions.
      * @param tid Thread Identifier.
      */
-    virtual unsigned long GetNumberOfFetchedInst(int tid) = 0;
+    virtual long GetNumberOfFetchedInst(int tid) = 0;
     /**
      * @brief Number of instructions to be fetched.
      * @param tid Thread Identifier.
      */
-    virtual unsigned long GetTotalInstToBeFetched(int tid) = 0;
+    virtual long GetTotalInstToBeFetched(int tid) = 0;
     /**
      * @brief Number of basic blocks in static trace.
      */
