@@ -25,123 +25,187 @@
  * in tracer/trace_reader.hpp file.
  */
 
-#include <vector>
-
-#include <tracer/sinuca/utils/dynamic_trace_reader.hpp>
-#include <tracer/sinuca/utils/memory_trace_reader.hpp>
-#include <tracer/sinuca/utils/static_trace_reader.hpp>
+#include <tracer/sinuca/file_handler.hpp>
 #include <tracer/trace_reader.hpp>
 
 #include "engine/default_packets.hpp"
 
-struct ThreadData {
-    DynamicTraceReader dynFile;
-    MemoryTraceReader memFile;
-    unsigned long currentBasicBlock; /**<Index of basic block. */
-    unsigned long fetchedInst;       /**<Number of instructions fetched */
-    int currentInst; /**<Index of instruction inside basic block. */
-    int parentThreadId;
-    bool isInsideBasicBlock;
-    bool isThreadAwake;
+int OpenTraceAndCreateLoader(const char* dir, const char* prefix, char** path,
+                             int tid, bool tidOut, Reader* reader);
 
-    int Allocate(const char* sourceDir, const char* imageName, int tid);
+struct Thread {
+    Reader executionLoader;
+    Reader memoryLoader;
 
-    inline ThreadData()
-        : currentBasicBlock(0),
-          currentInst(0),
-          isInsideBasicBlock(0),
-          isThreadAwake(true) {}
+    char* pathToDynamicTrace;
+    char* pathToMemoryTrace;
 
-    /** @brief Check if the version of trace files is as expected. */
-    inline bool CheckVersion(unsigned int version) {
-        bool dynamicTraceOkay = (dynFile.GetVersionInt() == version);
-        bool memoryTraceOkay = (memFile.GetVersionInt() == version);
-        return (!dynamicTraceOkay || !memoryTraceOkay);
+    long currentBasicBlock;
+    long currentInstruction;
+    long currentBblSize;
+    long fetchCount;
+
+    bool needToFetchNewBasicBlock;
+    bool isWaitingForCriticalSection;
+    bool isInsideCriticalSection;
+    bool waitingAtBarrier;
+    bool hasEndedExecution;
+
+    int tid;
+
+    Thread()
+        : pathToDynamicTrace(0),
+          pathToMemoryTrace(0),
+          currentBasicBlock(0),
+          currentInstruction(0),
+          fetchCount(0),
+          needToFetchNewBasicBlock(true),
+          isWaitingForCriticalSection(false),
+          isInsideCriticalSection(false),
+          waitingAtBarrier(false),
+          hasEndedExecution(false),
+          tid(-1) {}
+
+    /** @brief Initialize the thread. */
+    int Setup(const char* directory, int tid);
+    /** @brief Open the execution log for the thread. */
+    int OpenExecutionLog(const char* directory);
+    /** @brief Open the memory log for the thread. */
+    int OpenMemoryLog(const char* directory);
+    /** @brief Set the current basic block for the thread. */
+    void SetBasicBlock(int bbl, int size);
+    /** @brief Step to the next instruction in the current basic block. */
+    void StepInstruction();
+
+    ~Thread();
+
+    inline void SetTid(int tid) {
+        assert(tid >= 0);
+        this->tid = tid;
     }
-    /** @brief Check if the target of trace files is as expected. */
-    inline bool CheckTargetArch(unsigned int target) {
-        bool dynamicTraceOkay = (dynFile.GetTargetInt() == target);
-        bool memoryTraceOkay = (memFile.GetTargetInt() == target);
-        return (!dynamicTraceOkay || !memoryTraceOkay);
+    inline void SetArrivedAtBarrier() {
+        this->waitingAtBarrier = true;
     }
+    inline void SetLeftBarrier() {
+        this->waitingAtBarrier = false;
+    }
+    inline void SetWaitingForCriticalSection() {
+        this->isWaitingForCriticalSection = true;
+    }
+    inline void SetInsideCriticalSection() {
+        this->isInsideCriticalSection = true;
+        this->isWaitingForCriticalSection = false;
+    }
+    inline void SetExitedCriticalSection() {
+        this->isInsideCriticalSection = false;
+    }
+    inline void SetHasEndedExecution(bool ended) {
+        this->hasEndedExecution = ended;
+    }
+    inline void SetNeedToFetchNewBasicBlock(bool need) {
+        this->needToFetchNewBasicBlock = need;
+    }
+    inline bool IsThreadWaiting() const {
+        return this->isWaitingForCriticalSection || this->waitingAtBarrier;
+    }
+    inline bool HasThreadEndedExecution() const {
+        return this->hasEndedExecution;
+    }
+    inline bool NeedToFetchNewBasicBlock() const {
+        return this->needToFetchNewBasicBlock;
+    }
+};
+
+struct BasicBlock {
+    StaticInstructionInfo* instructions;
+    long size;
 };
 
 /** @brief Check trace_reader.hpp documentation for details */
 class SinucaTraceReader : public TraceReader {
   private:
-    StaticTraceReader* staticTrace;
-    StaticInstructionInfo** instructionDict;
-    StaticInstructionInfo* instructionPool;
-    int* basicBlockSizeArr; /*<Each entry store size of corresponding bbl. */
-    unsigned long totalBasicBlocks;
-    int totalStaticInst;
-    int totalThreads;
-    int traceFilesVersion;
-    int traceFilesTargetArch;
-    bool fetchFailed;
+    Reader instructionsLoader;
 
-    std::vector<ThreadData *> threadDataVec;
-    bool reachedAbruptEnd;
+    BasicBlock* dictionary;
+    StaticInstructionInfo* pool;
+    Thread* threads;
 
-    /**
-     * @brief Fill instructions dictionary.
-     * @details Given a basic block of id X and the instruction of index Y,
-     * after the dictionary is created, one can access the StaticInstructionInfo
-     * of the corresponding instruction with 'instructionDict[X][Y]'.
-     * @return 1 on failure, 0 otherwise.
-     */
-    int GenerateInstructionDict();
-    int FetchBasicBlock(int tid);
-    int FetchMemoryData(InstructionPacket* ret, int tid);
-    bool HasExecutionEnded();
+    char* pathToStaticFile;
 
-    inline void ResetInstructionPacket(InstructionPacket* pkt) {
-        pkt->dynamicInfo.numReadings = 0;
-        pkt->dynamicInfo.numWritings = 0;
-        pkt->staticInfo = NULL;
-    }
-    inline bool IsThreadSleeping(int tid) {
-        return (!this->threadDataVec[tid]->isThreadAwake);
-    }
+    int threadCount;
+    int bblocksCount;
+    int recordedInst;
+
+    /* For statistics */
+    int barriers;
+    int criticalSections;
+
+    /** @brief Create threads for handling the trace. */
+    int CreateThreads(const char* directory);
+    /** @brief Check if the thread is sleeping. */
+    int IsThreadSleeping(int tid);
+    /** @brief Check if the thread is inside a basic block. */
+    int IsThreadInsideBasicBlock(int tid);
+    /** @brief Try to fetch a new basic block. */
+    int TryToFetchNewBasicBlock(int tid);
+    /** @brief Check if the thread performs a memory access. */
+    int PerformsMemoryAccess(const StaticInstructionInfo* inst);
+    /** @brief Fill instructions dictionary. */
+    int GenerateDictionaryOfInstructions();
+    /** @brief Check if the execution has ended. */
+    int HasExecutionEnded();
+    /** @brief Check if all threads have the same version and target */
+    int VerifyVersionAndTarget();
+    /** @brief Read the metadata from the trace file. */
+    int ReadMetadata();
+    /** @brief Open the instructions log. */
+    int OpenInstructionsLog(const char* directory);
+    /** @brief Try to wake up thread. Returns true if successful. */
+    bool TryToWakeUpThread(int tid);
+    /** @brief Fetch an instruction from the trace. */
+    void FetchInstruction(InstructionPacket* ret, int tid);
+    /** @brief Call if the instruction has no memory access. */
+    void FillEmptyAccess(InstructionPacket* ret);
+    /** @brief Fetch a memory access from the trace. */
+    void FetchMemoryAccess(InstructionPacket* ret, int tid);
+    /** @brief Handle a thread event. */
+    void HandleEvent(int tid, EventType event);
+    /** @brief Handle a barrier synchronization event. */
+    void HandleBarrierSync(int tid);
+    /** @brief Handle the start of a critical section. */
+    void HandleCriticalStart(int tid);
+    /** @brief Handle the end of a critical section. */
+    void HandleCriticalEnd(int tid);
+    /** @brief Handle an abrupt end of thread execution. */
+    void HandleAbruptEnd();
+    /** @brief Deallocate all allocated resources. */
+    void DeallocateResources();
+    /** @brief Print the headers of the trace files. */
+    void PrintHeaders();
+    /** @brief Format the directory path. */
+    char* FormatDirectory(const char* directory);
 
   public:
-    inline SinucaTraceReader()
-        : staticTrace(0),
-          instructionDict(0),
-          instructionPool(0),
-          basicBlockSizeArr(0),
-          totalBasicBlocks(0),
-          totalThreads(0),
-          fetchFailed(0) {}
-    virtual inline ~SinucaTraceReader() {
-        for (int i = 0; i < this->totalThreads; ++i) {
-            if (this->threadDataVec[i]) {
-                delete this->threadDataVec[i];
-            }
-        }
-        delete[] this->instructionDict;
-        delete[] this->instructionPool;
-        delete[] this->basicBlockSizeArr;
-        delete this->staticTrace;
-    }
+    SinucaTraceReader()
+        : dictionary(0),
+          pool(0),
+          threads(0),
+          pathToStaticFile(0),
+          threadCount(0),
+          bblocksCount(0),
+          recordedInst(0),
+          barriers(0),
+          criticalSections(0) {}
 
     virtual FetchResult Fetch(InstructionPacket* ret, int tid);
-    virtual int OpenTrace(const char* imageName, const char* sourceDir);
+    virtual int OpenTrace(const char* directory);
     virtual void PrintStatistics();
+    virtual long GetNumberOfFetchedInst(int tid);
+    virtual long GetTotalInstToBeFetched(int tid);
+    virtual int GetTotalThreads();
+    virtual int GetTotalBasicBlocks();
 
-    virtual unsigned long GetNumberOfFetchedInst(int tid) {
-        return this->threadDataVec[tid]->fetchedInst;
-    }
-    virtual unsigned long GetTotalInstToBeFetched(int tid) {
-        return this->threadDataVec[tid]->dynFile.GetTotalExecutedInstructions();
-    }
-
-    virtual inline int GetTotalThreads() { return this->totalThreads; }
-    virtual inline int GetTotalBasicBlocks() { return this->totalBasicBlocks; }
+    virtual ~SinucaTraceReader();
 };
-
-#ifndef NDEBUG
-int TestTraceReader();
-#endif
 
 #endif  // SINUCA3_SINUCA_TRACER_TRACE_READER_HPP_

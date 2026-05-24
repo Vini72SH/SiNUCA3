@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2026  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -16,424 +16,532 @@
 //
 
 /**
- * @file x86_trace_reader.cpp
+ * @file trace_reader.cpp
  */
 
-#include "trace_reader.hpp"
+#include <cassert>
+#include <tracer/sinuca/trace_reader.hpp>
 
-#include <sinuca3.hpp>
-
-#include "engine/default_packets.hpp"
-#include "tracer/sinuca/file_handler.hpp"
-#include "tracer/trace_reader.hpp"
-
-int SinucaTraceReader::OpenTrace(const char* imageName, const char* sourceDir) {
-    this->staticTrace = new StaticTraceReader;
-    if (this->staticTrace == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to create static trace reader\n");
-        return 1;
-    }
-    if (this->staticTrace->OpenFile(sourceDir, imageName)) {
-        SINUCA3_ERROR_PRINTF("Failed to open static trace\n");
-        return 1;
-    }
-
-    this->totalThreads = this->staticTrace->GetNumThreads();
-    this->totalBasicBlocks = this->staticTrace->GetTotalBasicBlocks();
-    this->totalStaticInst = this->staticTrace->GetTotalInstInStaticTrace();
-    this->traceFilesVersion = this->staticTrace->GetVersionInt();
-    this->traceFilesTargetArch = this->staticTrace->GetTargetInt();
-
-    SINUCA3_WARNING_PRINTF("Trace files:\n");
-    SINUCA3_WARNING_PRINTF("\t Version: %d\n", this->traceFilesVersion);
-    SINUCA3_WARNING_PRINTF("\t Target: %s\n", staticTrace->GetTargetString());
-
-    for (int i = 0; i < this->totalThreads; ++i) {
-        ThreadData* tData = new ThreadData;
-        if (tData == NULL) {
-            SINUCA3_ERROR_PRINTF("failed to alloc ThreadData!\n");
-            return 1;
-        }
-
-        this->threadDataVec.push_back(tData);
-
-        if (tData->Allocate(sourceDir, imageName, i)) {
-            SINUCA3_ERROR_PRINTF("tData Allocate method failed!\n");
-            return 1;
-        }
-        if (tData->CheckVersion(this->traceFilesVersion)) {
-            SINUCA3_ERROR_PRINTF("incompatible version!\n");
-            return 1;
-        }
-        if (tData->CheckTargetArch(this->traceFilesTargetArch)) {
-            SINUCA3_ERROR_PRINTF("incompatible target!\n");
-            return 1;
-        }
-    }
-
-    this->reachedAbruptEnd = false;
-
-    if (this->GenerateInstructionDict()) {
-        SINUCA3_ERROR_PRINTF(
-            "Failed to generate instruction "
-            "dictionary\n");
-        return 1;
-    }
-
-    return 0;
-}
-
-int SinucaTraceReader::GenerateInstructionDict() {
-    StaticInstructionInfo* instInfoPtr;
-    unsigned long poolOffset;
-    unsigned long bblCounter;
-    unsigned int bblSize;
-    unsigned int instCounter;
-    StaticTraceRecordType recordType;
-
-    this->basicBlockSizeArr = new int[this->totalBasicBlocks];
-    if (this->basicBlockSizeArr == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to alloc basicBlockSizeArr\n");
-        return 1;
-    }
-
-    this->instructionDict = new StaticInstructionInfo*[this->totalBasicBlocks];
-    if (this->instructionDict == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to alloc instructionDict\n");
-        return 1;
-    }
-
-    this->instructionPool = new StaticInstructionInfo[this->totalStaticInst];
-    if (this->instructionPool == NULL) {
-        SINUCA3_ERROR_PRINTF("Failed to alloc instructionPool\n");
-        return 1;
-    }
-
-    poolOffset = 0;
-
-    for (bblCounter = 0; bblCounter < this->totalBasicBlocks; bblCounter++) {
-        if (this->staticTrace->ReadStaticRecordFromFile()) {
-            return 1;
-        }
-
-        recordType = this->staticTrace->GetStaticRecordType();
-        if (recordType != StaticRecordBasicBlockSize) {
-            SINUCA3_ERROR_PRINTF("Expected basic block size record type\n");
-            return 1;
-        }
-
-        bblSize = this->staticTrace->GetBasicBlockSize();
-        this->basicBlockSizeArr[bblCounter] = bblSize;
-        this->instructionDict[bblCounter] = &this->instructionPool[poolOffset];
-        poolOffset += bblSize;
-
-        for (instCounter = 0; instCounter < bblSize; instCounter++) {
-            if (this->staticTrace->ReadStaticRecordFromFile()) {
-                return 1;
-            }
-
-            recordType = this->staticTrace->GetStaticRecordType();
-            if (recordType != StaticRecordInstruction) {
-                SINUCA3_ERROR_PRINTF("Expected instruction record type\n");
-                return 1;
-            }
-
-            instInfoPtr = &this->instructionDict[bblCounter][instCounter];
-            this->staticTrace->TranslateRawInstructionToSinucaInst(instInfoPtr);
-        }
-    }
-
-    return 0;
-}
-
-bool SinucaTraceReader::HasExecutionEnded() {
-    if (this->reachedAbruptEnd) return true;
-
-    if (this->threadDataVec[0]->dynFile.HasReachedEnd()) {
-        for (int i = 1; i < this->totalThreads; ++i) {
-            if (!this->threadDataVec[i]->dynFile.HasReachedEnd()) {
-                SINUCA3_ERROR_PRINTF("Thread [%d] file hasnt reached end!\n",
-                                     i);
-            }
-        }
-        return true;
-    }
-    return false;
-}
+#include "file_handler.hpp"
 
 FetchResult SinucaTraceReader::Fetch(InstructionPacket* ret, int tid) {
     if (this->HasExecutionEnded()) {
         return FetchResultEnd;
     }
-    if (this->threadDataVec[tid]->dynFile.HasReachedEnd()) {
-        return FetchResultNop;
-    }
     if (this->IsThreadSleeping(tid)) {
-        return FetchResultNop;
+        if (!this->TryToWakeUpThread(tid)) return FetchResultNop;
+    }
+    if (!this->IsThreadInsideBasicBlock(tid)) {
+        if (this->TryToFetchNewBasicBlock(tid)) return FetchResultNop;
     }
 
-    /* Detect need to fetch new basic block */
-    if (!this->threadDataVec[tid]->isInsideBasicBlock) {
-        this->threadDataVec[tid]->currentInst = 0;
-        if (this->FetchBasicBlock(tid)) {
-            if (this->fetchFailed) {
-                return FetchResultError;
-            } else {
-                return FetchResultNop;
-            }
-        }
-        this->threadDataVec[tid]->isInsideBasicBlock = true;
-    }
-
-    this->ResetInstructionPacket(ret);
-
-    ret->staticInfo =
-        &this->instructionDict[this->threadDataVec[tid]->currentBasicBlock]
-                              [this->threadDataVec[tid]->currentInst];
-    if (ret->staticInfo->instReadsMemory || ret->staticInfo->instWritesMemory) {
-        if (this->FetchMemoryData(ret, tid)) {
-            return FetchResultError;
-        }
-    }
-
-    ++this->threadDataVec[tid]->currentInst;
-    if (this->threadDataVec[tid]->currentInst >=
-        this->basicBlockSizeArr[this->threadDataVec[tid]->currentBasicBlock]) {
-        this->threadDataVec[tid]->isInsideBasicBlock = false;
-    }
-
-    this->threadDataVec[tid]->fetchedInst++;
+    this->FetchInstruction(ret, tid);
 
     return FetchResultOk;
 }
 
-int SinucaTraceReader::FetchMemoryData(InstructionPacket* ret, int tid) {
-    if (this->threadDataVec[tid]->memFile.HasReachedEnd()) {
+int SinucaTraceReader::OpenTrace(const char* dir) {
+    char* directory = this->FormatDirectory(dir);
+
+    if (this->OpenInstructionsLog(directory)) {
+        SINUCA3_ERROR_PRINTF("Failed to open instructions log!\n");
+        return 1;
+    }
+    if (this->ReadMetadata()) {
+        SINUCA3_ERROR_PRINTF("Failed to read trace metadata!\n");
+        return 1;
+    }
+    if (this->CreateThreads(directory)) {
+        SINUCA3_ERROR_PRINTF("Failed to create threads!\n");
+        return 1;
+    }
+    if (this->VerifyVersionAndTarget()) {
         SINUCA3_ERROR_PRINTF(
-            "should have reached end in dynamic trace file first!\n");
+            "Inconsistent version and target architecture detected!\n");
+        return 1;
+    }
+    if (this->GenerateDictionaryOfInstructions()) {
+        SINUCA3_ERROR_PRINTF("Failed to create dictionary of instructions!\n");
         return 1;
     }
 
-    if (this->threadDataVec[tid]->memFile.ReadMemoryOperations(ret)) {
-        SINUCA3_ERROR_PRINTF("failed to read mem ops!\n");
-        return 1;
-    }
+#ifndef NDEBUG
+    this->PrintHeaders();
+#endif
+
+    delete[] directory;
 
     return 0;
 }
 
-int SinucaTraceReader::FetchBasicBlock(int tid) {
-    if (this->threadDataVec[tid]->dynFile.ReadDynamicRecord()) {
-        if (this->threadDataVec[tid]->dynFile.HasReachedEnd()) {
-            SINUCA3_DEBUG_PRINTF("thread [%u] file reached end!\n", tid);
-        } else {
-            this->fetchFailed = true;
-        }
-        return 1;
+void SinucaTraceReader::PrintHeaders() {
+    SINUCA3_LOG_PRINTF("Trace Headers:\n");
+    for (int i = 0; i < this->threadCount; i++) {
+        SINUCA3_LOG_PRINTF("\t Thread [%d]:\n", i);
+        FileHeader header;
+        SINUCA3_LOG_PRINTF("Header from dynamic file: \n");
+        this->threads[i].executionLoader.GetHeader(&header);
+        header.Print(true);
+        SINUCA3_LOG_PRINTF("Header from memory file: \n");
+        this->threads[i].memoryLoader.GetHeader(&header);
+        header.Print(true);
     }
-
-    static int criticalCont = 0;
-    static int barrierCont = 0;
-
-    DynamicTraceRecordType recType =
-        this->threadDataVec[tid]->dynFile.GetRecordType();
-
-    while (recType == DynamicRecordThreadEvent) {
-        ThreadEventType evType =
-            this->threadDataVec[tid]->dynFile.GetThreadEvent();
-
-        SINUCA3_DEBUG_PRINTF("Fetched thread event [%u] in thread [%d]\n",
-                             evType, tid);
-
-        if (evType == ThreadEventAbruptEnd) {
-            this->reachedAbruptEnd = true;
-            SINUCA3_WARNING_PRINTF(
-                "Trace reader fetched abrupt end event in thread [%d]!\n", tid);
-            return 1;  // no basic block to fetch
-        } else if (evType == ThreadEventCriticalStart) {
-            criticalCont++;
-            SINUCA3_DEBUG_PRINTF(
-                "Critical region found in thread [%u] and "
-                "criticalCont is [%d]\n",
-                tid, criticalCont);
-            for (int i = 0; i < this->totalThreads; i++) {
-                if (i == tid) continue;
-                this->threadDataVec[i]->isThreadAwake = false;
-            }
-
-        } else if (evType == ThreadEventCriticalEnd) {
-            criticalCont--;
-            if (criticalCont == 0) {
-                SINUCA3_DEBUG_PRINTF(
-                    "End of critical region. Waking up all threads!\n");
-                for (int i = 0; i < this->totalThreads; i++) {
-                    this->threadDataVec[i]->isThreadAwake = true;
-                }
-            } else if (criticalCont < 0) {
-                SINUCA3_ERROR_PRINTF("criticalCont is negative!\n");
-                this->fetchFailed = true;
-            }
-        } else if (evType == ThreadEventBarrierSync) {
-            barrierCont++;
-            if (barrierCont == this->totalThreads) {
-                SINUCA3_DEBUG_PRINTF(
-                    "Threads reached barrier sync. Waking up all threads!\n");
-                for (int i = 0; i < this->totalThreads; i++) {
-                    this->threadDataVec[i]->isThreadAwake = true;
-                }
-                barrierCont = 0;
-            } else {
-                this->threadDataVec[tid]->isThreadAwake = false;
-                return 1;  // no basic block to fetch
-            }
-        } else {
-            SINUCA3_ERROR_PRINTF("Unkown thread event [%d]!\n", evType);
-            return 1;
-        }
-
-        if (this->threadDataVec[tid]->dynFile.ReadDynamicRecord()) {
-            if (this->threadDataVec[tid]->dynFile.HasReachedEnd()) {
-                SINUCA3_DEBUG_PRINTF(
-                    "thread [%u] file "
-                    "reached end!\n",
-                    tid);
-            } else {
-                this->fetchFailed = true;
-            }
-            return 1;
-        }
-        recType = this->threadDataVec[tid]->dynFile.GetRecordType();
-    }
-
-    if (recType != DynamicRecordBasicBlockIdentifier) {
-        SINUCA3_ERROR_PRINTF("not expected rec type [%u]\n", recType);
-        this->fetchFailed = true;
-        return 1;
-    }
-
-    unsigned int bblIndex =
-        this->threadDataVec[tid]->dynFile.GetBasicBlockIdentifier();
-    this->threadDataVec[tid]->currentBasicBlock = bblIndex;
-
-    SINUCA3_DEBUG_PRINTF("Bbl fetched is [%d] and it has [%d] inst\n", bblIndex,
-                         this->basicBlockSizeArr[bblIndex]);
-
-    return 0;
+    FileHeader header;
+    SINUCA3_LOG_PRINTF("Header from statics file: \n");
+    this->instructionsLoader.GetHeader(&header);
+    header.Print(true);
 }
 
 void SinucaTraceReader::PrintStatistics() {
-    SINUCA3_LOG_PRINTF("###########################\n");
-    SINUCA3_LOG_PRINTF("Sinuca3 Trace Reader\n");
-    SINUCA3_LOG_PRINTF("###########################\n");
+    SINUCA3_LOG_PRINTF("Trace Statistics:\n");
+    SINUCA3_LOG_PRINTF("\t Barriers reached: [%d]\n", this->barriers);
+    SINUCA3_LOG_PRINTF("\t Critical sections reached: [%d]\n",
+                       this->criticalSections);
 }
 
-int ThreadData::Allocate(const char* sourceDir, const char* imageName,
-                         int tid) {
-    if (this->dynFile.OpenFile(sourceDir, imageName, tid)) {
-        SINUCA3_ERROR_PRINTF("Failed to open dynamic trace\n");
+long SinucaTraceReader::GetNumberOfFetchedInst(int tid) {
+    return this->threads[tid].fetchCount;
+}
+
+long SinucaTraceReader::GetTotalInstToBeFetched(int tid) {
+    FileHeader header;
+    this->threads[tid].executionLoader.GetHeader(&header);
+    DynamicFileMetadata meta;
+    header.Get(&meta);
+    return meta.executed;
+}
+
+int SinucaTraceReader::GetTotalThreads() {
+    FileHeader header;
+    this->instructionsLoader.GetHeader(&header);
+    StaticFileMetadata meta;
+    header.Get(&meta);
+    return meta.threads;
+}
+
+int SinucaTraceReader::GetTotalBasicBlocks() {
+    FileHeader header;
+    this->instructionsLoader.GetHeader(&header);
+    StaticFileMetadata meta;
+    header.Get(&meta);
+    return meta.basicBlocks;
+}
+
+int Thread::Setup(const char* dir, int tid) {
+    assert(dir != NULL);
+
+    this->SetTid(tid);
+
+    if (this->OpenExecutionLog(dir)) {
+        SINUCA3_ERROR_PRINTF("Failed to open execution log for thread [%d]!\n",
+                             tid);
         return 1;
     }
-    if (this->memFile.OpenFile(sourceDir, imageName, tid)) {
-        SINUCA3_ERROR_PRINTF("Failed to open memory trace\n");
+    if (this->OpenMemoryLog(dir)) {
+        SINUCA3_ERROR_PRINTF("Failed to open memory log for thread [%d]!\n",
+                             tid);
         return 1;
     }
+
     return 0;
 }
 
-#ifndef NDEBUG
-int TestTraceReader() {
-    TraceReader* reader = new SinucaTraceReader;
+void Thread::SetBasicBlock(int bbl, int size) {
+    this->currentBasicBlock = bbl;
+    this->currentInstruction = 0;
+    this->currentBblSize = size;
+    this->needToFetchNewBasicBlock = false;
+}
 
-    char traceDir[1024];
-    char imageName[1024];
+void Thread::StepInstruction() {
+    this->currentInstruction++;
+    this->fetchCount++;
+    if (this->currentInstruction >= this->currentBblSize) {
+        this->needToFetchNewBasicBlock = true;
+    }
+}
 
-    printf("Trace directory: ");
-    scanf("%s", traceDir);
-    printf("Image name: ");
-    scanf("%s", imageName);
+int Thread::OpenExecutionLog(const char* directory) {
+    return OpenTraceAndCreateLoader(directory, "dynamic",
+                                    &this->pathToDynamicTrace, this->tid, false,
+                                    &this->executionLoader);
+}
 
-    reader->OpenTrace(imageName, traceDir);
+int Thread::OpenMemoryLog(const char* directory) {
+    return OpenTraceAndCreateLoader(directory, "memory",
+                                    &this->pathToMemoryTrace, this->tid, false,
+                                    &this->memoryLoader);
+}
 
-    InstructionPacket instPkt;
-    FetchResult res;
+Thread::~Thread() {
+    if (this->pathToDynamicTrace != NULL) {
+        delete[] this->pathToDynamicTrace;
+        this->pathToDynamicTrace = NULL;
+    }
+    if (this->pathToMemoryTrace != NULL) {
+        delete[] this->pathToMemoryTrace;
+        this->pathToMemoryTrace = NULL;
+    }
+}
 
-    while (1) {
-        for (int i = 0; i < reader->GetTotalThreads(); i++) {
-            SINUCA3_DEBUG_PRINTF("\n");
-            SINUCA3_DEBUG_PRINTF("Fetching for thread [%d]: \n", i);
+SinucaTraceReader::~SinucaTraceReader() {
+    if (this->threads != NULL) {
+        delete[] this->threads;
+        this->threads = NULL;
+    }
+    if (this->dictionary != NULL) {
+        delete[] this->dictionary;
+        this->dictionary = NULL;
+    }
+    if (this->pool != NULL) {
+        delete[] this->pool;
+        this->pool = NULL;
+    }
+    if (this->pathToStaticFile != NULL) {
+        delete[] this->pathToStaticFile;
+        this->pathToStaticFile = NULL;
+    }
+}
 
-            res = reader->Fetch(&instPkt, i);
+char* SinucaTraceReader::FormatDirectory(const char* directory) {
+    assert(directory != NULL);
+    long size = strlen(directory) + 2;
+    char* formatted = new char[size];
 
-            if (res == FetchResultNop) {
-                SINUCA3_DEBUG_PRINTF("\t Thread [%d] returned NOP!\n", i);
-                continue;
-            }
-            if (res == FetchResultError) {
-                SINUCA3_DEBUG_PRINTF("\t Thread [%d] fetch failed!\n", i);
-                break;
-            }
-            if (res == FetchResultEnd) {
-                SINUCA3_DEBUG_PRINTF("\t FetchResultEnd got in thr [%d]!\n", i);
-                break;
-            }
+    if (directory[strlen(directory) - 1] == '/') {
+        snprintf(formatted, size, "%s", directory);
+    } else {
+        snprintf(formatted, size, "%s/", directory);
+    }
 
-            SINUCA3_DEBUG_PRINTF("\t Instruction mnemonic is [%s]\n",
-                                 instPkt.staticInfo->instMnemonic);
-            SINUCA3_DEBUG_PRINTF("\t Instruction size is [%ld]\n",
-                                 instPkt.staticInfo->instSize);
-            SINUCA3_DEBUG_PRINTF("\t Instruction address is [%p]\n",
-                                 (void*)instPkt.staticInfo->instAddress);
-            SINUCA3_DEBUG_PRINTF("\t Store regs total [%d]\n",
-                                 instPkt.staticInfo->numberOfWriteRegs);
-            SINUCA3_DEBUG_PRINTF("\t Load regs total [%d]\n",
-                                 instPkt.staticInfo->numberOfReadRegs);
-            SINUCA3_DEBUG_PRINTF("\t Store mem total ops [%d]\n",
-                                 instPkt.dynamicInfo.numWritings);
-            SINUCA3_DEBUG_PRINTF("\t Load mem total ops [%d]\n",
-                                 instPkt.dynamicInfo.numReadings);
-            SINUCA3_DEBUG_PRINTF(
-                "\t Instruction is prefetch [%s]\n",
-                instPkt.staticInfo->isPrefetchHintInst ? "ON" : "OFF");
-            SINUCA3_DEBUG_PRINTF(
-                "\t Instruction is predicated [%s]\n",
-                instPkt.staticInfo->isPredicatedInst ? "ON" : "OFF");
-            SINUCA3_DEBUG_PRINTF(
-                "\t Instruction is indirect control flow [%s]\n",
-                instPkt.staticInfo->isIndirectControlFlowInst ? "ON" : "OFF");
-            SINUCA3_DEBUG_PRINTF(
-                "\t Instruction performs atomic update [%s]\n",
-                instPkt.staticInfo->instPerformsAtomicUpdate ? "ON" : "OFF");
-            SINUCA3_DEBUG_PRINTF(
-                "\t Instruction causes cache line flush [%s]\n",
-                instPkt.staticInfo->instCausesCacheLineFlush ? "ON" : "OFF");
+    return formatted;
+}
 
-            if (instPkt.staticInfo->branchType == BranchCall) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchCall\n");
-            } else if (instPkt.staticInfo->branchType == BranchSyscall) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchSyscall\n");
-            } else if (instPkt.staticInfo->branchType == BranchCond) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchCond\n");
-            } else if (instPkt.staticInfo->branchType == BranchUncond) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchUncond\n");
-            } else if (instPkt.staticInfo->branchType == BranchRet) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchRet\n");
-            } else if (instPkt.staticInfo->branchType == BranchSysret) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchSysret\n");
-            } else if (instPkt.staticInfo->branchType == BranchNone) {
-                SINUCA3_DEBUG_PRINTF("\t Branch type is BranchNone\n");
-            } else {
-                SINUCA3_DEBUG_PRINTF("\t Unkown branch type!\n");
-                return 1;
-            }
-        }
+int SinucaTraceReader::ReadMetadata() {
+    FileHeader header;
+    if (this->instructionsLoader.GetHeader(&header)) {
+        SINUCA3_ERROR_PRINTF("Failed to read instructions log header!\n");
+        return 1;
+    }
+    StaticFileMetadata meta;
+    if (header.Get(&meta)) {
+        SINUCA3_ERROR_PRINTF("Failed to read instructions log metadata!\n");
+        return 1;
+    }
+    this->threadCount = meta.threads;
+    this->bblocksCount = meta.basicBlocks;
+    this->recordedInst = meta.instructions;
 
-        if (res == FetchResultError || res == FetchResultEnd) {
-            break;
+    return 0;
+}
+
+int SinucaTraceReader::OpenInstructionsLog(const char* directory) {
+    return OpenTraceAndCreateLoader(directory, "static",
+                                    &this->pathToStaticFile, 0, true,
+                                    &this->instructionsLoader);
+}
+
+int SinucaTraceReader::CreateThreads(const char* directory) {
+    assert(directory != NULL);
+    assert(this->threadCount > 0);
+
+    this->threads = new Thread[this->threadCount];
+
+    for (int i = 0; i < this->threadCount; i++) {
+        if (this->threads[i].Setup(directory, i)) {
+            SINUCA3_ERROR_PRINTF("Failed to open thread [%d]!\n", i);
+            return 1;
         }
     }
 
-    delete reader;
-
-    return (res != FetchResultEnd);
+    return 0;
 }
-#endif
+
+int SinucaTraceReader::GenerateDictionaryOfInstructions() {
+    assert(this->bblocksCount > 0);
+    assert(this->recordedInst > 0);
+
+    this->pool = new StaticInstructionInfo[this->recordedInst];
+    this->dictionary = new BasicBlock[this->bblocksCount];
+
+    long instructionIndex = 0;
+
+    for (int bbIdx = 0; bbIdx < this->bblocksCount; bbIdx++) {
+        StaticTraceEntry entry;
+        BasicBlockSize bbSize = 0;
+
+        this->instructionsLoader.Read(&entry);
+        entry.Get(&bbSize);
+
+        this->dictionary[bbIdx].size = bbSize;
+        this->dictionary[bbIdx].instructions = &this->pool[instructionIndex];
+
+        for (long instIdx = 0; instIdx < bbSize;
+             instIdx++, instructionIndex++) {
+            CompressedInstruction compressed;
+
+            assert(instructionIndex < this->recordedInst);
+            this->instructionsLoader.Read(&entry);
+            entry.Get(&compressed);
+
+            CompressedInstToStaticInfo(&compressed,
+                                       &this->pool[instructionIndex]);
+        }
+    }
+
+    return 0;
+}
+
+int SinucaTraceReader::VerifyVersionAndTarget() {
+    assert(this->threads != NULL);
+
+    FileHeader referenceHeader;
+    this->instructionsLoader.GetHeader(&referenceHeader);
+
+    for (int i = 0; i < this->threadCount; i++) {
+        FileHeader header;
+
+        this->threads[i].executionLoader.GetHeader(&header);
+        if (header.version != referenceHeader.version) {
+            SINUCA3_ERROR_PRINTF("Version mismatch detected in thread [%d]!\n",
+                                 i);
+            return 1;
+        }
+        if (header.target != referenceHeader.target) {
+            SINUCA3_ERROR_PRINTF(
+                "Target architecture mismatch detected in thread [%d]!\n", i);
+            return 1;
+        }
+
+        this->threads[i].memoryLoader.GetHeader(&header);
+        if (header.version != referenceHeader.version) {
+            SINUCA3_ERROR_PRINTF("Version mismatch detected in thread [%d]!\n",
+                                 i);
+            return 1;
+        }
+        if (header.target != referenceHeader.target) {
+            SINUCA3_ERROR_PRINTF(
+                "Target architecture mismatch detected in thread [%d]!\n", i);
+            return 1;
+        }
+    }
+
+    return 0;
+}
+
+int SinucaTraceReader::IsThreadSleeping(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    return this->threads[tid].IsThreadWaiting();
+}
+
+int SinucaTraceReader::IsThreadInsideBasicBlock(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    return !this->threads[tid].NeedToFetchNewBasicBlock();
+}
+
+int SinucaTraceReader::TryToFetchNewBasicBlock(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+
+    DynamicTraceEntry entry;
+    BasicBlockIdentifier bbl;
+    EventType event;
+
+    if (this->threads[tid].executionLoader.Read(&entry)) {
+        int eof = this->threads[tid].executionLoader.EndOfFile();
+        this->threads[tid].SetHasEndedExecution(eof);
+        return 1;
+    }
+    if (entry.Get(&bbl) == 0) {
+        assert(bbl >= 0 && bbl < this->bblocksCount);
+        this->threads[tid].SetBasicBlock(bbl, this->dictionary[bbl].size);
+        return 0;
+    }
+    if (entry.Get(&event) == 0) {
+        assert(IsValidEventType(event));
+        this->HandleEvent(tid, event);
+        return 1;
+    }
+
+    SINUCA3_ERROR_PRINTF("Unknown entry type [%d].\n", entry.type);
+
+    return 1;
+}
+
+void SinucaTraceReader::HandleEvent(int tid, EventType event) {
+    assert(tid >= 0 && tid < this->threadCount);
+
+    switch (event) {
+        case EventTypeBarrierSync:
+            this->HandleBarrierSync(tid);
+            break;
+
+        case EventTypeCriticalStart:
+            this->HandleCriticalStart(tid);
+            break;
+
+        case EventTypeCriticalEnd:
+            this->HandleCriticalEnd(tid);
+            break;
+
+        case EventTypeAbruptEnd:
+            this->HandleAbruptEnd();
+            break;
+
+        default:
+            SINUCA3_WARNING_PRINTF("Unknown event type: %d.\n", event);
+            break;
+    }
+}
+
+bool SinucaTraceReader::TryToWakeUpThread(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+
+    if (this->threads[tid].isWaitingForCriticalSection) {
+        for (int i = 0; i < this->threadCount; i++) {
+            if (i != tid && this->threads[i].isInsideCriticalSection) return false;
+        }
+        this->threads[tid].SetInsideCriticalSection();
+    } else if (this->threads[tid].waitingAtBarrier) {
+        for (int i = 0; i < this->threadCount; i++) {
+            if (i != tid && !this->threads[i].waitingAtBarrier) return false;
+        }
+        for (int i = 0; i < this->threadCount; i++) {
+            this->threads[i].SetLeftBarrier();
+        }
+    }
+
+    return true;
+}
+
+int SinucaTraceReader::PerformsMemoryAccess(const StaticInstructionInfo* inst) {
+    assert(inst != NULL);
+    return inst->instReadsMemory || inst->instWritesMemory;
+}
+
+void SinucaTraceReader::FillEmptyAccess(InstructionPacket* ret) {
+    assert(ret != NULL);
+    ret->dynamicInfo.numReadings = 0;
+    ret->dynamicInfo.numWritings = 0;
+}
+
+void SinucaTraceReader::FetchMemoryAccess(InstructionPacket* ret, int tid) {
+    assert(ret != NULL);
+    assert(tid >= 0 && tid < this->threadCount);
+
+    MemoryTraceEntry entry;
+    MemoryAccessCounter accessCount = 0;
+
+    this->threads[tid].memoryLoader.Read(&entry);
+    entry.Get(&accessCount);
+    assert(accessCount >= 0 && accessCount <= MAX_MEM_OPERATIONS);
+
+    ret->dynamicInfo.numReadings = 0;
+    ret->dynamicInfo.numWritings = 0;
+
+    for (int i = 0; i < accessCount; i++) {
+        MemoryAccess access;
+
+        this->threads[tid].memoryLoader.Read(&entry);
+        entry.Get(&access);
+
+        assert(IsValidMemoryAccessType(access.typeOfAccess));
+
+        if (access.typeOfAccess == MemoryAccessLoad) {
+            ret->dynamicInfo.readsAddr[ret->dynamicInfo.numReadings] =
+                access.address;
+            ret->dynamicInfo.readsSize[ret->dynamicInfo.numReadings] =
+                access.size;
+            ret->dynamicInfo.numReadings++;
+        } else if (access.typeOfAccess == MemoryAccessStore) {
+            ret->dynamicInfo.writesAddr[ret->dynamicInfo.numWritings] =
+                access.address;
+            ret->dynamicInfo.writesSize[ret->dynamicInfo.numWritings] =
+                access.size;
+            ret->dynamicInfo.numWritings++;
+        }
+    }
+}
+
+void SinucaTraceReader::FetchInstruction(InstructionPacket* ret, int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    assert(ret != NULL);
+
+    ret->staticInfo = &this->dictionary[this->threads[tid].currentBasicBlock]
+                           .instructions[this->threads[tid].currentInstruction];
+
+    if (this->PerformsMemoryAccess(ret->staticInfo)) {
+        this->FetchMemoryAccess(ret, tid);
+    } else {
+        this->FillEmptyAccess(ret);
+    }
+
+    this->threads[tid].StepInstruction();
+}
+
+int SinucaTraceReader::HasExecutionEnded() {
+    assert(this->threads != NULL);
+
+    for (int i = 0; i < this->threadCount; i++) {
+        if (!this->threads[i].HasThreadEndedExecution()) {
+            return 0;
+        }
+    }
+
+    return 1;
+}
+
+void SinucaTraceReader::HandleBarrierSync(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    assert(!this->threads[tid].IsThreadWaiting());
+    this->threads[tid].SetArrivedAtBarrier();
+    this->barriers++;
+}
+
+void SinucaTraceReader::HandleCriticalStart(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    assert(!this->threads[tid].IsThreadWaiting());
+    this->threads[tid].SetWaitingForCriticalSection();
+    this->criticalSections++;
+}
+
+void SinucaTraceReader::HandleCriticalEnd(int tid) {
+    assert(tid >= 0 && tid < this->threadCount);
+    assert(!this->threads[tid].IsThreadWaiting());
+    this->threads[tid].SetExitedCriticalSection();
+    this->TryToWakeUpThread(tid);
+}
+
+void SinucaTraceReader::HandleAbruptEnd() {
+    for (int i = 0; i < this->threadCount; i++)
+        this->threads[i].SetHasEndedExecution(true);
+}
+
+int OpenTraceAndCreateLoader(const char* dir, const char* prefix, char** path,
+                             int tid, bool tidOut, Reader* reader) {
+    assert(dir != NULL);
+    assert(prefix != NULL);
+    assert(path != NULL);
+    assert(reader != NULL);
+
+    char* tracePath = NULL;
+
+    if (tidOut) {
+        long pathSize = GetPathTidOutSize(dir, prefix);
+        tracePath = new char[pathSize];
+        FormatPathTidOut(tracePath, dir, prefix, pathSize);
+    } else {
+        long pathSize = GetPathTidInSize(dir, prefix);
+        tracePath = new char[pathSize];
+        FormatPathTidIn(tracePath, dir, prefix, tid, pathSize);
+    }
+
+    if (reader->Open(tracePath)) {
+        SINUCA3_ERROR_PRINTF("Failed to open trace file [%s]!\n", tracePath);
+        delete[] tracePath;
+        return 1;
+    }
+
+    *path = tracePath;
+
+    return 0;
+}
