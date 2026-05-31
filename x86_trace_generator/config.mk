@@ -1,15 +1,15 @@
 SINUCA_TRACER_DIR = ../src/tracer/sinuca/
 SINUCA_LOGGER = ../src/utils/logger
-PINTOOL_UTILS_DIR = ./utils/
+
 TOOL_ROOTS = sinuca3_pintool
-FILE_HANDLER = file_handler
-PINTOOL_UTILS = dynamic_trace_writer \
-				memory_trace_writer \
-				static_trace_writer
+HANDLER = file_handler
+INTRINSICS = intrinsics
+LOGGER = logger
+
 OBJ_DEPS = $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX) \
-		$(OBJDIR)$(FILE_HANDLER)$(OBJ_SUFFIX) \
-		$(addprefix $(OBJDIR),$(addsuffix $(OBJ_SUFFIX),$(PINTOOL_UTILS))) \
-		$(OBJDIR)logger$(OBJ_SUFFIX) \
+		$(OBJDIR)$(HANDLER)$(OBJ_SUFFIX) \
+		$(OBJDIR)$(INTRINSICS)$(OBJ_SUFFIX) \
+		$(OBJDIR)$(LOGGER)$(OBJ_SUFFIX) \
 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
@@ -17,13 +17,13 @@ OBJ_DEPS = $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX) \
 $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX): $(TOOL_ROOTS).cpp
 	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
 
-$(OBJDIR)$(FILE_HANDLER)$(OBJ_SUFFIX): $(SINUCA_TRACER_DIR)$(FILE_HANDLER).cpp
+$(OBJDIR)$(HANDLER)$(OBJ_SUFFIX): $(SINUCA_TRACER_DIR)$(HANDLER).cpp
 	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
 
-$(OBJDIR)logger$(OBJ_SUFFIX): $(SINUCA_LOGGER).cpp
+$(OBJDIR)$(LOGGER)$(OBJ_SUFFIX): $(SINUCA_LOGGER).cpp
 	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
 
-$(OBJDIR)%_writer$(OBJ_SUFFIX): $(PINTOOL_UTILS_DIR)%_writer.cpp
+$(OBJDIR)$(INTRINSICS)$(OBJ_SUFFIX): $(INTRINSICS).cpp
 	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
 
 $(OBJDIR)$(TOOL_ROOTS)$(PINTOOL_SUFFIX): $(OBJ_DEPS)
