@@ -542,7 +542,13 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
     long idx = absoluteImgPath.find_last_of('/') + 1;
     std::string application = absoluteImgPath.substr(idx);
 
+    /* mkdir just works if the parent folder exists */
+    if (access(directory.c_str(), F_OK) != 0) {
+        mkdir(directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
+    }
+
     directory = directory + "/" + application + "/";
+
     if (access(directory.c_str(), F_OK) != 0) {
         mkdir(directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     }
