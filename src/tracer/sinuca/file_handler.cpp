@@ -29,6 +29,21 @@ const int BIN_EXT_SIZE = strlen(BIN_EXT);
 const int TID_SUFFIX_SIZE = strlen(TID_SUFFIX);
 const int TID_CHARS = strlen(TID_MAX);
 
+const char* GetFormattedPath(const char* directory, const char* prefix) {
+    long required = GetPathTidOutSize(directory, prefix);
+    char* formatted = new char[required];
+    FormatPathTidOut(formatted, directory, prefix, required);
+    return formatted;
+}
+
+const char* GetFormattedPath(const char* directory, const char* prefix,
+                             int tid) {
+    long required = GetPathTidInSize(directory, prefix);
+    char* formatted = new char[required];
+    FormatPathTidIn(formatted, directory, prefix, tid, required);
+    return formatted;
+}
+
 long GetPathTidInSize(const char* dir, const char* preffix) {
     long dirLen = (long)strlen(dir);
     long prefLen = (long)strlen(preffix);
@@ -38,15 +53,13 @@ long GetPathTidInSize(const char* dir, const char* preffix) {
 
 void FormatPathTidIn(char* dest, const char* dir, const char* pref, int tid,
                      long destSize) {
-    snprintf(dest, destSize, "%s%s%s%u%s", dir, pref, TID_SUFFIX, tid,
-             BIN_EXT);
+    snprintf(dest, destSize, "%s%s%s%u%s", dir, pref, TID_SUFFIX, tid, BIN_EXT);
 }
 
 long GetPathTidOutSize(const char* dir, const char* preffix) {
     long dirLen = (long)strlen(dir);
     long prefLen = (long)strlen(preffix);
-    return dirLen + prefLen + BIN_EXT_SIZE +
-           1;  // +1 for null terminator
+    return dirLen + prefLen + BIN_EXT_SIZE + 1;  // +1 for null terminator
 }
 
 void FormatPathTidOut(char* dest, const char* dir, const char* pref,

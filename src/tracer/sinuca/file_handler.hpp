@@ -318,6 +318,7 @@ struct TraceFile {
     inline ~TraceFile() { this->Close(); }
 };
 
+template <typename T>
 class Reader {
   private:
     TraceFile* trace;
@@ -334,7 +335,13 @@ class Reader {
         this->wasHeaderRead = true;
         return 0;
     }
-    template <typename T>
+    template<typename U>
+    inline int Read(U* data) {
+        T entry;
+        if (this->trace->Read(&entry, sizeof(T))) return 1;
+        if (this->trace == NULL || data == NULL) return 1;
+        return entry.Get(data);
+    }
     inline int Read(T* entry) {
         if (this->trace == NULL || entry == NULL) return 1;
         return this->trace->Read(entry, sizeof(T));
@@ -359,6 +366,7 @@ class Reader {
     }
 };
 
+template <typename T>
 class Writer {
   private:
     TraceFile* trace;
@@ -374,10 +382,12 @@ class Writer {
         this->wasSpaceReserved = true;
         return 0;
     }
-    template <typename T>
-    inline int Write(const T* entry) {
-        if (this->trace == NULL || entry == NULL) return 1;
-        return this->trace->Write(entry, sizeof(T));
+    template <typename U>
+    inline int Write(const U* data) {
+        T entry;
+        if (this->trace == NULL || data == NULL) return 1;
+        entry.Set(data);
+        return this->trace->Write(&entry, sizeof(T));
     }
     inline int SetHeader(const FileHeader* header) {
         if (!this->trace || !this->wasSpaceReserved) return 1;
@@ -398,6 +408,15 @@ class Writer {
 /** @brief Convert a compressed instruction to a static instruction info. */
 void CompressedInstToStaticInfo(const CompressedInstruction* compressedInst,
                                 StaticInstructionInfo* staticInfo);
+
+/** @brief Get alloc'd string with the formatted path for a trace file without
+ * the thread id. */
+const char* GetFormattedPath(const char* directory, const char* prefix);
+
+/** @brief Get alloc'd string with the formatted path for a trace file with the
+ * thread id. */
+const char* GetFormattedPath(const char* directory, const char* prefix,
+                             int tid);
 
 /**
  * @brief Get max size of the formatted path string that includes the thread id.
