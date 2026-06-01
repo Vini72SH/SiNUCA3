@@ -162,15 +162,15 @@ void Thread::StepInstruction() {
 }
 
 int Thread::OpenExecutionLog(const char* directory) {
-    return OpenTraceAndCreateLoader(directory, "dynamic",
-                                    &this->pathToDynamicTrace, this->tid, false,
-                                    &this->executionLoader);
+    this->pathToDynamicTrace = GetFormattedPath(directory, "dynamic", this->tid);
+    assert(this->pathToDynamicTrace != NULL);
+    return (this->executionLoader.Open(this->pathToDynamicTrace));
 }
 
 int Thread::OpenMemoryLog(const char* directory) {
-    return OpenTraceAndCreateLoader(directory, "memory",
-                                    &this->pathToMemoryTrace, this->tid, false,
-                                    &this->memoryLoader);
+    this->pathToMemoryTrace = GetFormattedPath(directory, "memory", this->tid);
+    assert(this->pathToMemoryTrace != NULL);
+    return (this->memoryLoader.Open(this->pathToMemoryTrace));
 }
 
 Thread::~Thread() {
@@ -236,9 +236,9 @@ int SinucaTraceReader::ReadMetadata() {
 }
 
 int SinucaTraceReader::OpenInstructionsLog(const char* directory) {
-    return OpenTraceAndCreateLoader(directory, "static",
-                                    &this->pathToStaticFile, 0, true,
-                                    &this->instructionsLoader);
+    this->pathToStaticFile = GetFormattedPath(directory, "static");
+    assert(this->pathToStaticFile != NULL);
+    return (this->instructionsLoader.Open(this->pathToStaticFile));
 }
 
 int SinucaTraceReader::CreateThreads(const char* directory) {
@@ -267,11 +267,8 @@ int SinucaTraceReader::GenerateDictionaryOfInstructions() {
     long instructionIndex = 0;
 
     for (int bbIdx = 0; bbIdx < this->bblocksCount; bbIdx++) {
-        StaticTraceEntry entry;
         BasicBlockSize bbSize = 0;
-
-        this->instructionsLoader.Read(&entry);
-        entry.Get(&bbSize);
+        this->instructionsLoader.Read(&bbSize);
 
         this->dictionary[bbIdx].size = bbSize;
         this->dictionary[bbIdx].instructions = &this->pool[instructionIndex];
@@ -279,10 +276,8 @@ int SinucaTraceReader::GenerateDictionaryOfInstructions() {
         for (long instIdx = 0; instIdx < bbSize;
              instIdx++, instructionIndex++) {
             CompressedInstruction compressed;
-
             assert(instructionIndex < this->recordedInst);
-            this->instructionsLoader.Read(&entry);
-            entry.Get(&compressed);
+            this->instructionsLoader.Read(&compressed);
 
             CompressedInstToStaticInfo(&compressed,
                                        &this->pool[instructionIndex]);
@@ -428,11 +423,8 @@ void SinucaTraceReader::FetchMemoryAccess(InstructionPacket* ret, int tid) {
     assert(ret != NULL);
     assert(tid >= 0 && tid < this->threadCount);
 
-    MemoryTraceEntry entry;
-    MemoryAccessCounter accessCount = 0;
-
-    this->threads[tid].memoryLoader.Read(&entry);
-    entry.Get(&accessCount);
+    MemoryAccessCounter accessCount = -1;
+    this->threads[tid].memoryLoader.Read(&accessCount);
     assert(accessCount >= 0 && accessCount <= MAX_MEM_OPERATIONS);
 
     ret->dynamicInfo.numReadings = 0;
@@ -440,9 +432,7 @@ void SinucaTraceReader::FetchMemoryAccess(InstructionPacket* ret, int tid) {
 
     for (int i = 0; i < accessCount; i++) {
         MemoryAccess access;
-
-        this->threads[tid].memoryLoader.Read(&entry);
-        entry.Get(&access);
+        this->threads[tid].memoryLoader.Read(&access);
 
         assert(IsValidMemoryAccessType(access.typeOfAccess));
 
@@ -514,34 +504,4 @@ void SinucaTraceReader::HandleCriticalEnd(int tid) {
 void SinucaTraceReader::HandleAbruptEnd() {
     for (int i = 0; i < this->threadCount; i++)
         this->threads[i].SetHasEndedExecution(true);
-}
-
-int OpenTraceAndCreateLoader(const char* dir, const char* prefix, char** path,
-                             int tid, bool tidOut, Reader* reader) {
-    assert(dir != NULL);
-    assert(prefix != NULL);
-    assert(path != NULL);
-    assert(reader != NULL);
-
-    char* tracePath = NULL;
-
-    if (tidOut) {
-        long pathSize = GetPathTidOutSize(dir, prefix);
-        tracePath = new char[pathSize];
-        FormatPathTidOut(tracePath, dir, prefix, pathSize);
-    } else {
-        long pathSize = GetPathTidInSize(dir, prefix);
-        tracePath = new char[pathSize];
-        FormatPathTidIn(tracePath, dir, prefix, tid, pathSize);
-    }
-
-    if (reader->Open(tracePath)) {
-        SINUCA3_ERROR_PRINTF("Failed to open trace file [%s]!\n", tracePath);
-        delete[] tracePath;
-        return 1;
-    }
-
-    *path = tracePath;
-
-    return 0;
 }

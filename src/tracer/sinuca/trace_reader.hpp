@@ -30,15 +30,12 @@
 
 #include "engine/default_packets.hpp"
 
-int OpenTraceAndCreateLoader(const char* dir, const char* prefix, char** path,
-                             int tid, bool tidOut, Reader* reader);
-
 struct Thread {
-    Reader executionLoader;
-    Reader memoryLoader;
+    Reader<DynamicTraceEntry> executionLoader;
+    Reader<MemoryTraceEntry> memoryLoader;
 
-    char* pathToDynamicTrace;
-    char* pathToMemoryTrace;
+    const char* pathToDynamicTrace;
+    const char* pathToMemoryTrace;
 
     long currentBasicBlock;
     long currentInstruction;
@@ -124,13 +121,13 @@ struct BasicBlock {
 /** @brief Check trace_reader.hpp documentation for details */
 class SinucaTraceReader : public TraceReader {
   private:
-    Reader instructionsLoader;
+    Reader<StaticTraceEntry> instructionsLoader;
 
     BasicBlock* dictionary;
     StaticInstructionInfo* pool;
     Thread* threads;
 
-    char* pathToStaticFile;
+    const char* pathToStaticFile;
 
     int threadCount;
     int bblocksCount;
