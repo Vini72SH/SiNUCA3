@@ -51,7 +51,7 @@ bool isInstrumentating;
 /** @brief Flag indicating whether instrumentation has been initialized. */
 bool wasInitInstrumentationCalled = false;
 
-char* pathToStaticFile = NULL;
+const char* pathToStaticFile = NULL;
 
 /** @brief Directory to store the trace files. */
 std::string directory;
@@ -61,9 +61,9 @@ std::vector<const char*> routinesToIgnore;
 std::vector<IntrinsicInfo> intrinsics;
 
 /** @brief Logger for instruction traces. */
-Writer instructionsLog;
+Writer<StaticTraceEntry> staticLogger;
 /** @brief Metadata for the static trace file. */
-StaticFileMetadata instLogMetadata;
+StaticFileMetadata staticMetadata;
 
 EntriesCounter entriesStaticTrace = 0;
 EntriesCounter entriesDynamicTrace = 0;
@@ -81,30 +81,30 @@ KNOB<UINT32> knobNumberOfInstructions(KNOB_MODE_WRITEONCE, "pintool", "n", "-1",
                                       "Set maximum of instructions.");
 
 struct Thread {
-    Writer executionLog;
-    Writer memoryLog;
+    Writer<DynamicTraceEntry> executionLogger;
+    Writer<MemoryTraceEntry> memoryLogger;
 
-    char* pathToExecLog;
-    char* pathToMemLog;
+    const char* pathToExecLog;
+    const char* pathToMemLog;
 
-    DynamicFileMetadata execLogMetadata;
+    DynamicFileMetadata executionMetadata;
 
     bool isInstrumentating;
 
     Thread() : pathToExecLog(0), pathToMemLog(0) {
         this->isInstrumentating = true;
-        this->execLogMetadata.executed = 0;
+        this->executionMetadata.executed = 0;
     }
     ~Thread() {
         FileHeader headerDynamic;
         headerDynamic.Setup(TargetArchX86, entriesDynamicTrace);
-        headerDynamic.Set(&this->execLogMetadata);
-        this->executionLog.SetHeader(&headerDynamic);
+        headerDynamic.Set(&this->executionMetadata);
+        this->executionLogger.SetHeader(&headerDynamic);
 
         FileHeader headerMemory;
         headerMemory.Setup(TargetArchX86, entriesMemoryTrace);
         headerMemory.SetFileType(FileTypeMemoryTrace);
-        this->memoryLog.SetHeader(&headerMemory);
+        this->memoryLogger.SetHeader(&headerMemory);
 
         if (this->pathToExecLog) {
             delete[] this->pathToExecLog;
@@ -124,109 +124,13 @@ struct Thread {
 
 std::vector<Thread*> threads;
 
-int OpenTraceAndCreateLogger(const char* dir, const char* prefix, char** path,
-                             int tid, bool tidOut, Writer* logger) {
-    assert(dir != NULL);
-    assert(prefix != NULL);
-    assert(path != NULL);
-    assert(logger != NULL);
-
-    char* tracePath = NULL;
-
-    if (tidOut) {
-        long pathSize = GetPathTidOutSize(dir, prefix);
-        tracePath = new char[pathSize];
-        FormatPathTidOut(tracePath, dir, prefix, pathSize);
-    } else {
-        long pathSize = GetPathTidInSize(dir, prefix);
-        tracePath = new char[pathSize];
-        FormatPathTidIn(tracePath, dir, prefix, tid, pathSize);
-    }
-
-    if (logger->Open(tracePath)) {
-        SINUCA3_ERROR_PRINTF("Failed to open trace file [%s]!\n", tracePath);
-        delete[] tracePath;
-        return 1;
-    }
-
-    *path = tracePath;
-
-    return 0;
-}
-
-MemoryTraceEntry CreateEntryForMemoryTrace(MemoryAccessAddress add,
-                                           MemoryAccessSize size,
-                                           MemoryAccessType type) {
-    MemoryAccess access;
-    access.address = add;
-    access.typeOfAccess = type;
-    access.size = size;
-    MemoryTraceEntry entry;
-    entry.Set(&access);
-    return entry;
-}
-
-MemoryTraceEntry CreateEntryForMemoryTrace(MemoryAccessCounter accesses) {
-    MemoryTraceEntry entry;
-    entry.Set(&accesses);
-    return entry;
-}
-
-DynamicTraceEntry CreateEntryForDynamicTrace(EventType event) {
-    DynamicTraceEntry entry;
-    entry.Set(&event);
-    return entry;
-}
-
-DynamicTraceEntry CreateEntryForDynamicTrace(BasicBlockIdentifier bbl) {
-    DynamicTraceEntry entry;
-    entry.Set(&bbl);
-    return entry;
-}
-
-StaticTraceEntry CreateEntryForStaticTrace(CompressedInstruction* inst) {
-    StaticTraceEntry entry;
-    entry.Set(inst);
-    return entry;
-}
-
-StaticTraceEntry CreateEntryForStaticTrace(BasicBlockSize size) {
-    StaticTraceEntry entry;
-    entry.Set(&size);
-    return entry;
-}
-
-inline BasicBlockCounter GetBasicBlockCount() {
-    return instLogMetadata.basicBlocks;
-}
-inline void IncrementBasicBlockCount() {
-    instLogMetadata.basicBlocks++;
-}
-inline InstructionCounter GetStaticInstructionCount() {
-    return instLogMetadata.instructions;
-}
-inline void IncrementStaticInstructionCount() {
-    instLogMetadata.instructions++;
-}
-inline ThreadCounter GetThreadCount() {
-    return instLogMetadata.threads;
-}
-inline void IncrementThreadCount() {
-    instLogMetadata.threads++;
-}
-inline InstructionCounter GetExecutedInstructionCount(int tid) {
-    return threads[tid]->execLogMetadata.executed;
-}
-inline void UpdateExecutedInstructionCount(int tid, InstructionCounter count) {
-    threads[tid]->execLogMetadata.executed += count;
-}
-
 int Usage() {
     SINUCA3_LOG_PRINTF(
         "SiNUCA3 Pin Tool Usage\n"
         "------------------------------------------------------------\n"
         "Example:\n"
-        "\t./pin/pin -t ./obj-intel64/my_pintool.so -o my_dir -- ./my_program\n\n"
+        "\t./pin/pin -t ./obj-intel64/my_pintool.so -o my_dir -- "
+        "./my_program\n\n"
         "Options:\n"
         "  -o <dir>\tOutput directory (default: ./)\n"
         "  -f\t\tForce instrumentation even when no blocks are defined\n"
@@ -244,7 +148,8 @@ VOID InitInstrumentation() {
     if (isInstrumentating) return;
     SINUCA3_DEBUG_PRINTF("========================================\n");
     SINUCA3_DEBUG_PRINTF(">> Beginning tool instrumentation block\n");
-    SINUCA3_DEBUG_PRINTF("   Output directory        : %s\n", directory.c_str());
+    SINUCA3_DEBUG_PRINTF("   Output directory        : %s\n",
+                         directory.c_str());
     SINUCA3_DEBUG_PRINTF("   Force instrumentation   : %s\n",
                          knobForceInstrumentation.Value() ? "yes" : "no");
     SINUCA3_DEBUG_PRINTF("   Max instructions        : %u\n",
@@ -279,18 +184,17 @@ VOID StopInstrumentationInThread(THREADID tid) {
 VOID OnThreadStart(THREADID tid, CONTEXT* ctxt, INT32 flags, VOID* v) {
     Thread* thread = new Thread;
 
-    if (OpenTraceAndCreateLogger(directory.c_str(), "dynamic", &thread->pathToExecLog,
-                                 tid, false, &thread->executionLog)) {
-        SINUCA3_ERROR_PRINTF("Failed to open dynamic trace!\n");
-    }
-    if (OpenTraceAndCreateLogger(directory.c_str(), "memory", &thread->pathToMemLog,
-                                 tid, false, &thread->memoryLog)) {
-        SINUCA3_ERROR_PRINTF("Failed to open memory trace!\n");
-    }
+    thread->pathToExecLog = GetFormattedPath(directory.c_str(), "dynamic", tid);
+    assert(thread->pathToExecLog != NULL);
+    thread->pathToMemLog = GetFormattedPath(directory.c_str(), "memory", tid);
+    assert(thread->pathToMemLog != NULL);
+
+    if (thread->executionLogger.Open(thread->pathToExecLog)) assert(false);
+    if (thread->memoryLogger.Open(thread->pathToMemLog)) assert(false);
 
     PIN_GetLock(&analysisLock, tid);
     threads.push_back(thread);
-    IncrementThreadCount();
+    staticMetadata.threads++;
     PIN_ReleaseLock(&analysisLock);
 }
 
@@ -307,21 +211,21 @@ VOID OnThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v) {
 VOID AppendToDynamicTrace(THREADID tid, UINT32 bbl, UINT64 inst) {
     assert(WasThreadCreated(tid));
 
-    UpdateExecutedInstructionCount(tid, inst);
+    threads[tid]->executionMetadata.executed += inst;
 
     PIN_GetLock(&analysisLock, tid);
 
     if (knobNumberOfInstructions.Value() != UINT_MAX) {
-        if (threads[tid]->execLogMetadata.executed > knobNumberOfInstructions.Value()) {
+        if (threads[tid]->executionMetadata.executed >
+            knobNumberOfInstructions.Value()) {
             SINUCA3_WARNING_PRINTF("Reached maximum of instructions!\n");
             /* This loop adds an abrupt end event to the dynamic trace, which
-             * signals to the trace reader that all analysis code was abruptly
-             * halted. */
+             * signals to trace reader that analysis code was abruptly halted.
+             */
             for (unsigned tid = 0; tid < threads.size(); ++tid) {
                 EventType event = EventTypeAbruptEnd;
-                DynamicTraceEntry entry = CreateEntryForDynamicTrace(event);
-                threads[tid]->executionLog.Write(&entry);
-                ++entriesDynamicTrace;
+                threads[tid]->executionLogger.Write(&event);
+                entriesDynamicTrace++;
             }
             PIN_ReleaseLock(&analysisLock);
             PIN_ExitApplication(0);
@@ -329,9 +233,8 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bbl, UINT64 inst) {
     }
 
     BasicBlockIdentifier idx = bbl;
-    DynamicTraceEntry entry = CreateEntryForDynamicTrace(idx);
-    threads[tid]->executionLog.Write(&entry);
-    ++entriesDynamicTrace;
+    threads[tid]->executionLogger.Write(&idx);
+    entriesDynamicTrace++;
 
     PIN_ReleaseLock(&analysisLock);
 }
@@ -348,26 +251,23 @@ VOID AppendToMemTrace(THREADID tid, PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
         if (!accessInfo->memop[i].maskOn) --count;
 
     MemoryAccessCounter accesses = count;
-    MemoryTraceEntry entry = CreateEntryForMemoryTrace(accesses);
-    threads[tid]->memoryLog.Write(&entry);
-    ++entriesMemoryTrace;
+    threads[tid]->memoryLogger.Write(&accesses);
+    entriesMemoryTrace++;
 
     /* Write memory operations to file */
     for (int i = 0; i < countCopy; i++) {
         if (!accessInfo->memop[i].maskOn) continue;
 
-        MemoryAccessAddress addr = accessInfo->memop[i].memoryAddress;
-        MemoryAccessSize size = accessInfo->memop[i].bytesAccessed;
-        MemoryAccessType type;
+        MemoryAccess access;
 
-        if (accessInfo->memop[i].memopType == PIN_MEMOP_LOAD)
-            type = MemoryAccessLoad;
-        else
-            type = MemoryAccessStore;
+        access.address = accessInfo->memop[i].memoryAddress;
+        access.size = accessInfo->memop[i].bytesAccessed;
+        access.typeOfAccess = (accessInfo->memop[i].memopType == PIN_MEMOP_LOAD)
+                                  ? MemoryAccessLoad
+                                  : MemoryAccessStore;
 
-        MemoryTraceEntry entry = CreateEntryForMemoryTrace(addr, size, type);
-        threads[tid]->memoryLog.Write(&entry);
-        ++entriesMemoryTrace;
+        threads[tid]->memoryLogger.Write(&access);
+        entriesMemoryTrace++;
     }
 }
 
@@ -458,9 +358,7 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
     std::string rtnName = RTN_Name(rtn);
     RTN_Close(rtn);
 
-    /*
-     * Remove unwanted spinlock.
-     */
+    /* Remove unwanted spinlock. */
     for (unsigned int it = 0; it < routinesToIgnore.size(); it++) {
         if (rtnName == routinesToIgnore[it]) {
             SINUCA3_DEBUG_PRINTF("Thread id [%d]: Ignoring [%s]!\n", threadId,
@@ -471,19 +369,18 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
 
     for (BBL bbl = TRACE_BblHead(trace); BBL_Valid(bbl); bbl = BBL_Next(bbl)) {
         BasicBlockSize size = BBL_NumIns(bbl);
-        StaticTraceEntry entry = CreateEntryForStaticTrace(size);
-        instructionsLog.Write(&entry);
-        ++entriesStaticTrace;
+        staticLogger.Write(&size);
+        entriesStaticTrace++;
 
-        BasicBlockIdentifier idx = GetBasicBlockCount();
-        IncrementBasicBlockCount();
+        BasicBlockIdentifier idx = staticMetadata.basicBlocks++;
 
         BBL_InsertCall(bbl, IPOINT_ANYWHERE, (AFUNPTR)AppendToDynamicTrace,
                        IARG_THREAD_ID, IARG_UINT32, idx, IARG_UINT64, size,
                        IARG_END);
 
         for (INS ins = BBL_InsHead(bbl); INS_Valid(ins); ins = INS_Next(ins)) {
-            IncrementStaticInstructionCount();
+            staticMetadata.instructions++;
+            entriesStaticTrace++;
 
             CompressedInstruction compressed;
             IntrinsicInfo* intrinsic = GetIntrinsicInfo(&ins);
@@ -491,16 +388,12 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
 
             if (isIntrinsic) {
                 IntrinsicToSinucaInst(&ins, intrinsic, &compressed);
-                StaticTraceEntry entry = CreateEntryForStaticTrace(&compressed);
-                instructionsLog.Write(&entry);
-                ++entriesStaticTrace;
+                staticLogger.Write(&compressed);
                 continue;
             }
 
             TranslatePinInst(&compressed, &ins);
-            StaticTraceEntry entry = CreateEntryForStaticTrace(&compressed);
-            instructionsLog.Write(&entry);
-            ++entriesStaticTrace;
+            staticLogger.Write(&compressed);
 
             if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {
                 INS_InsertCall(ins, IPOINT_BEFORE, (AFUNPTR)AppendToMemTrace,
@@ -511,24 +404,22 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
     }
 }
 
-VOID OnExecutionEvent(THREADID tid, UINT32 event, BOOL onlyInMaster) {
+VOID OnExecutionEvent(THREADID tid, UINT32 ev, BOOL onlyInMaster) {
     assert(WasThreadCreated(tid));
 
     PIN_GetLock(&analysisLock, tid);
 
-    EventType type = (EventType)event;
-    DynamicTraceEntry entry = CreateEntryForDynamicTrace(type);
-    threads[tid]->executionLog.Write(&entry);
-    ++entriesDynamicTrace;
+    EventType event = (EventType)ev;
+    threads[tid]->executionLogger.Write(&event);
+    entriesDynamicTrace++;
 
-    /* If the event only happens in master thread, it must be manually added to child threads. */
+    /* If the event only happens in master thread, it must be manually added to
+     * child threads. */
     if (onlyInMaster) {
-        SINUCA3_DEBUG_PRINTF("Add event [%u] to all [%u] threads!\n", event, threads.size());
         for (unsigned i = 1; i < threads.size(); i++) {
-            EventType type = (EventType)event;
-            DynamicTraceEntry entry = CreateEntryForDynamicTrace(type);
-            threads[i]->executionLog.Write(&entry);
-            ++entriesDynamicTrace;
+            event = (EventType)ev;
+            threads[i]->executionLogger.Write(&event);
+            entriesDynamicTrace++;
         }
     }
 
@@ -542,7 +433,7 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
     long idx = absoluteImgPath.find_last_of('/') + 1;
     std::string application = absoluteImgPath.substr(idx);
 
-    /* mkdir just works if the parent folder exists */
+    /* mkdir only works if the parent folder exists */
     if (access(directory.c_str(), F_OK) != 0) {
         mkdir(directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     }
@@ -553,10 +444,10 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
         mkdir(directory.c_str(), S_IRWXU | S_IRWXG | S_IROTH);
     }
 
-    if (OpenTraceAndCreateLogger(directory.c_str(), "static", &pathToStaticFile, 0,
-                                 true, &instructionsLog)) {
-        SINUCA3_ERROR_PRINTF("Failed to open static trace!\n");
-    }
+    pathToStaticFile = GetFormattedPath(directory.c_str(), "static");
+    assert(pathToStaticFile != NULL);
+
+    if (staticLogger.Open(pathToStaticFile)) assert(false);
 
     /* Only thread master run these calls. */
     std::vector<const char*> ompBarrierMasterStartVec;
@@ -636,8 +527,8 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                 if (rtnName == ompBarrierSimpleVec[it]) {
                     RTN_InsertCall(rtn, IPOINT_BEFORE,
                                    (AFUNPTR)OnExecutionEvent, IARG_THREAD_ID,
-                                   IARG_UINT32, EventTypeBarrierSync,
-                                   IARG_BOOL, false, IARG_END);
+                                   IARG_UINT32, EventTypeBarrierSync, IARG_BOOL,
+                                   false, IARG_END);
                     routineTreated = true;
                 }
             }
@@ -656,8 +547,8 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
                 if (rtnName == ompCriticalEndVec[it]) {
                     RTN_InsertCall(rtn, IPOINT_BEFORE,
                                    (AFUNPTR)OnExecutionEvent, IARG_THREAD_ID,
-                                   IARG_UINT32, EventTypeCriticalEnd,
-                                   IARG_BOOL, false, IARG_END);
+                                   IARG_UINT32, EventTypeCriticalEnd, IARG_BOOL,
+                                   false, IARG_END);
                     routineTreated = true;
                 }
             }
@@ -682,8 +573,8 @@ VOID OnImageLoad(IMG img, VOID* ptr) {
 VOID OnFini(INT32 code, VOID* ptr) {
     FileHeader header;
     header.Setup(TargetArchX86, entriesStaticTrace);
-    header.Set(&instLogMetadata);
-    instructionsLog.SetHeader(&header);
+    header.Set(&staticMetadata);
+    staticLogger.SetHeader(&header);
 
 #ifndef NDEBUG
     SINUCA3_LOG_PRINTF("Header from static trace: \n");
