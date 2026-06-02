@@ -257,8 +257,9 @@ VOID AppendToMemTrace(THREADID tid, PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     /* Write memory operations to file */
     for (int i = 0; i < countCopy; i++) {
         if (!accessInfo->memop[i].maskOn) continue;
-
         MemoryAccess access;
+
+        assert(accessInfo->memop[i].bytesAccessed <= MAX_MEM_ACCESS_SIZE);
 
         access.address = accessInfo->memop[i].memoryAddress;
         access.size = accessInfo->memop[i].bytesAccessed;
