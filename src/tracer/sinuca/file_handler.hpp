@@ -36,6 +36,7 @@ extern "C" {
 const uint32_t TRACE_VERSION = 2;
 const uint32_t TRACE_MAGIC = 0x54524345;  // TRCE
 const uint32_t PREFIX_SIZE = 6;
+const uint32_t MAX_MEM_ACCESS_SIZE = 0x7F;
 
 const char PREFIX_STATIC_FILE[PREFIX_SIZE] = "_S3S_";
 const char PREFIX_DYNAMIC_FILE[PREFIX_SIZE] = "_S3D_";
@@ -48,8 +49,8 @@ typedef int32_t ThreadCounter;
 typedef int32_t TraceVersion;
 typedef int32_t BasicBlockSize;
 typedef int32_t BasicBlockIdentifier;
-typedef int32_t MemoryAccessSize;
-typedef int32_t MemoryAccessCounter;
+typedef int8_t MemoryAccessSize;
+typedef int8_t MemoryAccessCounter;
 typedef int64_t MemoryAccessAddress;
 typedef int64_t EntriesCounter;
 
@@ -174,10 +175,10 @@ struct DynamicTraceEntry {
 } __attribute__((packed));
 
 struct MemoryAccess {
-    MemoryAccessType typeOfAccess;
     MemoryAccessAddress address;
+    MemoryAccessType typeOfAccess;
     MemoryAccessSize size;
-};
+} __attribute__((packed));
 
 struct MemoryTraceEntry {
     union {
