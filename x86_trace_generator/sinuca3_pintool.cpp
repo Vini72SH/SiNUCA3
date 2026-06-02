@@ -31,8 +31,6 @@
 
 #include <cassert>
 
-#define NDEBUG
-
 #include <tracer/sinuca/file_handler.hpp>
 
 #include "intrinsics.hpp"

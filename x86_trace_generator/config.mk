@@ -1,3 +1,4 @@
+NDEBUG = -DNDEBUG # Set NDEBUG="" via command line to enable debug mode (e.g., make NDEBUG="")
 SINUCA_TRACER_DIR = ../src/tracer/sinuca/
 SINUCA_LOGGER = ../src/utils/logger
 
@@ -15,16 +16,16 @@ OBJ_DEPS = $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX) \
 # See makefile.default.rules for the default build rules.
 
 $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX): $(TOOL_ROOTS).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
 $(OBJDIR)$(HANDLER)$(OBJ_SUFFIX): $(SINUCA_TRACER_DIR)$(HANDLER).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
 $(OBJDIR)$(LOGGER)$(OBJ_SUFFIX): $(SINUCA_LOGGER).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
 $(OBJDIR)$(INTRINSICS)$(OBJ_SUFFIX): $(INTRINSICS).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
 $(OBJDIR)$(TOOL_ROOTS)$(PINTOOL_SUFFIX): $(OBJ_DEPS)
 	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
