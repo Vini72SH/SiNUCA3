@@ -104,8 +104,7 @@ TraceReader* AllocTraceReader(const char* traceReader) {
 int main(int argc, char* const argv[]) {
     const char* traceReaderName = "sinuca3";
     const char* rootConfigFile = NULL;
-    const char* traceDir = ".";
-    const char* traceFileName = NULL;
+    const char* traceDir = NULL;
     char nextOpt;
 
     // When compiling debug mode, enable our testing facilities and set the log
@@ -129,9 +128,6 @@ int main(int argc, char* const argv[]) {
 #endif
             case 'c':
                 rootConfigFile = optarg;
-                break;
-            case 't':
-                traceFileName = optarg;
                 break;
             case 'd':
                 traceDir = optarg;
@@ -182,7 +178,7 @@ int main(int argc, char* const argv[]) {
         usage();
         return 1;
     }
-    if (traceFileName == NULL) {
+    if (traceDir == NULL) {
         usage();
         return 1;
     }
@@ -208,9 +204,10 @@ int main(int argc, char* const argv[]) {
                              traceReaderName);
         return 1;
     }
-    if (traceReader->OpenTrace(traceFileName, traceDir)) return 1;
+    if (traceReader->OpenTrace(traceDir)) return 1;
 
     engine.Simulate(traceReader);
+    traceReader->PrintStatistics();
     delete traceReader;
 
     return 0;

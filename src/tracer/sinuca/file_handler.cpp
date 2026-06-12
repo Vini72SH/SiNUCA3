@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2026  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -17,84 +17,180 @@
 
 /**
  * @file file_handler.cpp
- * @details Implementation of the file handler, a helper class for handling
- * trace files.
  */
 
 #include "file_handler.hpp"
 
-#include <cassert>
-#include <cstdio>
-#include <cstring>
-#include <sinuca3.hpp>
+const char* BIN_EXT = ".bin";
+const char* TID_SUFFIX = "_tid";
+const char* TID_MAX = "4294967295";
 
-const int MAX_INT_DIGITS = 7;
+const int BIN_EXT_SIZE = strlen(BIN_EXT);
+const int TID_SUFFIX_SIZE = strlen(TID_SUFFIX);
+const int TID_CHARS = strlen(TID_MAX);
 
-unsigned long GetPathTidInSize(const char* sourceDir, const char* prefix,
-                               const char* imageName) {
-    unsigned long sourceDirLen = strlen(sourceDir);
-    unsigned long prefixLen = strlen(prefix);
-    unsigned long imageNameLen = strlen(imageName);
-    /* 10 is the number of characters on the format string */
-    return MAX_INT_DIGITS + 10 + sourceDirLen + prefixLen + imageNameLen;
+const char* GetFormattedPath(const char* directory, const char* prefix) {
+    long required = GetPathTidOutSize(directory, prefix);
+    char* formatted = new char[required];
+    FormatPathTidOut(formatted, directory, prefix, required);
+    return formatted;
 }
 
-void FormatPathTidIn(char* dest, const char* sourceDir, const char* prefix,
-                     const char* imageName, int tid, long destSize) {
-    snprintf(dest, destSize, "%s/%s_%s_tid%u.trace", sourceDir, prefix,
-             imageName, tid);
+const char* GetFormattedPath(const char* directory, const char* prefix,
+                             int tid) {
+    long required = GetPathTidInSize(directory, prefix);
+    char* formatted = new char[required];
+    FormatPathTidIn(formatted, directory, prefix, tid, required);
+    return formatted;
 }
 
-unsigned long GetPathTidOutSize(const char* sourceDir, const char* prefix,
-                                const char* imageName) {
-    unsigned long sourceDirLen = strlen(sourceDir);
-    unsigned long prefixLen = strlen(prefix);
-    unsigned long imageNameLen = strlen(imageName);
-    /* 9 is the number characters in the format string */
-    return 9 + sourceDirLen + prefixLen + imageNameLen;
+long GetPathTidInSize(const char* dir, const char* preffix) {
+    long dirLen = (long)strlen(dir);
+    long prefLen = (long)strlen(preffix);
+    return dirLen + prefLen + TID_SUFFIX_SIZE + TID_CHARS + BIN_EXT_SIZE +
+           1;  // +1 for null terminator
 }
 
-void FormatPathTidOut(char* dest, const char* sourceDir, const char* prefix,
-                      const char* imageName, long destSize) {
-    snprintf(dest, destSize, "%s/%s_%s.trace", sourceDir, prefix, imageName);
+void FormatPathTidIn(char* dest, const char* dir, const char* pref, int tid,
+                     long destSize) {
+    snprintf(dest, destSize, "%s%s%s%u%s", dir, pref, TID_SUFFIX, tid, BIN_EXT);
 }
 
-int FileHeader::FlushHeader(FILE* file) {
-    if (!file) return 1;
-    long orgPos = ftell(file);
-    rewind(file);
-    if (fwrite(this, 1, sizeof(*this), file) != sizeof(*this)) {
-        return 1;
+long GetPathTidOutSize(const char* dir, const char* preffix) {
+    long dirLen = (long)strlen(dir);
+    long prefLen = (long)strlen(preffix);
+    return dirLen + prefLen + BIN_EXT_SIZE + 1;  // +1 for null terminator
+}
+
+void FormatPathTidOut(char* dest, const char* dir, const char* pref,
+                      long destSize) {
+    snprintf(dest, destSize, "%s%s%s", dir, pref, BIN_EXT);
+}
+
+void FileHeader::Print(bool printMetadata) const {
+    SINUCA3_LOG_PRINTF("\t File Header:\n");
+    SINUCA3_LOG_PRINTF("\t Magic: [0x%X]\n", this->magic);
+    SINUCA3_LOG_PRINTF("\t Prefix: [%.*s]\n", PREFIX_SIZE, this->prefix);
+    SINUCA3_LOG_PRINTF("\t Version: [%d]\n", this->version);
+    SINUCA3_LOG_PRINTF("\t Entries: [%ld]\n", this->entries);
+
+    const char* targetStr = "Unknown";
+    switch (this->target) {
+        case TargetArchX86:
+            targetStr = "x86";
+            break;
+        case TargetArchARM:
+            targetStr = "ARM";
+            break;
+        case TargetArchRISCV:
+            targetStr = "RISC-V";
+            break;
+        default:
+            break;
     }
-    fseek(file, orgPos, SEEK_SET);
-    return 0;
+
+    SINUCA3_LOG_PRINTF("\t Target: [%s]\n", targetStr);
+
+    if (!printMetadata) return;
+
+    if (this->type == FileTypeStaticTrace) {
+        SINUCA3_LOG_PRINTF("\t Instructions: [%ld]\n", this->st.instructions);
+        SINUCA3_LOG_PRINTF("\t Basic Blocks: [%d]\n", this->st.basicBlocks);
+        SINUCA3_LOG_PRINTF("\t Threads: [%d]\n", this->st.threads);
+    } else if (this->type == FileTypeDynamicTrace) {
+        SINUCA3_LOG_PRINTF("\t Executed Instructions: [%ld]\n",
+                           this->dyn.executed);
+    }
 }
 
-int FileHeader::LoadHeader(FILE* file) {
-    if (!file) return 1;
-    return (fread(this, 1, sizeof(*this), file) != sizeof(*this));
+void FileHeader::SetPrefix(FileType type) {
+    switch (type) {
+        case FileTypeStaticTrace:
+            memcpy(this->prefix, PREFIX_STATIC_FILE, PREFIX_SIZE);
+            break;
+        case FileTypeDynamicTrace:
+            memcpy(this->prefix, PREFIX_DYNAMIC_FILE, PREFIX_SIZE);
+            break;
+        case FileTypeMemoryTrace:
+            memcpy(this->prefix, PREFIX_MEMORY_FILE, PREFIX_SIZE);
+            break;
+        default:
+            assert(false && "Invalid file type");
+    }
 }
 
-int FileHeader::LoadHeader(char* file, unsigned long* fileOffset) {
-    if (!file) return 1;
-    memcpy(this, file, sizeof(*this));
-    *fileOffset += sizeof(*this);
-    return 0;
+void FileHeader::Setup(TargetArchitecture target, EntriesCounter entries) {
+    this->magic = TRACE_MAGIC;
+    this->version = TRACE_VERSION;
+    this->target = target;
+    this->entries = entries;
 }
 
-void FileHeader::ReserveHeaderSpace(FILE* file) {
-    fseek(file, sizeof(*this), SEEK_SET);
+void CompressedInstToStaticInfo(const CompressedInstruction* compressed,
+                                StaticInstructionInfo* info) {
+    assert(compressed != NULL);
+    assert(info != NULL);
+
+    strncpy(info->instMnemonic, compressed->instructionMnemonic,
+            INST_MNEMONIC_LEN - 1);
+    info->instMnemonic[INST_MNEMONIC_LEN - 1] = '\0';
+
+    info->instSize = compressed->instructionSize;
+    info->instAddress = compressed->instructionAddress;
+    info->instPerformsAtomicUpdate = compressed->instPerformsAtomicUpdate;
+    info->instCausesCacheLineFlush = compressed->instCausesCacheLineFlush;
+    info->isPredicatedInst = compressed->isPredicatedInst;
+    info->instReadsMemory = compressed->instReadsMemory;
+    info->instWritesMemory = compressed->instWritesMemory;
+    info->isIndirectControlFlowInst = compressed->isIndirectCtrlFlowInst;
+    info->numberOfReadRegs = compressed->rRegsArrayOccupation;
+    info->numberOfWriteRegs = compressed->wRegsArrayOccupation;
+
+    long occupation = 0;
+
+    occupation =
+        sizeof(*compressed->readRegsArray) * compressed->rRegsArrayOccupation;
+    memcpy(info->readRegsArray, compressed->readRegsArray, occupation);
+
+    occupation = sizeof(*compressed->writtenRegsArray) *
+                 compressed->wRegsArrayOccupation;
+    memcpy(info->writtenRegsArray, compressed->writtenRegsArray, occupation);
+
+    if (compressed->isCallInstruction) {
+        info->branchType = BranchCall;
+    } else if (compressed->isSyscallInstruction) {
+        info->branchType = BranchSyscall;
+    } else if (compressed->isRetInstruction) {
+        info->branchType = BranchRet;
+    } else if (compressed->isSysretInstruction) {
+        info->branchType = BranchSysret;
+    } else if (compressed->isBranchInstruction) {
+        if (compressed->instHasFallthrough) {
+            info->branchType = BranchCond;
+        } else {
+            info->branchType = BranchUncond;
+        }
+    }
 }
 
-void FileHeader::SetHeaderType(uint8_t fileType) {
-    this->fileType = fileType;
-    if (this->fileType == FileTypeStaticTrace) {
-        strcpy((char*)this->prefix, PREFIX_STATIC_FILE);
-    } else if (this->fileType == FileTypeDynamicTrace) {
-        strcpy((char*)this->prefix, PREFIX_DYNAMIC_FILE);
-    } else if (this->fileType == FileTypeMemoryTrace) {
-        strcpy((char*)this->prefix, PREFIX_MEMORY_FILE);
-    } else {
-        SINUCA3_ERROR_PRINTF("Unkown file type!\n");
+bool IsValidEventType(int8_t eventType) {
+    switch (eventType) {
+        case EventTypeBarrierSync:
+        case EventTypeCriticalStart:
+        case EventTypeCriticalEnd:
+        case EventTypeAbruptEnd:
+            return true;
+        default:
+            return false;
+    }
+}
+
+bool IsValidMemoryAccessType(int8_t accessType) {
+    switch (accessType) {
+        case MemoryAccessLoad:
+        case MemoryAccessStore:
+            return true;
+        default:
+            return false;
     }
 }
