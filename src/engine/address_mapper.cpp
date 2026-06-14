@@ -36,14 +36,12 @@ int AddressMapper::Configure(const FetchBuffer* fetchBuffers, long numFetchers,
     this->contextToAddressSpace = new int[this->totalContexts];
 
     const void* lastApplication = NULL;
-    int context = -1;
+    int space = -1;
     for (long i = 0; i < numFetchers; ++i) {
         const void* application = fetchBuffers[i].GetTracer();
-        if (application != lastApplication) {
-            context++;
-        }
+        if (application != lastApplication) space++;
         lastApplication = application;
-        this->contextToAddressSpace[i] = context;
+        this->contextToAddressSpace[i] = space;
     }
 
     for (long i = 0; i < this->totalContexts; ++i) {
