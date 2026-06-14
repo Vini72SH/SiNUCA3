@@ -86,7 +86,7 @@ int SimpleCore::EstablishContextAndPropagate() {
         return 1;
     }
 
-    int contextId = this->coreId;
+    int contextId = this->engineConnectionID;
     int engineConnId = this->engineConnectionID;
     Linkable* engine = this->engine;
     context->SetCoreContext(contextId, engineConnId, engine);
