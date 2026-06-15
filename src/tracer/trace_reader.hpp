@@ -68,6 +68,10 @@ class TraceReader {
      * @param tid Thread identifier.
      */
     virtual FetchResult Fetch(InstructionPacket *ret, int tid) = 0;
+    /**
+     * @brief Print the headers of the trace files.
+     */
+    virtual void PrintHeaders() = 0;
 
     virtual ~TraceReader() {}
 };
