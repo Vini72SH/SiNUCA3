@@ -85,6 +85,7 @@ void usage() {
     printf("  -L <0-3>      Set log level (0=Error, 1=Warning, 2=Info, 3=Debug)\n");
     printf("  -f <file>     Add logger file filter\n");
     printf("  -r <test>     Run a test (debug mode only)\n");
+    printf("  -P            Print trace file headers\n");
     printf("\nExample:\n");
     printf("  sinuca3 -c config.yaml -t path/to/trace1 -t path/to/trace2\n");
 }
@@ -108,21 +109,35 @@ int main(int argc, char* const argv[]) {
     const char* rootConfigFile = NULL;
     std::vector<TraceReader*> readers;
     std::vector<const char*> traces;
+    bool printHeaders = false;
 
     char nextOpt;
 
     // When compiling debug mode, enable our testing facilities and set the log
     // level to debug.
+    struct option longOpts[] = {
+        {"help", no_argument, NULL, 'h'},
+        {"license", no_argument, NULL, 'l'},
+        {"config", required_argument, NULL, 'c'},
+        {"trace", required_argument, NULL, 't'},
+        {"trace-reader", required_argument, NULL, 'T'},
+        {"log-level", required_argument, NULL, 'L'},
+        {"log-file-filter", required_argument, NULL, 'f'},
+        {"print-headers", no_argument, NULL, 'P'},
+#ifndef NDEBUG
+        {"run-test", required_argument, NULL, 'r'},
+#endif
+        {NULL, 0, NULL, 0}};
 #ifdef NDEBUG
     logger::Level logLevel = logger::LevelInfo;
-#define SINUCA3_SWITCHES "lc:t:d:T:L:f:"
+#define SINUCA3_SWITCHES "lc:t:d:T:L:f:P"
 #else
     logger::Level logLevel = logger::LevelDebug;
-#define SINUCA3_SWITCHES "r:lc:t:d:T:L:f:"
+#define SINUCA3_SWITCHES "r:lc:t:d:T:L:f:P"
     const char* testToRun = NULL;
 #endif
 
-    while ((nextOpt = getopt(argc, argv, SINUCA3_SWITCHES)) != -1) {
+    while ((nextOpt = getopt_long(argc, argv, SINUCA3_SWITCHES, longOpts, NULL)) != -1) {
         switch (nextOpt) {
             // When compiling in debug mode, enable our testing facilities.
 #ifndef NDEBUG
@@ -154,6 +169,9 @@ int main(int argc, char* const argv[]) {
                 break;
             case 'f':
                 SINUCA3_ADD_LOG_FILE_FILTER(optarg);
+                break;
+            case 'P':
+                printHeaders = true;
                 break;
         }
     }
@@ -211,6 +229,7 @@ int main(int argc, char* const argv[]) {
         }
         if (traceReader->OpenTrace(traces[i])) return 1;
         readers.push_back(traceReader);
+        if (printHeaders) traceReader->PrintHeaders();
     }
 
     engine.Simulate(&readers);
