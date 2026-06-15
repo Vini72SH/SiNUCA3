@@ -1,3 +1,5 @@
+# Each core shall have one and only one fetcher!
+
 core1: &core1
   class: SimpleCore
   engine: *ENGINE

@@ -68,11 +68,10 @@ void FormatPathTidOut(char* dest, const char* dir, const char* pref,
 }
 
 void FileHeader::Print(bool printMetadata) const {
-    SINUCA3_LOG_PRINTF("\t File Header:\n");
-    SINUCA3_LOG_PRINTF("\t Magic: [0x%X]\n", this->magic);
-    SINUCA3_LOG_PRINTF("\t Prefix: [%.*s]\n", PREFIX_SIZE, this->prefix);
-    SINUCA3_LOG_PRINTF("\t Version: [%d]\n", this->version);
-    SINUCA3_LOG_PRINTF("\t Entries: [%ld]\n", this->entries);
+    SINUCA3_LOG_PRINTF("  %-18s: 0x%X\n", "Magic", this->magic);
+    SINUCA3_LOG_PRINTF("  %-18s: %.*s\n", "Prefix", PREFIX_SIZE, this->prefix);
+    SINUCA3_LOG_PRINTF("  %-18s: %d\n", "Version", this->version);
+    SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Entries", this->entries);
 
     const char* targetStr = "Unknown";
     switch (this->target) {
@@ -89,17 +88,19 @@ void FileHeader::Print(bool printMetadata) const {
             break;
     }
 
-    SINUCA3_LOG_PRINTF("\t Target: [%s]\n", targetStr);
+    SINUCA3_DEBUG_PRINTF(" %-18s: %s\n", "Target", targetStr);
 
     if (!printMetadata) return;
 
     if (this->type == FileTypeStaticTrace) {
-        SINUCA3_LOG_PRINTF("\t Instructions: [%ld]\n", this->st.instructions);
-        SINUCA3_LOG_PRINTF("\t Basic Blocks: [%d]\n", this->st.basicBlocks);
-        SINUCA3_LOG_PRINTF("\t Threads: [%d]\n", this->st.threads);
+        SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Instructions",
+                             this->st.instructions);
+        SINUCA3_DEBUG_PRINTF(" %-18s: %d\n", "Basic Blocks",
+                             this->st.basicBlocks);
+        SINUCA3_DEBUG_PRINTF(" %-18s: %d\n", "Threads", this->st.threads);
     } else if (this->type == FileTypeDynamicTrace) {
-        SINUCA3_LOG_PRINTF("\t Executed Instructions: [%ld]\n",
-                           this->dyn.executed);
+        SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Executed Instr.",
+                             this->dyn.executed);
     }
 }
 

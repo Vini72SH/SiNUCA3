@@ -127,6 +127,7 @@ class SinucaTraceReader : public TraceReader {
     StaticInstructionInfo* pool;
     Thread* threads;
 
+    const char* trace;
     const char* pathToStaticFile;
 
     int threadCount;
@@ -177,8 +178,6 @@ class SinucaTraceReader : public TraceReader {
     void HandleAbruptEnd();
     /** @brief Deallocate all allocated resources. */
     void DeallocateResources();
-    /** @brief Print the headers of the trace files. */
-    void PrintHeaders();
     /** @brief Format the directory path. */
     char* FormatDirectory(const char* directory);
 
@@ -201,6 +200,7 @@ class SinucaTraceReader : public TraceReader {
     virtual long GetTotalInstToBeFetched(int tid);
     virtual int GetTotalThreads();
     virtual int GetTotalBasicBlocks();
+    virtual void PrintHeaders();
 
     virtual ~SinucaTraceReader();
 };
