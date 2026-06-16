@@ -109,7 +109,7 @@ bool Connection::RemoveFromAResponseBuffer(int id, void* messageOutput) {
 }
 
 Linkable::Linkable(int messageSize)
-    : messageSize(messageSize), numberOfConnections(0) {}
+    : messageSize(messageSize), numberOfConnections(0), context(0) {}
 
 void Linkable::AllocateConnectionsBuffer(long numberOfConnections) {
     this->numberOfConnections = numberOfConnections;
@@ -171,4 +171,77 @@ int Linkable::GetResponseUnsafe(int connectionID, void* messageOutput) {
         SOURCE_ID, messageOutput);
 }
 
+void Linkable::AddChild(Linkable* child) {
+    if (child == NULL) {
+        SINUCA3_ERROR_PRINTF("Cannot add a null child component.\n");
+        return;
+    }
+    this->children.push_back(child);
+}
+
+int Linkable::SetContext(const Context* context) {
+    if (context == NULL) {
+        SINUCA3_ERROR_PRINTF("Cannot set a null context for a component.\n");
+        return 1;
+    }
+    this->context = context;
+    return 0;
+}
+
+const Context* Linkable::GetContext() const {
+    if (this->context == NULL) {
+        SINUCA3_ERROR_PRINTF("Component does not have a context.\n");
+        return NULL;
+    }
+    return this->context;
+}
+
+long Linkable::GetNumberOfChildren() const { return this->children.size(); }
+
+Linkable* Linkable::GetReferenceToChild(long index) const {
+    if (index < 0 || index >= (long)this->children.size()) {
+        SINUCA3_ERROR_PRINTF("Child index out of bounds: %ld.\n", index);
+        return NULL;
+    }
+    return this->children[index];
+}
+
 Linkable::~Linkable() { DeallocateConnectionsBuffer(); }
+
+Context* Context::CreateContext() {
+    Context* ctx = new Context();
+    if (ctx == NULL) {
+        SINUCA3_ERROR_PRINTF("Failed to create context.\n");
+        return NULL;
+    }
+    ctx->core.contextId = -1;
+    ctx->core.engineConnId = -1;
+    ctx->core.engine = NULL;
+    contexts.push_back(ctx);
+    return ctx;
+}
+
+void Context::DestroyAllContexts() {
+    for (long i = 0; i < (long)contexts.size(); i++)
+        if (contexts[i]) delete contexts[i];
+    contexts.clear();
+}
+
+void Context::SetCoreContext(int contextId, int engineConnId, Linkable* engine) {
+    this->core.contextId = contextId;
+    this->core.engineConnId = engineConnId;
+    this->core.engine = engine;
+}
+
+int Context::PropagateContext(Linkable* component) {
+    if (component->SetContext(this) != 0) {
+        SINUCA3_ERROR_PRINTF("Failed to propagate context to component.\n");
+        return 1;
+    }
+    for (long i = 0; i < component->GetNumberOfChildren(); i++)
+        PropagateContext(component->GetReferenceToChild(i));
+    return 0;
+}
+
+// C++ requires the definition of static members outside the class declaration.s
+std::vector<Context*> Context::contexts;

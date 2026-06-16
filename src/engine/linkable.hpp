@@ -34,6 +34,56 @@ class Config;
 static const int SOURCE_ID = 0;
 static const int DEST_ID = 1;
 
+// Pre-declaration because of cross-references between Linkable and Context.
+class Linkable;
+
+class Context {
+  public:
+    /** @brief Structure to hold core context information. */
+    struct Core {
+        Linkable* engine;
+        int contextId;
+        int engineConnId;
+    };
+
+  private:
+    union {
+        Core core;
+    };
+
+    /** @brief Vector to hold all created contexts. */
+    static std::vector<Context*> contexts;
+
+    Context() {}
+
+  public:
+    /**
+     * @brief Create a new context.
+     * @return A pointer to the created context, or NULL if creation failed.
+     */
+    static Context* CreateContext();
+
+    /**
+     * @brief Destroy all created contexts.
+     */
+    static void DestroyAllContexts();
+
+    /**
+     * @brief Set the core context information.
+     */
+    void SetCoreContext(int contextId, int engineConnId, Linkable* engine);
+
+    /**
+     * @brief Propagate the context to a component and its children.
+     * @param component The component to propagate the context to.
+     * @return 0 if successful, 1 otherwise.
+     */
+    int PropagateContext(Linkable* component);
+
+    /** @brief Return copy of the core context information. */
+    inline Core GetCoreContext() const { return this->core; }
+};
+
 struct Connection {
   private:
     int bufferSize;
@@ -137,6 +187,10 @@ class Linkable {
     std::vector<Connection*>
         connections; /**< Array of all connections buffers.*/
 
+    std::vector<Linkable*> children; /**< Array of sub-components. */
+
+    const Context* context; /**< A shared environment. */
+
   protected:
     /**
      * @brief Allocates the buffers with the specified number of connections.
@@ -232,6 +286,33 @@ class Linkable {
     bool IsConnectionAvailable(int connectionID);
 
     /**
+     * @brief Adds a child component to *this* component.
+     * @param child A pointer to the child component to add.
+     */
+    void AddChild(Linkable* child);
+
+    /**
+     * @brief Sets the context for the component.
+     * @param context A pointer to the context to set.
+     * @return 0 if successful, 1 otherwise.
+     */
+    int SetContext(const Context* context);
+
+    /**
+     * @brief Gets the context for the component.
+     * @return A pointer to the context.
+     */
+    const Context* GetContext() const;
+
+    /**
+     * @brief Gets the number of child components.
+     * @return The number of child components.
+     */
+    long GetNumberOfChildren() const;
+
+    Linkable* GetReferenceToChild(long child) const;
+
+    /**
      * @brief This method should be declared here so the simulator can send
      * config parameters.
      * @details This method is called if the config file defines a configuration
@@ -242,6 +323,13 @@ class Linkable {
      * @returns Non-zero on error, 0 otherwise.
      */
     virtual int Configure(Config config) = 0;
+
+    /**
+     * @brief This method is called after the configuration is complete.
+     * @details This method is called to perform any post-configuration setup.
+     * @return 0 if successful, 1 otherwise.
+     */
+    virtual int PosConfigure() { return 0; }
 
     /**
      * @brief This method should be declared here so the simulator can send

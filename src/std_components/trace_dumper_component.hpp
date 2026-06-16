@@ -43,6 +43,7 @@ class TraceDumperComponent : public Component<int> {
         : fetch(NULL), fetched(0), fetchID(0), def(true) {};
 
     virtual int Configure(Config config);
+    virtual int PosConfigure();
     virtual void Clock();
     virtual void PrintStatistics();
 

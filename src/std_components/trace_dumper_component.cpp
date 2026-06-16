@@ -33,10 +33,10 @@ void TraceDumperComponent::Override(const char* instruction) {
 }
 
 int TraceDumperComponent::Configure(Config config) {
-    if (config.ComponentReference("fetch", &this->fetch, true)) return 1;
+    if (config.ComponentReference("fetch", &this->fetch)) return 1;
     if (config.Bool("default", &this->def)) return 1;
 
-    this->fetchID = this->fetch->Connect(0);
+    if (this->fetch != NULL) this->fetchID = this->fetch->Connect(0);
 
     // Use raw yaml to get the overrides.
     yaml::YamlValue value;
@@ -47,6 +47,22 @@ int TraceDumperComponent::Configure(Config config) {
         if (strcmp(key, "fetch") && strcmp(key, "default")) this->Override(key);
     }
 
+    return 0;
+}
+
+int TraceDumperComponent::PosConfigure() {
+    if (this->fetch == NULL) {
+        Linkable* linkable = this->GetContext()->GetCoreContext().engine;
+        Component<FetchPacket>* fetchComponent =
+            dynamic_cast<Component<FetchPacket>*>(linkable);
+        if (fetchComponent == NULL) {
+            SINUCA3_ERROR_PRINTF(
+                "Failed to find fetch component for trace dumper.\n");
+            return 1;
+        }
+        this->fetch = fetchComponent;
+        this->fetchID = this->GetContext()->GetCoreContext().engineConnId;
+    }
     return 0;
 }
 

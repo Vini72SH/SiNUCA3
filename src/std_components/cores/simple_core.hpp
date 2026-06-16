@@ -26,6 +26,8 @@
 
 #include <sinuca3.hpp>
 
+#include "engine/linkable.hpp"
+
 /**
  * @details SimpleCore fetches an instruction from the required parameter
  * `fetching`, a Component<InstructionPacket> and optionally queries two
@@ -35,25 +37,48 @@
  */
 class SimpleCore : public Component<InstructionPacket> {
   private:
+    Component<FetchPacket>* engine; /** @brief The engine component */
     Component<MemoryPacket>*
         instructionMemory;               /** @brief The instruction memory. */
     Component<MemoryPacket>* dataMemory; /** @brief The data memory. */
-    Component<FetchPacket>* fetching;    /** @brief The fetching. */
+    Component<int>* fetcher;             /** @brief The fetcher. */
+    Component<MemoryPacket>* mmu;        /** @brief Memory management unit. */
 
     unsigned long numFetchedInstructions; /** @brief The number of fetched
                                              instructions. */
-    int instructionConnectionID;          /** @brief The connection ID of
-                                             instructionMemory. */
-    int dataConnectionID;     /** @brief The connection ID of dataMemory. */
-    int fetchingConnectionID; /** @brief The connection ID of fetching. */
+    int engineConnectionID;      /** @brief The connection ID of the engine. */
+    int instructionConnectionID; /** @brief The connection ID of
+                                    instructionMemory. */
+    int dataConnectionID;        /** @brief The connection ID of dataMemory. */
+    int fetcherConnectionID;     /** @brief The connection ID of fetcher. */
+    int mmuConnectionID;         /** @brief The connection ID of mmu. */
+    int coreId;                  /** @brief The ID of the core. */
+
+    /** @brief Establish the core ID for the core. */
+    int EstablishCoreID();
+    /** @brief Establish the connections for the core. */
+    int EstablishConnections(Config config);
+    /** @brief Establish the child components for the core. */
+    int EstablishChildComponents();
+    /** @brief Establish the context for the core and propagate it to the child
+     * components. */
+    int EstablishContextAndPropagate();
+
+    /** @brief Static counter to assign unique core IDs. */
+    static int nextCoreID;
+    /** @brief Increment the core ID counter. */
+    static inline void StepCoreID() { nextCoreID++; }
 
   public:
     inline SimpleCore()
-        : instructionMemory(NULL),
+        : engine(NULL),
+          instructionMemory(NULL),
           dataMemory(NULL),
-          fetching(NULL),
+          fetcher(NULL),
+          mmu(NULL),
           numFetchedInstructions(0) {}
     virtual int Configure(Config config);
+    virtual int PosConfigure();
     virtual void Clock();
     virtual void PrintStatistics();
     ~SimpleCore();

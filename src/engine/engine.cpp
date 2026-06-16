@@ -28,6 +28,10 @@
 #include <sinuca3.hpp>
 #include <vector>
 
+#include "engine/address_mapper.hpp"
+#include "tracer/trace_reader.hpp"
+#include "utils/logger.hpp"
+
 int NewComponentDefinition(Map<Definition>* definitions,
                            Map<Linkable*>* aliases,
                            std::vector<InstanceWithDefinition>* instances,
@@ -81,6 +85,7 @@ int Engine::Configure(Config config) {
     instances.reserve(32);
 
     aliases->Insert("ENGINE", this);
+    aliases->Insert("ADDRESS_MAPPER", AddressMapper::GetInstance());
 
     Map<yaml::YamlValue>* map = config.RawYaml();
 
@@ -126,6 +131,16 @@ int Engine::Configure(Config config) {
         }
     }
 
+    for (long i = 0; i < (long)components->size(); ++i) {
+        Linkable* component = components->at(i);
+        if (component->PosConfigure()) {
+            // Skip the engine.
+            for (unsigned int i = 1; i < components->size(); ++i)
+                delete (*components)[i];
+            return 1;
+        }
+    }
+
     this->numberOfComponents = components->size();
     this->components = new Linkable*[this->numberOfComponents];
     for (unsigned int i = 0; i < this->numberOfComponents; ++i)
@@ -135,10 +150,9 @@ int Engine::Configure(Config config) {
 }
 
 int Engine::SendBufferedAndFetch(int id) {
-    InstructionPacket toSend = this->fetchBuffers[id];
-    const FetchResult r = this->traceReader->Fetch(&this->fetchBuffers[id], id);
-    toSend.nextInstruction = this->fetchBuffers[id].staticInfo->instAddress;
-
+    if (!this->fetchBuffers[id].IsReady()) return 1;
+    InstructionPacket toSend;
+    this->fetchBuffers[id].GetReadyInstructionToSend(&toSend);
     // This unfortunately drops the packet if the buffer is full. The component
     // must ensure the buffers never fills.
     if (this->SendResponseToConnection(id, (FetchPacket*)&toSend) != 0) {
@@ -147,33 +161,25 @@ int Engine::SendBufferedAndFetch(int id) {
             "with a full buffer, instructions will be dropped.\n",
             id);
     }
-
-    if (r == FetchResultEnd) {
-        this->end = true;
-        return 1;
-    } else if (r == FetchResultError) {
-        this->error = true;
-        return 1;
-    }
-
-    ++this->fetchedInstructions;
+    this->fetchBuffers[id].TryToFetchNextInstruction();
 
     return 0;
 }
 
-void Engine::Fetch(int id, FetchPacket packet) {
-    if (packet.request == 0) {
+void Engine::Fetch(int id) {
+    long requestedSize = this->fetchBuffers[id].GetBytesRequested();
+    this->fetchBuffers[id].ClearRequest();
+    if (requestedSize == 0) {
         this->SendBufferedAndFetch(id);
         return;
     }
 
-    long weight = this->fetchBuffers[id].staticInfo->instSize;
-
-    while (weight < packet.request) {
+    long weight = fetchBuffers[id].currPkt.staticInfo->instSize;
+    while (weight < requestedSize) {
         if (this->SendBufferedAndFetch(id)) {
-            return;
+            break;
         }
-        weight += this->fetchBuffers[id].staticInfo->instSize;
+        weight += fetchBuffers[id].currPkt.staticInfo->instSize;
     }
 }
 
@@ -182,9 +188,19 @@ void Engine::Clock() {
     const int numberOfConnections = this->GetNumberOfConnections();
 
     for (int i = 0; i < numberOfConnections; ++i) {
-        if (!this->ReceiveRequestFromConnection(i, &packet)) {
-            this->Fetch(i, packet);
+        if (!this->fetchBuffers[i].HasFetcherRequested() &&
+            (this->ReceiveRequestFromConnection(i, &packet) == 0)) {
+            this->fetchBuffers[i].RememberRequest(packet.request);
         }
+        if (this->fetchBuffers[i].IsReady()) {
+            if (this->fetchBuffers[i].HasFetcherRequested()) {
+                this->Fetch(i);
+            }
+        } else {
+            this->fetchBuffers[i].TryToFetchNextInstruction();
+        }
+        this->end |= this->fetchBuffers[i].reachedEnd;
+        this->error |= this->fetchBuffers[i].hasError;
     }
 }
 
@@ -196,8 +212,14 @@ void Engine::PrintStatistics() {
 
 unsigned long Engine::GetTraceSize() {
     unsigned long size = 0;
-    for (int i = 0; i < this->traceReader->GetTotalThreads(); ++i) {
-        size += this->traceReader->GetTotalInstToBeFetched(i);
+    for (long i = 0; i < this->numberOfFetchers; ++i) {
+        unsigned long instructionsToSimulate = 0;
+        if (this->fetchBuffers[i].IsValid()) {
+            instructionsToSimulate =
+                this->fetchBuffers[i].tracer->GetTotalInstToBeFetched(
+                    this->fetchBuffers[i].tid);
+        }
+        size += instructionsToSimulate;
     }
     return size;
 }
@@ -214,25 +236,37 @@ void Engine::PrintTime(time_t start, unsigned long cycle) {
     SINUCA3_LOG_PRINTF("Estimated simulation end: %s", ctime(&estimatedEnd));
 }
 
-int Engine::SetupSimulation(TraceReader* traceReader) {
-    this->traceReader = traceReader;
+int Engine::SetupSimulation(std::vector<TraceReader*>* tracers) {
     this->numberOfFetchers = this->GetNumberOfConnections();
-    this->fetchBuffers = new InstructionPacket[this->numberOfFetchers];
+    this->fetchBuffers = new FetchBuffer[this->numberOfFetchers];
 
-    // Bufferize the first instruction of each core.
-    for (long i = 0; i < this->numberOfFetchers; ++i) {
-        if (this->traceReader->Fetch(&this->fetchBuffers[i], i) !=
-            FetchResultOk) {
-            return 1;
+    long numberOfFetchersNeeded = 0;
+
+    for (long i = 0, k = 0; i < (long)tracers->size(); i++) {
+        int threads = tracers->at(i)->GetTotalThreads();
+        for (int j = 0; j < threads; j++, k++, numberOfFetchersNeeded++) {
+            if (this->numberOfFetchers <= k) {
+                SINUCA3_ERROR_PRINTF(
+                    "Not enough fetchers to handle all given traces!\n");
+                return 1;
+            }
+            this->fetchBuffers[k].SetTracerAndTid(tracers->at(i), j);
         }
-        ++this->fetchedInstructions;
+    }
+
+    this->numberOfFetchers = numberOfFetchersNeeded;
+
+    if (AddressMapper::GetInstance()->Configure(this->fetchBuffers,
+                                                this->numberOfFetchers)) {
+        SINUCA3_ERROR_PRINTF("Failed to configure address mapper.\n");
+        return 1;
     }
 
     return 0;
 }
 
-int Engine::Simulate(TraceReader* traceReader) {
-    if (this->SetupSimulation(traceReader)) {
+int Engine::Simulate(std::vector<TraceReader*>* traceReaders) {
+    if (this->SetupSimulation(traceReaders)) {
         return 1;
     }
 
@@ -240,6 +274,7 @@ int Engine::Simulate(TraceReader* traceReader) {
 
     const time_t start = time(NULL);
 
+    printf("\n");  // Just for better formatting of the logs.
     SINUCA3_LOG_PRINTF("Simulation started at %s", ctime(&start));
     SINUCA3_LOG_PRINTF("Total instructions: %ld.\n", this->traceSize);
 
@@ -284,4 +319,51 @@ Engine::~Engine() {
     if (this->fetchBuffers != NULL) {
         delete[] this->fetchBuffers;
     }
+    Context::DestroyAllContexts();
+}
+
+void FetchBuffer::SetTracerAndTid(TraceReader* tracer, int tid) {
+    this->tracer = tracer;
+    this->tid = tid;
+}
+
+void FetchBuffer::TryToFetchNextInstruction() {
+    if (!this->IsValid()) {
+        return;
+    }
+
+    InstructionPacket* target =
+        (this->isCurrentFetched) ? &this->nextPkt : &this->currPkt;
+
+    const FetchResult r = this->tracer->Fetch(target, this->tid);
+    if (r == FetchResultError) {
+        this->hasError = true;
+    } else if (r == FetchResultEnd) {
+        this->reachedEnd = true;
+    } else if (r != FetchResultWait) {
+        if (target == &this->nextPkt) {
+            this->isCurrentValid = true;
+            this->currPkt.nextInstruction =
+                this->nextPkt.staticInfo->instAddress;
+        } else {
+            this->isCurrentFetched = true;
+        }
+    }
+}
+
+void FetchBuffer::GetReadyInstructionToSend(InstructionPacket* target) {
+    *target = this->currPkt;
+    this->currPkt = this->nextPkt;
+    this->isCurrentFetched = this->isCurrentValid;
+    this->isCurrentValid = false;
+}
+
+void FetchBuffer::RememberRequest(unsigned long request) {
+    this->bytesRequested = request;
+    this->isWaiting = true;
+}
+
+void FetchBuffer::ClearRequest() {
+    this->bytesRequested = 0;
+    this->isWaiting = false;
 }

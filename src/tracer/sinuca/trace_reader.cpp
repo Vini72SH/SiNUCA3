@@ -20,6 +20,7 @@
  */
 
 #include <cassert>
+#include <cstdlib>
 #include <tracer/sinuca/trace_reader.hpp>
 
 #include "file_handler.hpp"
@@ -29,10 +30,10 @@ FetchResult SinucaTraceReader::Fetch(InstructionPacket* ret, int tid) {
         return FetchResultEnd;
     }
     if (this->IsThreadSleeping(tid)) {
-        if (!this->TryToWakeUpThread(tid)) return FetchResultNop;
+        if (!this->TryToWakeUpThread(tid)) return FetchResultWait;
     }
     if (!this->IsThreadInsideBasicBlock(tid)) {
-        if (this->TryToFetchNewBasicBlock(tid)) return FetchResultNop;
+        if (this->TryToFetchNewBasicBlock(tid)) return FetchResultWait;
     }
 
     this->FetchInstruction(ret, tid);
@@ -65,31 +66,27 @@ int SinucaTraceReader::OpenTrace(const char* dir) {
         return 1;
     }
 
-#ifndef NDEBUG
-    this->PrintHeaders();
-#endif
-
     delete[] directory;
 
     return 0;
 }
 
 void SinucaTraceReader::PrintHeaders() {
-    SINUCA3_LOG_PRINTF("Trace Headers:\n");
+    SINUCA3_LOG_PRINTF("Metadata from [%s]:\n", this->trace);
     for (int i = 0; i < this->threadCount; i++) {
-        SINUCA3_LOG_PRINTF("\t Thread [%d]:\n", i);
         FileHeader header;
-        SINUCA3_LOG_PRINTF("Header from dynamic file: \n");
+        SINUCA3_LOG_PRINTF("Dynamic trace thread [%d]: \n", i);
         this->threads[i].executionLoader.GetHeader(&header);
         header.Print(true);
-        SINUCA3_LOG_PRINTF("Header from memory file: \n");
+        SINUCA3_LOG_PRINTF("Memory trace thread [%d]: \n", i);
         this->threads[i].memoryLoader.GetHeader(&header);
         header.Print(true);
     }
     FileHeader header;
-    SINUCA3_LOG_PRINTF("Header from statics file: \n");
+    SINUCA3_LOG_PRINTF("Static trace: \n");
     this->instructionsLoader.GetHeader(&header);
     header.Print(true);
+    printf("\n");
 }
 
 void SinucaTraceReader::PrintStatistics() {
@@ -201,6 +198,10 @@ SinucaTraceReader::~SinucaTraceReader() {
         delete[] this->pathToStaticFile;
         this->pathToStaticFile = NULL;
     }
+    if (this->trace != NULL) {
+        free((void*)this->trace); // strdup
+        this->trace = NULL;
+    }
 }
 
 char* SinucaTraceReader::FormatDirectory(const char* directory) {
@@ -236,6 +237,7 @@ int SinucaTraceReader::ReadMetadata() {
 }
 
 int SinucaTraceReader::OpenInstructionsLog(const char* directory) {
+    this->trace = strdup(directory);
     this->pathToStaticFile = GetFormattedPath(directory, "static");
     assert(this->pathToStaticFile != NULL);
     return (this->instructionsLoader.Open(this->pathToStaticFile));
