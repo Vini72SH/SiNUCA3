@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012-2020 Intel Corporation.
+# Copyright (C) 2012-2024 Intel Corporation.
 # SPDX-License-Identifier: MIT
 #
 
@@ -49,6 +49,9 @@ APP_ROOTS :=
 # This defines any additional object files that need to be compiled.
 OBJECT_ROOTS :=
 
+# This defines any additional application object files that need to be compiled.
+APP_OBJECT_ROOTS :=
+
 # This defines any additional dlls (shared objects), other than the pintools, that need to be compiled.
 DLL_ROOTS :=
 
@@ -65,6 +68,7 @@ ifeq ($(TARGET),ia32)
     SA_TOOL_ROOTS +=
     APP_ROOTS +=
     OBJECT_ROOTS +=
+    APP_OBJECT_ROOTS +=
     DLL_ROOTS +=
     LIB_ROOTS +=
 endif
@@ -77,6 +81,7 @@ ifeq ($(TARGET),intel64)
     SA_TOOL_ROOTS +=
     APP_ROOTS +=
     OBJECT_ROOTS +=
+    APP_OBJECT_ROOTS +=
     DLL_ROOTS +=
     LIB_ROOTS +=
 endif
@@ -91,6 +96,7 @@ ifeq ($(TARGET_OS),linux)
     SA_TOOL_ROOTS +=
     APP_ROOTS +=
     OBJECT_ROOTS +=
+    APP_OBJECT_ROOTS +=
     DLL_ROOTS +=
     LIB_ROOTS +=
     ifeq ($(TARGET),ia32)
@@ -100,6 +106,7 @@ ifeq ($(TARGET_OS),linux)
         SA_TOOL_ROOTS +=
         APP_ROOTS +=
         OBJECT_ROOTS +=
+        APP_OBJECT_ROOTS +=
         DLL_ROOTS +=
         LIB_ROOTS +=
     endif
@@ -110,38 +117,7 @@ ifeq ($(TARGET_OS),linux)
         SA_TOOL_ROOTS +=
         APP_ROOTS +=
         OBJECT_ROOTS +=
-        DLL_ROOTS +=
-        LIB_ROOTS +=
-    endif
-endif
-
-# macOS*
-ifeq ($(TARGET_OS),mac)
-    TEST_TOOL_ROOTS +=
-    TEST_ROOTS +=
-    TOOL_ROOTS +=
-    SA_TOOL_ROOTS +=
-    APP_ROOTS +=
-    OBJECT_ROOTS +=
-    DLL_ROOTS +=
-    LIB_ROOTS +=
-    ifeq ($(TARGET),ia32)
-        TEST_TOOL_ROOTS +=
-        TEST_ROOTS +=
-        TOOL_ROOTS +=
-        SA_TOOL_ROOTS +=
-        APP_ROOTS +=
-        OBJECT_ROOTS +=
-        DLL_ROOTS +=
-        LIB_ROOTS +=
-    endif
-    ifeq ($(TARGET),intel64)
-        TEST_TOOL_ROOTS +=
-        TEST_ROOTS +=
-        TOOL_ROOTS +=
-        SA_TOOL_ROOTS +=
-        APP_ROOTS +=
-        OBJECT_ROOTS +=
+        APP_OBJECT_ROOTS +=
         DLL_ROOTS +=
         LIB_ROOTS +=
     endif
@@ -155,6 +131,7 @@ ifeq ($(TARGET_OS),windows)
     SA_TOOL_ROOTS +=
     APP_ROOTS +=
     OBJECT_ROOTS +=
+    APP_OBJECT_ROOTS +=
     DLL_ROOTS +=
     LIB_ROOTS +=
     ifeq ($(TARGET),ia32)
@@ -164,6 +141,7 @@ ifeq ($(TARGET_OS),windows)
         SA_TOOL_ROOTS +=
         APP_ROOTS +=
         OBJECT_ROOTS +=
+        APP_OBJECT_ROOTS +=
         DLL_ROOTS +=
         LIB_ROOTS +=
     endif
@@ -174,6 +152,7 @@ ifeq ($(TARGET_OS),windows)
         SA_TOOL_ROOTS +=
         APP_ROOTS +=
         OBJECT_ROOTS +=
+        APP_OBJECT_ROOTS +=
         DLL_ROOTS +=
         LIB_ROOTS +=
     endif
@@ -185,7 +164,7 @@ endif
 
 # This defines the full list of tests prior to applying any bug related filters.
 # It is being used to generate a report about filtered tests.
-RUNNABLE_TESTS := 
+RUNNABLE_TESTS := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 
 ###### Handle exceptions here (bugs related) ######
 

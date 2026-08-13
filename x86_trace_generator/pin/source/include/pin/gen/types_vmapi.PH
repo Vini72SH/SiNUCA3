@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2023 Intel Corporation.
+ * Copyright (C) 2021-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -322,12 +322,12 @@ typedef enum
      * Also available for regular memory instructions
      */
     IARG_MULTI_MEMORYACCESS_EA,
-        
+
     /*!
      * Type: @ref IMULTI_ELEMENT_OPERAND * . Information about a multi element operand (implemented for IPOINT_BEFORE).
      * The operand index is required as the next argument.
      */
-    IARG_MULTI_ELEMENT_OPERAND,   
+    IARG_MULTI_ELEMENT_OPERAND,
 
     /*!
      * Type: @ref ISCATTERED_MEMORY_REWRITE * . Interface that allows rewriting elemenets addresses for instructions 
@@ -371,7 +371,7 @@ typedef enum
     IARG_SYSARG_REFERENCE, ///< Type: "ADDRINT *". Pointer to system call argument n. Valid for IPOINT_BEFORE at the system call instruction.  (First argument number is 0.)
 
     IARG_SYSARG_VALUE, ///< Type: ADDRINT. System call argument n. Valid for IPOINT_BEFORE at the system call instruction.  (First argument number is 0.)
-    IARG_SYSRET_VALUE, ///< Type: ADDRINT. System call return value. On Linux and macOS* the value is -1 if the system call failed. (IPOINT_AFTER only)
+    IARG_SYSRET_VALUE, ///< Type: ADDRINT. System call return value. On Linux the value is -1 if the system call failed. (IPOINT_AFTER only)
     IARG_SYSRET_ERRNO, ///< Type: INT32. System call errno (IPOINT_AFTER_only).
 
     // function arguments
@@ -467,13 +467,14 @@ typedef enum
      */
     IARG_PRESERVE,
 
-     /*! Type: BOOL.
+    /*! Type: BOOL.
      * Used to mark analysis routine that is expected to be inlined.
      * If the analysis ruotine is not inlinable and -assert_check_inline has been passed then Pin will assert.
      */
     IARG_CHECK_INLINE,
 
-    IARG_RETURN_REGS, ///< Register to write analysis function return value (additional register arg required).  Not supported in Probe mode.
+    IARG_RETURN_REGS, ///< Register to write analysis function return value (additional register arg required).
+                      ///< In Probe mode, only physical GPRs are allowed.
 
     IARG_CALL_ORDER, ///< Type: CALL_ORDER. Determine order of analysis calls. See @ref CALL_ORDER.
 
@@ -492,12 +493,13 @@ typedef enum
     * @ref IARG_EXPOSE must be followed by a @ref REGSET* that points to the @ref REGSET containing the registers
     * exposed, REG_MXCSR must be included and be the only one.
     */
-    IARG_EXPOSE, 
+    IARG_EXPOSE,
 
     IARG_MEMORYOP_EA, ///< Type: ADDRINT. Effective address of a memory op (memory op index is next arg); only valid at IPOINT_BEFORE
     IARG_MEMORYOP_SIZE, ///< Type: UINT32. Size of a memory op (memory op index is next arg)
     IARG_MEMORYOP_MASKED_ON, ///< Type: BOOL. TRUE if the this memory op (memory op index is next arg) is masked on; only valid at IPOINT_BEFORE
     IARG_TSC,                ///< Type: UINT64. Time Stamp Counter value at the point of entering the analysis call.
+    IARG_FUNC_NAME, ///< Type: STRING. prints the given name as analysis function name in log-inline report.
     IARG_FILE_NAME, ///< Reserved for internal use only.
     IARG_LINE_NO,   ///< Reserved for internal use only.
     IARG_LAST       ///< Reserved for internal use only.
@@ -515,6 +517,64 @@ typedef enum
 #else
 #define IARG_END IARG_FILE_NAME, __FILE__, IARG_LINE_NO, LEVEL_BASE::UINT32(__LINE__), IARG_LAST
 #endif
+
+//MACROs for -log-inline flag to log the inline function name (analysis function name).
+
+/**
+ * @brief Creates an argument pair for logging the function name.
+ * 
+ * This macro takes a string representing the function name and pairs it with IARG_FUNC_NAME.
+ * 
+ * @param funcName The name of the function as a string.
+ * 
+ * Example usage:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_func_ptr),
+ *                FUNC_NAME_IARG_STRING("analysis_function_func_ptr"), IARG_END);
+ * @endcode
+ * 
+ * Result of unfolding:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_func_ptr), IARG_FUNC_NAME, "analysis_function_func_ptr", IARG_END);
+ * @endcode
+ */
+#define FUNC_NAME_IARG_STRING(funcName) IARG_FUNC_NAME, funcName
+
+/**
+ * @brief Automatically converts a function name into a string and pairs it with IARG_FUNC_NAME.
+ * 
+ * This macro simplifies the process of passing the function name as a string.
+ * 
+ * @param func The function name.
+ * Example usage:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_iarg), FUNC_NAME_IARG(analysis_function_another_func), IARG_END);
+ * @endcode
+ * 
+ * Result of unfolding:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_iarg), IARG_FUNC_NAME, "analysis_function_another_func", IARG_END);
+ * @endcode
+ */
+#define FUNC_NAME_IARG(func) FUNC_NAME_IARG_STRING(#func)
+
+/**
+ * @brief Combines the function pointer with its name for logging purposes.
+ * 
+ * This macro uses AFUNPTR(func) to get the function pointer and FUNC_NAME_IARG(func) to get the function name as a string.
+ * 
+ * @param func The function name.
+ * Example usage:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_func_name), IARG_END);
+ * @endcode
+ * 
+ * Result of unfolding:
+ * @code
+ * BBL_InsertCall(bbl, IPOINT_BEFORE, MAKE_AFUNPTR(analysis_function_func_name), IARG_FUNC_NAME, "analysis_function_func_name", IARG_END);
+ * @endcode
+ */
+#define MAKE_AFUNPTR(func) AFUNPTR(func), FUNC_NAME_IARG(func)
 
 // Constants representing AVX registers size
 #define XMM_REG_SIZE 16
@@ -814,7 +874,7 @@ typedef IARGLIST_CLASS* IARGLIST;
  @begincode
 VOID PIN_FAST_ANALYSIS_CALL docount(int j);
 
- INS_InsertCall(ins, IPOINT_BEFORE, AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, IARG_UINT32, 3, IARG_END);
+ INS_InsertCall(ins, IPOINT_BEFORE, MAKE_AFUNPTR(docount), IARG_FAST_ANALYSIS_CALL, IARG_UINT32, 3, IARG_END);
  @endcode
  *
  * You will gain the most benefit from using PIN_FAST_ANALYSIS_CALL if
@@ -827,8 +887,6 @@ VOID PIN_FAST_ANALYSIS_CALL docount(int j);
  *
  */
 #if defined(TARGET_IA32) && defined(TARGET_LINUX)
-#define PIN_FAST_ANALYSIS_CALL __attribute__((regparm(3)))
-#elif defined(TARGET_IA32) && defined(TARGET_MAC)
 #define PIN_FAST_ANALYSIS_CALL __attribute__((regparm(3)))
 #elif defined(TARGET_IA32) && defined(TARGET_WINDOWS)
 #define PIN_FAST_ANALYSIS_CALL __fastcall
@@ -880,9 +938,9 @@ typedef struct
  */
 typedef enum
 {
-   PIN_OP_ELEMENT_ACCESS_READ,
-   PIN_OP_ELEMENT_ACCESS_WRITE,
-   PIN_OP_ELEMENT_ACCESS_READWRITE
+    PIN_OP_ELEMENT_ACCESS_READ,
+    PIN_OP_ELEMENT_ACCESS_WRITE,
+    PIN_OP_ELEMENT_ACCESS_READWRITE
 } PIN_OP_ELEMENT_ACCESS;
 
 /*! @ingroup INST_ARGS
@@ -892,9 +950,10 @@ typedef enum
  * This interface allows inspecting multi element operands (register or memory).
  *
  */
-class IMULTI_ELEMENT_OPERAND {
-public:
-    virtual ~IMULTI_ELEMENT_OPERAND(){}
+class IMULTI_ELEMENT_OPERAND
+{
+  public:
+    virtual ~IMULTI_ELEMENT_OPERAND() {}
     /** 
     * Return whether this is a Memory operand
     */
@@ -925,13 +984,13 @@ public:
     /** 
     * Return element effective address
     */
-    virtual ADDRINT ElementAddress( UINT32 element_index ) const = 0;
+    virtual ADDRINT ElementAddress(UINT32 element_index) const = 0;
     /** 
     * Return element offset in bytes from the beginning of the register to the specified element. \n
     * This function should be used only for register operands and will result in Pin error if used for memory operands. \n
     * Users may use the returned offset on buffers received IARG_REG_REFERENCE/IARG_REG_CONST_REFERENCE
     */
-    virtual UINT32 ElementOffset( UINT32 element_index ) const = 0;
+    virtual UINT32 ElementOffset(UINT32 element_index) const = 0;
     /** 
     * Return element mask value - 0 or 1. \n
     * If the instruction has no active mask - 1 is returned. \n
@@ -939,11 +998,11 @@ public:
     * If the mask register is a vector register then 1 is returned if the high bit of the mask element associated with element N
     * (size of mask element depends on the instruction) is set.
     */
-    virtual UINT32 ElementMaskValue( UINT32 element_index ) const = 0;
+    virtual UINT32 ElementMaskValue(UINT32 element_index) const = 0;
     /** 
     * Return element access type (read/write/readwrite)
     */
-    virtual PIN_OP_ELEMENT_ACCESS ElementAccessType( UINT32 element_index) const = 0;
+    virtual PIN_OP_ELEMENT_ACCESS ElementAccessType(UINT32 element_index) const = 0;
 };
 
 /*! @ingroup PROTO
@@ -956,7 +1015,7 @@ typedef PROTO_CLASS* PROTO;
 /*! @ingroup THREADS
  *  Thread ID assigned by PIN.
  */
-typedef UINT32 THREADID;
+typedef INT32 THREADID;
 
 /*! @ingroup THREADS
  *  Invalid value of the THREADID type.
@@ -964,21 +1023,26 @@ typedef UINT32 THREADID;
 const THREADID INVALID_THREADID = static_cast< THREADID >(-1);
 
 /*! @ingroup THREADS
+ *  Invalid value of the THREADID type.
+ */
+const THREADID FUTURE_THREADID = static_cast< THREADID >(-2);
+
+/*! @ingroup THREADS
  * Unique thread ID which, unlike THREADID identifier, is not reused by Pin after
  * the thread termination. The uniqueness of this identifier allows to use it
  * in the @ref PIN_WaitForThreadTermination() function which monitors the thread's state.
  */
-typedef UINT64 PIN_THREAD_UID;
+typedef void* PIN_THREAD_UID;
 
 /*! @ingroup THREADS
  *  Invalid value of the PIN_THREAD_UID type.
  */
-const PIN_THREAD_UID INVALID_PIN_THREAD_UID = static_cast< PIN_THREAD_UID >(-1);
+const PIN_THREAD_UID INVALID_PIN_THREAD_UID = reinterpret_cast< PIN_THREAD_UID >(uintptr_t(-1));
 
 /*! @ingroup THREADS
- *  Thread ID assigned by OS.
+ *  Thread ID assigned by PINOS (Pin's Operating System abstraction layer).
  */
-typedef NATIVE_TID OS_THREAD_ID;
+typedef INT32 OS_THREAD_ID;
 
 /*! @ingroup THREADS
  *  Invalid value of the OS_THREAD_ID type.
@@ -1149,9 +1213,10 @@ typedef struct
  *
  * Used in instruction rewrite for operands with scattered memory access.
  */
-class ISCATTERED_MEMORY_REWRITE {
-public:
-    virtual ~ISCATTERED_MEMORY_REWRITE(){}
+class ISCATTERED_MEMORY_REWRITE
+{
+  public:
+    virtual ~ISCATTERED_MEMORY_REWRITE() {}
     /** 
     * Return number of memory operand elements
     */
@@ -1173,18 +1238,16 @@ public:
     * This function should be used only for register operands and will result in Pin error if used for memory operands. \n
     * Users may use the returned offset on buffers received IARG_REG_REFERENCE/IARG_REG_CONST_REFERENCE
     */
-    virtual UINT32 ElementOffset( UINT32 element_index ) const = 0;
+    virtual UINT32 ElementOffset(UINT32 element_index) const = 0;
     /** 
     * Return element effective address
     */
-    virtual ADDRINT ElementAddress( UINT32 element_index ) const = 0;
+    virtual ADDRINT ElementAddress(UINT32 element_index) const = 0;
     /** 
     * Set new element effective address
     */
-    virtual VOID SetElementAddress( UINT32 element_index, ADDRINT address ) = 0;
+    virtual VOID SetElementAddress(UINT32 element_index, ADDRINT address) = 0;
 };
-
-
 
 /*! @ingroup PIN_CONTROL
 * Additional parameters to define how exactly to perform @ref PIN_CallApplicationFunction ()
@@ -1202,6 +1265,42 @@ enum PIN_CALLBACK_TYPE
 {
     PIN_CALLBACK_TYPE_NONE    = 0, ///< None of the callback types.
     PIN_CALLBACK_TYPE_SYSCALL = 1  ///< Syscall entry/exit callback.
+};
+
+/*! @ingroup TIME_EMULATION
+* Types of Time Emulation clocks.
+* These type could be used with the function @ref TE_GetTime()
+*/
+enum TE_CLOCK_ID
+{
+    TE_REAL_TIME    = 0, //< The real time clock >
+    TE_PROCESS_TIME = 1, //< The process time clock > This is a total cycles the process excuted.
+    TE_THREAD_TIME  = 2  //< The thread time clock >
+};
+
+/*! @ingroup TIME_EMULATION
+* Structure used to return the time from @ref TE_GetTime()
+* The time is returned in seconds and nanoseconds.
+* In Linux for example, we have the time utility. Using "time ls" command we get:
+* real    0m0.002s (corresponds to wallClock)
+* user    0m0.000s (Sum of all threads, corresponds to times.userTime)
+* sys     0m0.000s (Sum of all threads, corresponds to times.kernelTime)
+*/
+struct TE_timespec
+{
+    union
+    {
+        struct
+        {
+            UINT64 sec;
+            UINT64 nsec;
+        } wallClock; // used for real-time wall clock
+        struct
+        {
+            UINT64 kernelTime; //cycles
+            UINT64 userTime;   //cycles
+        } times;               // used for fetching emulated time (thread and process time).
+    };
 };
 
 #endif

@@ -10,9 +10,11 @@
 /*! @file
  *
  * Client side interface to pin vm for specifically Windows only functions.
- * At present none of these is documented, they are provided for the use of PinPlay.
+ * In the past, none of these was documented, they were provided for the use of PinPlay only.
+ * Now, we are documenting them for general use.
  */
-/*! @ingroup WINDOWS_SYSCALL_API_UNDOC
+
+/*! @ingroup SYSCALL
  * Get the system call number which corresponds to the equivalent system call key.
  * This mapping depends on the precise version of the operating system on which
  * Pin is running.
@@ -27,7 +29,7 @@
  */
 extern UINT32 PIN_GetWindowsSyscallFromKey(SYSCALL_KEY key);
 
-/*! @ingroup WINDOWS_SYSCALL_API_UNDOC
+/*! @ingroup SYSCALL
  * Get the system call key which corresponds to the equivalent system call number.
  * Pin only knows about a limited set of system calls, if the system call number is
  * unknown, this function will return SYSCALL_KEY_UNKNOWN.

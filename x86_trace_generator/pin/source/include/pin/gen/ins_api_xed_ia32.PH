@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022 Intel Corporation.
+ * Copyright (C) 2020-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -56,20 +56,6 @@ extern INT32 INS_Extension(const INS ins);
  *  @return the width of the effective address in bits
  */
 extern UINT32 INS_EffectiveAddressWidth(INS ins);
-
-/*! @ingroup INS_INSPECTION
-  @return the size of the memory write in bytes (for REP prefixed instructions this is the size of the
-  operand written on each iteration of the REP, so 1,2,4 or 8).
-  @note DEPRECATED: see @ref INS_MemoryOperandSize() instead.
-*/
-extern PIN_DEPRECATED_API USIZE INS_MemoryWriteSize(INS ins);
-
-/*! @ingroup INS_INSPECTION
-  @return the size of the memory read in bytes (for REP prefixed instructions this is the size of the
-  operand read on each iteration of the REP, so 1,2,4 or 8).
-  @note DEPRECATED: see @ref INS_MemoryOperandSize() instead.
-*/
-extern PIN_DEPRECATED_API USIZE INS_MemoryReadSize(INS ins);
 
 /*! @ingroup INS_INSPECTION
   @return predicate for instruction (see @ref PREDICATE)
@@ -186,14 +172,6 @@ extern BOOL INS_IsDirectBranch(INS ins);
 extern BOOL INS_IsDirectCall(INS ins);
 
 /*! @ingroup INS_INSPECTION
-  These are supposed  to be near relative branches.
-  @return true if the target address is an offset from the instruction
-  pointer or is an immediate.
-  @note DEPRECATED: see @ref INS_IsDirectControlFlow() instead.
-*/
-extern PIN_DEPRECATED_API BOOL INS_IsDirectBranchOrCall(INS ins);
-
-/*! @ingroup INS_INSPECTION
  @return TRUE if ins is a control-flow instruction, and its target address is an offset from the instruction
  pointer or is an immediate.
  */
@@ -203,14 +181,6 @@ extern BOOL INS_IsDirectControlFlow(INS ins);
  @return true if the ins is a halt or reserved undefined (UD2) instruction.
 */
 extern BOOL INS_IsHalt(INS ins);
-
-/*! @ingroup INS_INSPECTION
-  @return TRUE if ins is a Branch or Call instruction,
-  includes both direct and indirect instruction types.\n
-  @note DEPRECATED: Use @ref INS_IsValidForIpointTakenBranch() instead to check if you can use IPOINT_TAKEN_BRANCH.
-  Or use @ref INS_IsControlFlow() to check if instruction is a control flow.
-*/
-extern PIN_DEPRECATED_API BOOL INS_IsBranchOrCall(INS ins);
 
 /*! @ingroup INS_INSPECTION
   @return true if ins "stutters", so re-executes even though it is not a branch or call.
@@ -376,13 +346,6 @@ extern BOOL INS_IsMaskMov(const INS ins);
              if the instruction does not have a real REP prefix.
 */
 extern REG INS_RepCountRegister(INS ins);
-
-/*! @ingroup INS_INSPECTION
-  @return true if the branch target comes from a register or memory.
-  result is valid only if @ref INS_IsControlFlow() is true.
-  @note DEPRECATED: see @ref INS_IsIndirectControlFlow() instead.
-*/
-extern PIN_DEPRECATED_API BOOL INS_IsIndirectBranchOrCall(INS ins);
 
 /*! @ingroup INS_INSPECTION
   @return true if ins is a control-flow instruction, and its target address is provided through memory or

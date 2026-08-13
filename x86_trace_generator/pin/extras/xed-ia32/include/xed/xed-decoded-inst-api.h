@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -26,6 +26,7 @@ END_LEGAL */
 #include "xed-state.h"
 #include "xed-operand-values-interface.h"
 #include "xed-print-info.h"
+#include "xed-chip-features.h"
 
 ///////////////////////////////////////////////////////
 /// API
@@ -37,6 +38,7 @@ END_LEGAL */
 /// Return true if the instruction is valid
 static XED_INLINE xed_bool_t
 xed_decoded_inst_valid(const xed_decoded_inst_t* p ) {
+    xed_assert(p != NULL);
     return XED_STATIC_CAST(xed_bool_t,(p->_inst != 0));
 }
 /// @ingroup DEC
@@ -44,6 +46,7 @@ xed_decoded_inst_valid(const xed_decoded_inst_t* p ) {
 /// route to the basic operands form information.
 static XED_INLINE const xed_inst_t*
 xed_decoded_inst_inst( const xed_decoded_inst_t* p) {
+    xed_assert(p != NULL);
     return p->_inst;
 }
 
@@ -52,28 +55,28 @@ xed_decoded_inst_inst( const xed_decoded_inst_t* p) {
 /// Return the instruction #xed_category_enum_t enumeration
 static XED_INLINE xed_category_enum_t
 xed_decoded_inst_get_category(const xed_decoded_inst_t* p) {
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return xed_inst_category(p->_inst);
 }
 /// @ingroup DEC
 /// Return the instruction #xed_extension_enum_t enumeration
 static XED_INLINE xed_extension_enum_t
 xed_decoded_inst_get_extension( const xed_decoded_inst_t* p) {
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return xed_inst_extension(p->_inst);
 }
 /// @ingroup DEC
 /// Return the instruction #xed_isa_set_enum_t enumeration
 static XED_INLINE xed_isa_set_enum_t
 xed_decoded_inst_get_isa_set(xed_decoded_inst_t const* const p) {
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return xed_inst_isa_set(p->_inst);
 }
 /// @ingroup DEC
 /// Return the instruction #xed_iclass_enum_t enumeration.
 static XED_INLINE xed_iclass_enum_t
 xed_decoded_inst_get_iclass( const xed_decoded_inst_t* p){
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return xed_inst_iclass(p->_inst);
 }
 
@@ -263,6 +266,7 @@ xed_decoded_inst_set_mode(xed_decoded_inst_t* p,
                           xed_address_width_enum_t stack_addr_width)
 {
     xed_state_t dstate;
+    xed_assert(p != NULL);
     dstate.mmode = mmode;
     dstate.stack_addr_width = stack_addr_width;
     xed_operand_values_set_mode(p, &dstate);
@@ -284,24 +288,12 @@ xed_decoded_inst_zero_keep_mode_from_operands(
 /// @ingroup DEC
 /// Return the length of the decoded  instruction in bytes.
 static XED_INLINE xed_uint_t
-xed_decoded_inst_get_length(const xed_decoded_inst_t* p) {  
+xed_decoded_inst_get_length(const xed_decoded_inst_t* p) {
+    xed_assert(p != NULL);
     return p->_decoded_length;
 }
 
 //@}
-
-
-/// @name xed_decoded_inst_t get Byte 
-//@{
-/// @ingroup DEC
-/// Read itext byte.
-static XED_INLINE xed_uint8_t
-xed_decoded_inst_get_byte(const xed_decoded_inst_t* p, xed_uint_t byte_index)
-{
-    /// Read a whole byte from the normal input bytes.
-    xed_uint8_t out = p->_byte_array._dec[byte_index];
-    return out;
-}
 
 //@}
 
@@ -312,7 +304,9 @@ xed_decoded_inst_get_byte(const xed_decoded_inst_t* p, xed_uint_t byte_index)
 /// derived from the input mode information.
 static XED_INLINE xed_uint_t
 xed_decoded_inst_get_machine_mode_bits(const xed_decoded_inst_t* p) {
-    xed_uint_t mode = xed3_operand_get_mode(p);
+    xed_uint_t mode;
+    xed_assert(p != NULL);
+    mode = xed3_operand_get_mode(p);
     if (mode == 2) return 64;
     if (mode == 1) return 32;
     return 16;
@@ -322,7 +316,9 @@ xed_decoded_inst_get_machine_mode_bits(const xed_decoded_inst_t* p) {
 /// bits. This is derived from the input mode information.
 static XED_INLINE xed_uint_t
 xed_decoded_inst_get_stack_address_mode_bits(const xed_decoded_inst_t* p) {
-    xed_uint_t smode = xed3_operand_get_smode(p);
+    xed_uint_t smode;
+    xed_assert(p != NULL);
+    smode = xed3_operand_get_smode(p);
     if (smode == 2) return 64;
     if (smode == 1) return 32;
     return 16;
@@ -344,6 +340,7 @@ xed_decoded_inst_get_operand_width(const xed_decoded_inst_t* p);
 /// @ingroup DEC
 static XED_INLINE xed_chip_enum_t
 xed_decoded_inst_get_input_chip(const xed_decoded_inst_t* p) {
+    xed_assert(p != NULL);
     return xed3_operand_get_chip(p);
 }
 
@@ -352,6 +349,7 @@ xed_decoded_inst_get_input_chip(const xed_decoded_inst_t* p) {
 static XED_INLINE void
 xed_decoded_inst_set_input_chip(xed_decoded_inst_t* p,
                                 xed_chip_enum_t chip) {
+    xed_assert(p != NULL);
     xed3_operand_set_chip(p,chip);
 }
 
@@ -363,10 +361,14 @@ XED_DLL_EXPORT xed_bool_t
 xed_decoded_inst_valid_for_chip(xed_decoded_inst_t const* const p, 
                                 xed_chip_enum_t chip);
 
+/// Indicate if this decoded instruction is valid for the specified
+/// #xed_chip_features_t chip
+/// @ingroup DEC
+XED_DLL_EXPORT xed_bool_t
+xed_decoded_inst_valid_for_features(xed_decoded_inst_t const *const p,
+                                    xed_chip_features_t const *const chip_features);
+
 //@}
-
-
-
 
 /// @name IFORM handling
 //@{
@@ -375,7 +377,7 @@ xed_decoded_inst_valid_for_chip(xed_decoded_inst_t const* const p,
 /// Return the instruction iform enum of type #xed_iform_enum_t .
 static XED_INLINE xed_iform_enum_t
 xed_decoded_inst_get_iform_enum(const xed_decoded_inst_t* p) {
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return xed_inst_iform_enum(p->_inst);
 }
 
@@ -386,7 +388,7 @@ xed_decoded_inst_get_iform_enum(const xed_decoded_inst_t* p) {
 /// #xed_iform_max_per_iclass() .
 static XED_INLINE unsigned int
 xed_decoded_inst_get_iform_enum_dispatch(const xed_decoded_inst_t* p) {
-    xed_assert(p->_inst != 0);
+    xed_assert(p != NULL);
     return XED_STATIC_CAST(xed_uint_t, xed_inst_iform_enum(p->_inst)) -
                 xed_iform_first_per_iclass(xed_inst_iclass(p->_inst));
 }
@@ -519,6 +521,7 @@ xed_decoded_inst_get_signed_immediate(const xed_decoded_inst_t* p);
 /// Return the second immediate. 
 static XED_INLINE xed_uint8_t
 xed_decoded_inst_get_second_immediate(const xed_decoded_inst_t* p) {
+    xed_assert(p != NULL);
     return xed3_operand_get_uimm1(p);
 }
 
@@ -530,10 +533,16 @@ xed_decoded_inst_get_reg(const xed_decoded_inst_t* p,
                          xed_operand_enum_t reg_operand);
 
 /// @ingroup DEC
-/// Return DFV register enumeration if one of the instruction's operands
-/// is a "default flags values" pseudo-register and invalid register enumeration otherwise
-XED_DLL_EXPORT xed_reg_enum_t 
-xed_decoded_inst_get_dfv_reg(const xed_decoded_inst_t* xedd);
+/// Returns a non-zero value if the instruction supports "Default Flags Values" (DFV).
+XED_DLL_EXPORT xed_bool_t 
+xed_decoded_inst_has_default_flags_values(const xed_decoded_inst_t* xedd);
+
+/// @ingroup DEC
+/// Extracts the default flags values into the provided xed_flag_dfv_t struct.
+/// Returns 0 if the DFV is invalid.
+XED_DLL_EXPORT xed_bool_t 
+xed_decoded_inst_get_default_flags_values(const xed_decoded_inst_t* xedd, 
+                                          xed_flag_dfv_t* p);
 
 /// See the comment on xed_decoded_inst_uses_rflags(). This can return 
 /// 0 if the flags are really not used by this instruction.
@@ -674,6 +683,7 @@ xed_decoded_inst_set_immediate_unsigned_bits(xed_decoded_inst_t* p,
 /// Return a user data field for arbitrary use by the user after decoding.
 static XED_INLINE  xed_uint64_t
 xed_decoded_inst_get_user_data(xed_decoded_inst_t* p) {
+    xed_assert(p != NULL);
     return p->u.user_data;
 }
 /// @ingroup DEC
@@ -681,17 +691,13 @@ xed_decoded_inst_get_user_data(xed_decoded_inst_t* p) {
 static XED_INLINE  void
 xed_decoded_inst_set_user_data(xed_decoded_inst_t* p,
                                xed_uint64_t new_value) {
+    xed_assert(p != NULL);
     p->u.user_data = new_value;
 }
 //@}
 
 /// @name xed_decoded_inst_t Classifiers
 //@{
-/// @ingroup DEC
-/// @brief True for APX instructions.
-/// includes instructions with EGPRs, REX2 and encodings that are treated as illegal on non-APX systems
-XED_DLL_EXPORT xed_bool_t
-xed_classify_apx(const xed_decoded_inst_t* d);
 /// @ingroup DEC
 /// True for AMX instructions
 XED_DLL_EXPORT xed_bool_t
@@ -712,6 +718,17 @@ xed_classify_avx(const xed_decoded_inst_t* d);
 /// True for SSE/SSE2/etc. SIMD operations.  Includes AES and PCLMULQDQ
 XED_DLL_EXPORT xed_bool_t
 xed_classify_sse(const xed_decoded_inst_t* d);
+/// @ingroup DEC
+/// @brief True for APX foundation instructions.
+/// Includes the first set of instructions introduced as part of APX-F
+XED_DLL_EXPORT xed_bool_t
+xed_classify_apx_foundation(const xed_decoded_inst_t* d);
+/// @ingroup DEC
+/// @brief True for APX instructions.
+/// Includes instructions with EGPRs, REX2 and encodings that are treated as illegal on non-APX systems
+XED_DLL_EXPORT xed_bool_t 
+xed_classify_apx(const xed_decoded_inst_t* d);
 //@}
 #endif
+
 

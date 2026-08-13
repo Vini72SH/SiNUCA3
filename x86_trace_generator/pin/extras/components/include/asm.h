@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2017 Intel Corporation.
+ * Copyright (C) 2008-2021 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -129,7 +129,7 @@
 
 #if defined(HOST_IA32E) && defined(TARGET_WINDOWS)
 #   include "asm/windows-intel64.h"
-#elif (defined(TARGET_ANDROID) || defined(TARGET_MAC) || defined(TARGET_LINUX)) && defined(HOST_IA32E)
+#elif defined(TARGET_LINUX) && defined(HOST_IA32E)
 #   include "asm/unix-intel64.h"
 #endif
 

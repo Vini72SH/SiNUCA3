@@ -74,6 +74,7 @@ void FileHeader::Print(bool printMetadata) const {
     SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Entries", this->entries);
 
     const char* targetStr = "Unknown";
+    (void)targetStr;
     switch (this->target) {
         case TargetArchX86:
             targetStr = "x86";

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2023 Intel Corporation.
+ * Copyright (C) 2020-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -21,7 +21,7 @@
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern BOOL PIN_IsProbeMode();
@@ -132,7 +132,7 @@ extern BOOL RTN_IsSafeForProbedReplacementEx(RTN rtn, PROBE_MODE mode);
  See @ref PROTO_Allocate for more information.
  @param     orgRtn                the application routine to be replaced.
  @param     replacementFunptr     the replacement function
- @param     ...                   @ref IARG_TYPE.  One IARG_TYPE must be IARG_PROTOTYPE,
+ @param     ...                   @ref IARG_TYPE.  One IARG_TYPE must be IARG_PROTOTYPE of the original application function,
  and the list must end with IARG_END.
  @return    a function pointer to the relocated application function entry point.
  This allows the replacement routine to execute the replaced routine.
@@ -160,7 +160,7 @@ extern AFUNPTR RTN_ReplaceSignatureProbed(RTN replacedRtn, AFUNPTR replacementFu
  @param     replacedRtn           the application routine to be replaced.
  @param     mode                  instrumentation mode, see @ref PROBE_MODE
  @param     replacementFun        the replacement function
- @param     ...                   @ref IARG_TYPE.  One IARG_TYPE must be IARG_PROTOTYPE,
+ @param     ...                   @ref IARG_TYPE.  One IARG_TYPE must be IARG_PROTOTYPE of the original application function,
  and the list must end with IARG_END.
  @return    a function pointer to the relocated application function entry point.
  This allows the replacement routine to execute the replaced routine.
@@ -185,7 +185,7 @@ extern AFUNPTR RTN_ReplaceSignatureProbedEx(RTN replacedRtn, PROBE_MODE mode, AF
                                    funptr before or after execution.
   @param     funptr                the analysis function
   @param     ...                   @ref IARG_TYPE.  If using IPOINT_AFTER,
-                                   one IARG_TYPE must be IARG_PROTOTYPE.
+                                   one IARG_TYPE must be IARG_PROTOTYPE of the original application function.
                                    The list must end with IARG_END.
   @return   TRUE if the probe was successfully inserted
  
@@ -210,7 +210,7 @@ extern BOOL RTN_InsertCallProbed(RTN orgRtn, IPOINT action, AFUNPTR funptr, ...)
   @param     mode
   @param     funptr                the analysis function
   @param     ...                   @ref IARG_TYPE.  If using IPOINT_AFTER,
-                                   one IARG_TYPE must be IARG_PROTOTYPE.
+                                   one IARG_TYPE must be IARG_PROTOTYPE of the original application function.
                                    The list must end with IARG_END.
   @return   TRUE if the probe was successfully inserted
 
@@ -287,12 +287,13 @@ extern BOOL PIN_InsertCallProbed(ADDRINT addr, AFUNPTR funptr, ...);
   Any other PRG_* that does not fit in an integer register are not supported neither as
   function argument nor as return type of replacement functions.
 
+  @note When using @ref IARG_PROTOTYPE , please note that it refers to the original application function.
   @ref PIN_PARG_END() must end the argument list, even if the function has no arguments.
   @return proto A pointer to a function prototype.  This is an opaque type.
 
   @par Availability:
   \b Mode:  JIT & Probe\n
-  \b O/S:   Linux, Windows & macOS*\n
+  \b O/S:   Linux, Windows\n
   \b CPU:   All\n
 */
 extern PROTO PROTO_Allocate(PARG_T returnArg, CALLINGSTD_TYPE cstype, const char* name, ...);
@@ -303,7 +304,7 @@ extern PROTO PROTO_Allocate(PARG_T returnArg, CALLINGSTD_TYPE cstype, const char
 
   @par Availability:
   \b Mode:  JIT & Probe\n
-  \b O/S:   Linux, Windows & macOS*\n
+  \b O/S:   Linux, Windows\n
   \b CPU:   All\n
 */
 extern VOID PROTO_Free(PROTO proto);

@@ -2,7 +2,7 @@
 
 # This script will work on tools that have the --version option and print the version number in the first line.
 # It has three arguments:
-# 1) Path to the tool
+# 1) Path to the tool   (!!!!!!! must be full path !!!!!!!!!!!)
 # 2) An operator (eq/ne/ge/gt/le/lt) 
 # 3) A version number 
 #

@@ -126,7 +126,7 @@ inline UINT8 GetX87AbridgedTag(UINT16 fullTag)
             tag = 0;
         else
             tag = 1;
-        tags |= (tag << i);
+        tags = UINT8(tags | (tag << i));
         mask <<= 2;
     }
 
@@ -196,7 +196,7 @@ template< typename FXSAVE > UINT16 GetX87FullTag(const FXSAVE* fxsave)
             }
         }
 
-        tags |= (tag << (2 * i));
+        tags = UINT16(tags | (tag << (2 * i)));
         ftw >>= 1;
     }
 

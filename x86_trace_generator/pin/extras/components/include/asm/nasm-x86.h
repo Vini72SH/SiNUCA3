@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2016 Intel Corporation.
+ * Copyright (C) 2008-2021 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -24,11 +24,7 @@
 
 #define ASM_HEX(val)    0##val##h
 
-#if defined(TARGET_MAC)
-#   define ASM_NAME(name)   _##name
-#else
 #   define ASM_NAME(name)   name
-#endif
 
 #define ASM_LABDEF(x)   .l##x##:
 #define ASM_LABF(x)     .l##x

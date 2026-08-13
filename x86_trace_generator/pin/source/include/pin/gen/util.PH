@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2023 Intel Corporation.
+ * Copyright (C) 2020-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -312,9 +312,9 @@ template< typename T > T RoundUp(T value, size_t alignment)
         return value;
     }
 
-    value += alignment - 1;
-    value /= alignment;
-    value *= alignment;
+    value += T(alignment - 1);
+    value /= T(alignment);
+    value *= T(alignment);
 
     return value;
 }
@@ -337,8 +337,8 @@ template< typename T > T RoundDown(T value, size_t alignment)
         return value;
     }
 
-    value /= alignment;
-    value *= alignment;
+    value /= T(alignment);
+    value *= T(alignment);
 
     return value;
 }
@@ -352,9 +352,20 @@ template< typename T > T* RoundDown(T* ptr, size_t alignment)
 }
 
 /*! @ingroup UTILS
+    Get the page size of the OS abstraction layer
+ */
+constexpr inline ADDRINT GetPageSize() noexcept
+{
+    return 4096; // When using PINOS Page Size is always 4K
+}
+
+/*! @ingroup UTILS
     Get the address of the page that addr is in
  */
-extern ADDRINT GetPageOfAddr(ADDRINT addr);
+constexpr inline ADDRINT GetPageOfAddr(ADDRINT addr) noexcept
+{
+    return addr & ~(GetPageSize() - 1);
+}
 
 #if !defined(TARGET_WINDOWS)
 
@@ -389,6 +400,11 @@ inline size_t PtrDiff(const VOID* ptr1, const VOID* ptr2)
 inline VOID* PtrAtOffset(VOID* ptr, size_t offset) { return (reinterpret_cast< INT8* >(ptr) + offset); }
 
 /*! @ingroup UTILS
+  Return pointer whose offset, in bytes, from <ptr> is <-offset>
+ */
+inline VOID* PtrMinusOffset(VOID* ptr, size_t offset) { return (reinterpret_cast< INT8* >(ptr) - offset); }
+
+/*! @ingroup UTILS
   Return const pointer whose offset, in bytes, from <ptr> is <offset>
  */
 inline const VOID* PtrAtOffset(const VOID* ptr, size_t offset) { return (reinterpret_cast< const INT8* >(ptr) + offset); }
@@ -405,299 +421,6 @@ template< typename T > const T* PtrAtOffset(const VOID* ptr, size_t offset)
 {
     return (reinterpret_cast< const T* >(PtrAtOffset(ptr, offset)));
 }
-
-/*! @ingroup UTILS
- * Class that represents a memory range - interval of addresses in the virtual
- * address space.
- * @note   The range that spans the entire address space can not be represented
- *         by this class. Whenever a function of this class should construct such
- *         range (logically), an empty range is returned instead.
- */
-class MemRange
-{
-  public:
-    //======= Constructors
-
-    //Default constructor
-    MemRange() : m_base(NULL), m_size(0) {}
-    //Construct range with a given base address and size
-    MemRange(VOID* base, size_t size) : m_base(base), m_size(size) {}
-    MemRange(ADDRINT base, size_t size) : m_base(Addrint2VoidStar(base)), m_size(size) {}
-    //Construct range with a given base and end addresses.
-    //End address of a range is the address of the first byte following the range
-    MemRange(VOID* base, VOID* end) : m_base(base), m_size(PtrDiff(end, base)) {}
-
-    //Default copy constructor and assignment operator
-
-    //======= operators == and !=
-    BOOL operator==(const MemRange& range) const { return ((m_base == range.m_base) && (m_size == range.m_size)); }
-    BOOL operator!=(const MemRange& range) const { return (!(*this == range)); }
-
-    //======= Accessors
-
-    //Get/set base address of the range.
-    VOID* Base() const { return m_base; }
-    MemRange& Base(VOID* base)
-    {
-        m_base = base;
-        return *this;
-    }
-
-    //Get/set size, in bytes, of the range.
-    size_t Size() const { return m_size; }
-    MemRange& Size(size_t size)
-    {
-        m_size = size;
-        return *this;
-    }
-
-    //Get end address of the range.
-    VOID* End() const { return PtrAtOffset(m_base, m_size); }
-
-    //Get the last address of the non-empty range.
-    VOID* Last() const { return PtrAtOffset(m_base, m_size - 1); }
-
-    /*
-    * Check to see whether this range is empty
-    *
-    * @return  true, if this range is empty, otherwise - false
-    */
-    BOOL IsEmpty() const { return (m_size == 0); }
-
-    /*
-    * Check to see whether this range contains the specified memory address
-    *
-    * @param[in] addr       memory address, potentially contained in this range
-    *
-    * @return   true, if this range contains the specified address,
-    *           otherwise - false
-    */
-    BOOL Contains(const VOID* addr) const { return (PtrDiff(addr, m_base) < m_size); }
-
-    /*
-    * Check to see whether this range contains the specified memory range
-    *
-    * @param[in] range      memory range, potentially contained in this range
-    *
-    * @return   true, if this range contains the specified range,
-    *           otherwise - false.
-    */
-    BOOL Contains(const MemRange& range) const { return (Contains(range.m_base) && !range.Contains(End())); }
-
-    /* Check to see whether this range intersects with the specified memory range
-    *
-    * @param[in] range      memory range, potentially intersecting with this range
-    *
-    * @return   true, if this range intersects with the specified range
-    *           otherwise - false
-    */
-    BOOL Intersects(const MemRange& range) const { return (Contains(range.m_base) || range.Contains(m_base)); }
-
-    /* Check to see whether this range is adjacent to the specified memory range
-    *
-    * @param[in] range      memory range, potentially adjacent to this range
-    *
-    * @return   true, if this range is adjacent to the specified range
-    *           otherwise - false
-    */
-    BOOL AdjacentTo(const MemRange& range) const
-    {
-        return (((range.m_base == End()) && (range.m_base != 0)) || ((m_base == range.End()) && (m_base != 0)));
-    }
-
-    /* Check to see whether the current stack pointer belongs to this range
-    *
-    * @return   true, if current stack pointer belongs to this range
-    *           otherwise - false
-    */
-    BOOL IsCurrentStack() const { return (Contains(GetSp())); }
-
-    /*
-    * Round base/end address of the range down/up according to specified alignment
-    *
-    * @param[in] alignment      alignment value. Must be power of two.
-    *
-    * @return  reference to aligned range.
-    */
-    MemRange& Align(UINT32 alignment)
-    {
-        VOID* end = RoundUp(End(), alignment);
-        m_base    = RoundDown(m_base, alignment);
-        m_size    = PtrDiff(end, m_base);
-        return *this;
-    }
-
-    /*
-    * Round both base and end address of the range up according to specified alignment.
-    * The size of the updated range is at least size the range before update.
-    * @param[in] alignment      alignment value. Must be power of two.
-    *  return  reference to aligned range
-    */
-    MemRange& AlignUp(UINT32 alignment)
-    {
-        m_base = RoundUp(m_base, alignment);
-        m_size = RoundUp(m_size, alignment);
-        return *this;
-    }
-
-    /*
-    * Round both base and end address of the range down according to specified alignment.
-    * The size of the updated range is at least size the range before update.
-    * @param[in] alignment      alignment value. Must be power of two.
-    * @return  reference to aligned range
-    */
-    MemRange& AlignDown(UINT32 alignment)
-    {
-        VOID* end = RoundDown(End(), alignment);
-        m_size    = RoundUp(m_size, alignment);
-        m_base    = PtrAtOffset(end, 0 - m_size);
-        return *this;
-    }
-
-    /*
-    * Shift both base and end address of the range
-    * @param[in] offset         shift value.
-    * @return  reference to shifted range
-    */
-    MemRange& Shift(size_t offset)
-    {
-        m_base = PtrAtOffset(m_base, offset);
-        return *this;
-    }
-
-    /*
-    * Shift base address of the range without changing the end address
-    * If the base is shifted to be after the end address, then the region size
-    * will be set to zero
-    * @param[in] offset         shift value.
-    * @return  reference to shifted range
-    */
-    MemRange& ShiftBase(size_t offset)
-    {
-        VOID* end = End();
-        m_base    = PtrAtOffset(m_base, offset);
-        if (end < m_base)
-        {
-            m_size = 0;
-        }
-        else
-        {
-            m_size = PtrDiff(end, m_base);
-        }
-        return *this;
-    }
-
-    /*
-    * Shift end address of the range without changing the base address
-    * @param[in] offset         shift value.
-    * @return  reference to shifted range
-    */
-    MemRange& ShiftEnd(size_t offset)
-    {
-        m_size += offset;
-        return *this;
-    }
-
-    /*
-    * Extend boundaries of this range to include the specified range.
-    * The new range is the minimal range that contains both ranges.
-    * @param[in] range      memory range, to be combined with this range
-    * @return  reference to updated range
-    */
-    MemRange& Combine(const MemRange& range)
-    {
-        size_t size;
-        if (range.m_base >= m_base)
-        {
-            size = PtrDiff(range.End(), m_base);
-        }
-        else
-        {
-            size  = PtrDiff(End(), range.m_base);
-            *this = range;
-        }
-        if (size > m_size)
-        {
-            m_size = size;
-        }
-        return *this;
-    }
-
-    /*
-    * Decompose this range into three ranges (each of them may be empty):
-    * @param[out]  pIntersection - intersection of <this> range with specified <range>
-    * @param[out]  pLowDiff      - part of <this> range, that contains all addresses
-    *                              lower than any address in the specified <range>
-    * @param[out]  pHighDiff     - part of <this> range, that contains all addresses
-    *                              higher than any address in the specified <range>
-    * @param[in]   range         - range to be intersected with and subtracted from
-    *                              <this> range
-    * All three output paramters are optional - the range is not returned if the
-    * corresponding parameter is NULL.
-    */
-    VOID Decompose(const MemRange& range, MemRange* pIntersection, MemRange* pLowDiff, MemRange* pHighDiff) const
-    {
-        VOID* thisEnd  = End();
-        VOID* otherEnd = range.End();
-
-        VOID* intersectionBase;
-        VOID* intersectionEnd;
-
-        if (Contains(range.m_base))
-        {
-            // intersecting ranges
-            intersectionBase = range.m_base;
-            intersectionEnd  = (range.Contains(thisEnd) ? thisEnd : otherEnd);
-        }
-        else if (range.Contains(m_base))
-        {
-            // intersecting ranges
-            intersectionBase = m_base;
-            intersectionEnd  = (Contains(otherEnd) ? otherEnd : thisEnd);
-        }
-        else if (m_base > range.m_base)
-        {
-            // intersection is empty; <this> is higher than <range>
-            intersectionBase = intersectionEnd = m_base;
-        }
-        else
-        {
-            // intersection is empty; <this> is lower than <range>
-            intersectionBase = intersectionEnd = thisEnd;
-        }
-
-        if (pIntersection != 0)
-        {
-            *pIntersection = MemRange(intersectionBase, intersectionEnd);
-        }
-        if (pLowDiff != 0)
-        {
-            *pLowDiff = MemRange(m_base, intersectionBase);
-        }
-        if (pHighDiff != 0)
-        {
-            *pHighDiff = MemRange(intersectionEnd, thisEnd);
-        }
-    }
-
-  private:
-    VOID* m_base;
-    size_t m_size;
-};
-
-/*! @ingroup UTILS
- * Get the page that contains the specified address
- * @param[in] addr       address inside the requested page
- * @return one-page range that contains the specified address
- */
-extern MemRange MemPageRange(ADDRINT addr);
-
-/*! @ingroup UTILS
- * Get the page that contains the specified address
- * @param[in] addr       address inside the requested page
- * @return one-page range that contains the specified address
- */
-extern MemRange MemPageRange(const VOID* addr);
 
 /*! @ingroup UTILS
  *  Template POD structure that optionally keeps a value of type <T>.

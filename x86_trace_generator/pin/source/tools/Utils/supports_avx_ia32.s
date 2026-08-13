@@ -5,14 +5,9 @@
 
 .text
 .align 4
-
-#ifdef TARGET_MAC
-.globl _ProcessorSupportsAvx;
-_ProcessorSupportsAvx:
-#else
 .globl ProcessorSupportsAvx;
 ProcessorSupportsAvx:
-#endif
+
     push %ebp
     mov  %esp, %ebp
     pusha

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012-2022 Intel Corporation.
+# Copyright (C) 2012-2026 Intel Corporation.
 # SPDX-License-Identifier: MIT
 #
 
@@ -20,16 +20,19 @@
 ###### Place all generic definitions here ######
 
 # This defines all the applications that will be run during the tests.
-APP_ROOTS := cp-pin hello avx_check avx2_check tsx_check avx512f_check thread_app movdir64b_check
+APP_ROOTS := cp-pin hello avx_check avx2_check tsx_check avx512f_check thread_app movdir64b_check serialize_check
 
 
 # This defines any additional object files that need to be compiled.
-OBJECT_ROOTS := regvalue_utils supports_avx threadlib avx_check_$(TARGET) supports_avx2 tsx_check_$(TARGET) supports_avx512f \
-                runnable thread_pool sys_memory supports_movdir64b_$(TARGET)
+OBJECT_ROOTS := regvalue_utils supports_avx avx_check_$(TARGET) supports_avx2 tsx_check_$(TARGET) supports_avx512f \
+                supports_movdir64b_$(TARGET)
+
+# This defines any additional application object files that need to be compiled.
+APP_OBJECT_ROOTS := threadlib runnable thread_pool sys_memory
 
 ifeq ($(TARGET),intel64)
-    APP_ROOTS += amx_check 
-    OBJECT_ROOTS += supports_amx_intel64 
+    APP_ROOTS += amx_check apx_check
+    OBJECT_ROOTS += supports_amx_intel64 supports_apx_intel64
 endif
 
 # This defines any static libraries (archives), that need to be built.
@@ -40,6 +43,8 @@ LIB_ROOTS := regvallib
 # Linux
 ifeq ($(TARGET_OS),linux)
     APP_ROOTS += hello_dwarf4 disable-aslr attachLauncher
+    OBJECT_ROOTS += shared_memory_for_tool
+    APP_OBJECT_ROOTS += shared_memory_for_app
 endif
 
 # Windows
@@ -53,6 +58,12 @@ ifeq ($(TARGET_OS),linux)
     GCCVER_LT_45 := $(shell $(TOOLS_ROOT)/Utils/testToolVersion $(APP_CXXPATH) lt 4.5)
     ifeq ($(GCCVER_LT_45),1)
         APP_ROOTS := $(filter-out hello hello_dwarf4, $(APP_ROOTS))
+    endif
+
+    GCC_VERSION_LE_4_8_5 := $(shell $(TOOLS_ROOT)/Utils/testToolVersion $(APP_CXXPATH) le 4.8.5)
+    ifeq ($(GCC_VERSION_LE_4_8_5),1)
+        # Old GCC versions don't support c++ syntax
+        OBJECT_ROOTS := $(filter-out shared_memory_for_app shared_memory_for_tool, $(OBJECT_ROOTS))
     endif
 endif
 
@@ -72,15 +83,15 @@ RUNNABLE_TESTS := $(TEST_TOOL_ROOTS) $(TEST_ROOTS)
 ###### Special applications' build rules ######
 
 $(OBJDIR)hello$(EXE_SUFFIX): hello.c
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< \
+	$(APP_CC) $(APP_CFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< \
 	  $(APP_LDFLAGS_NOOPT) $(DBG_INFO_LD_ALWAYS) $(APP_LIBS)
 
 $(OBJDIR)hello_dwarf4$(EXE_SUFFIX): hello.c
-	$(APP_CC) $(APP_CXXFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< \
+	$(APP_CC) $(APP_CFLAGS_NOOPT) $(DBG_INFO_CXX_ALWAYS) $(COMP_EXE)$@ $< \
 	  $(APP_LDFLAGS_NOOPT) $(DBG_INFO_LD_ALWAYS) $(APP_LIBS) $(DWARF4)
 
 $(OBJDIR)disable-aslr$(EXE_SUFFIX): disable-aslr.c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS)
 
 # The test application should be compiled wihtout any additional libraries,
 # especially libpthread.so (on Linux) so omit the APP_LIBS variable.
@@ -88,46 +99,58 @@ $(OBJDIR)cp-pin$(EXE_SUFFIX): cp-pin.cpp
 	$(APP_CXX) $(APP_CXXFLAGS) -std=c++11 $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(CXX_LPATHS) $(CXX_LIBS)
 
 $(OBJDIR)avx_check$(EXE_SUFFIX): avx_check.c $(OBJDIR)avx_check_$(TARGET)$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
 
 $(OBJDIR)avx2_check$(EXE_SUFFIX): avx2_check.c $(OBJDIR)supports_avx2$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
 
 $(OBJDIR)tsx_check$(EXE_SUFFIX): tsx_check.c $(OBJDIR)tsx_check_$(TARGET)$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
 
 $(OBJDIR)avx512f_check$(EXE_SUFFIX): avx512f_check.c $(OBJDIR)supports_avx512f$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
 
 $(OBJDIR)amx_check$(EXE_SUFFIX): amx_check.c $(OBJDIR)supports_amx$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+
+$(OBJDIR)apx_check$(EXE_SUFFIX): apx_check.c $(OBJDIR)supports_apx$(OBJ_SUFFIX)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
 
 $(OBJDIR)movdir64b_check$(EXE_SUFFIX): movdir64b_check.c $(OBJDIR)supports_movdir64b_$(TARGET)$(OBJ_SUFFIX)
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $^ $(APP_LDFLAGS)
+
+$(OBJDIR)serialize_check$(EXE_SUFFIX): serialize_check.c supports_serialize.h
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS)
 
 $(OBJDIR)attachLauncher$(EXE_SUFFIX): attachLauncher_$(OS_TYPE).cpp
 	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS) $(CXX_LPATHS) $(CXX_LIBS)
 
 $(OBJDIR)thread_app$(EXE_SUFFIX): thread_$(OS_TYPE).c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
 ###### Special objects' build rules ######
 
-$(OBJDIR)threadlib$(OBJ_SUFFIX): threadlib_$(OS_TYPE).c threadlib.h
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $<
+$(OBJDIR)threadlib$(APP_OBJ_SUFFIX): threadlib_$(OS_TYPE).c threadlib.h
+	$(APP_CC) $(APP_CFLAGS) $(COMP_OBJ)$@ $<
   
-$(OBJDIR)runnable$(OBJ_SUFFIX): runnable.cpp runnable.h
+$(OBJDIR)runnable$(APP_OBJ_SUFFIX): runnable.cpp runnable.h
 	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $< $(CXX_LPATHS) $(CXX_LIBS)
   
-$(OBJDIR)thread_pool$(OBJ_SUFFIX): thread_pool.cpp thread_pool.h threadlib.h
+$(OBJDIR)thread_pool$(APP_OBJ_SUFFIX): thread_pool.cpp thread_pool.h threadlib.h
 	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $< $(CXX_LPATHS) $(CXX_LIBS)
   
-$(OBJDIR)sys_memory$(OBJ_SUFFIX): sys_memory_$(OS_TYPE).c sys_memory.h
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $< $(CXX_LPATHS) $(CXX_LIBS)
+$(OBJDIR)sys_memory$(APP_OBJ_SUFFIX): sys_memory_$(OS_TYPE).c sys_memory.h
+	$(APP_CC) $(APP_CFLAGS) $(COMP_OBJ)$@ $< $(CXX_LPATHS) $(CXX_LIBS)
+
+$(OBJDIR)shared_memory_for_app$(APP_OBJ_SUFFIX): shared_memory.cpp shared_memory.h
+	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_OBJ)$@ $< $(CXX_LPATHS) $(CXX_LIBS)
+
+$(OBJDIR)shared_memory_for_tool$(OBJ_SUFFIX): shared_memory.cpp shared_memory.h
+	$(TOOL_CXX) $(TOOL_CXXFLAGS) $(DLL_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 $(OBJDIR)regvalue_utils$(OBJ_SUFFIX): regvalue_utils.h
 
 ###### Special libs' build rules ######
 
 $(OBJDIR)regvallib$(LIB_SUFFIX): $(OBJDIR)regvalue_utils$(OBJ_SUFFIX) $(OBJDIR)supports_avx$(OBJ_SUFFIX) $(OBJDIR)supports_avx512f$(OBJ_SUFFIX)
-	$(ARCHIVER)$(OBJDIR)regvallib$(LIB_SUFFIX) $^
+	$(TOOL_ARCHIVER)$(OBJDIR)regvallib$(LIB_SUFFIX) $^

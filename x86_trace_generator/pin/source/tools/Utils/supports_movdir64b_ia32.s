@@ -1,16 +1,12 @@
 /*
- * Copyright (C) 2022-2022 Intel Corporation.
+ * Copyright (C) 2010-2022 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef TARGET_MAC
-.globl _ProcessorSupportsMovdir64b;
-_ProcessorSupportsMovdir64b:
-#else
 .type ProcessorSupportsMovdir64b, @function
 .globl ProcessorSupportsMovdir64b;
 ProcessorSupportsMovdir64b:
-#endif
+
     push %ebp
     mov  %esp, %ebp
     push %eax

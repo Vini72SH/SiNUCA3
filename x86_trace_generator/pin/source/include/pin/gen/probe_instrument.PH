@@ -10,7 +10,7 @@
 /*! @file
  Unix-specific instrumentation in probe mode
 */
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#if defined(TARGET_LINUX)
 /*! @ingroup PIN_CONTROL
  * Call-back function in probe mode for fork notification.
  *

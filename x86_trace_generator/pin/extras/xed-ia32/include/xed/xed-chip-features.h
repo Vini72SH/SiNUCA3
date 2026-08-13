@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -24,11 +24,13 @@ END_LEGAL */
 #include "xed-isa-set-enum.h"     /* generated */
 #include "xed-chip-enum.h"        /* generated */
 
-#define XED_FEATURE_VECTOR_MAX 6
+#define XED_FEATURE_VECTOR_MAX 7
 /// @ingroup ISASET
-typedef struct 
+
+typedef xed_uint64_t xed_features_elem_t;
+typedef struct
 {
-    xed_uint64_t f[XED_FEATURE_VECTOR_MAX];
+    xed_features_elem_t f[XED_FEATURE_VECTOR_MAX];
 } xed_chip_features_t;
 
 

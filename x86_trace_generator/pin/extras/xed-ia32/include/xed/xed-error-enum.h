@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -29,7 +29,6 @@ END_LEGAL */
 #define XED_ERROR_INVALID_FOR_CHIP_DEFINED 1
 #define XED_ERROR_BAD_REGISTER_DEFINED 1
 #define XED_ERROR_BAD_LOCK_PREFIX_DEFINED 1
-#define XED_ERROR_BAD_REP_PREFIX_DEFINED 1
 #define XED_ERROR_BAD_LEGACY_PREFIX_DEFINED 1
 #define XED_ERROR_BAD_REX_PREFIX_DEFINED 1
 #define XED_ERROR_BAD_MAP_DEFINED 1
@@ -52,7 +51,6 @@ typedef enum {
   XED_ERROR_INVALID_FOR_CHIP, ///< The instruciton is not valid for the specified chip
   XED_ERROR_BAD_REGISTER, ///< XED could not decode the given instruction because an invalid register encoding was used.
   XED_ERROR_BAD_LOCK_PREFIX, ///< A lock prefix was found where none is allowed.
-  XED_ERROR_BAD_REP_PREFIX, ///< An F2 or F3 prefix was found where none is allowed.
   XED_ERROR_BAD_LEGACY_PREFIX, ///< A 66, F2 or F3 prefix was found where none is allowed.
   XED_ERROR_BAD_REX_PREFIX, ///< A REX prefix was found where none is allowed.
   XED_ERROR_BAD_MAP, ///< An illegal value for the MAP field was detected in the instruction.

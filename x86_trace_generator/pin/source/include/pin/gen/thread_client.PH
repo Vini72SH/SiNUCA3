@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2021 Intel Corporation.
+ * Copyright (C) 2010-2024 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -13,92 +13,100 @@
  */
 /*! @ingroup THREADS
  *  Get system identifier of the current thread.
+ *
+ *  @note The System thread id is not the underlying OS tid.
+ *        To get the underlying OS tid please use @ref PIN_GetNativeTid().
+ * 
  *  @return system ID of the current thread.
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern OS_THREAD_ID PIN_GetTid();
 
 /*! @ingroup THREADS
- *  Get identifier of the current thread in Pin.
+ *  Get native OS identifier of the current thread.
+ *  @return native OS ID of the current thread.
+ *
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
+ * \b CPU:   All\n
+ */
+extern NATIVE_TID PIN_GetNativeTid();
+
+/*! @ingroup THREADS
+ *  Get native OS identifier from a system thread id.
+ *
+ *  @param[in] sysThreadId The system thread id as returned from APIs like:
+ *                         @ref PIN_GetTid
+ *                         @ref PIN_GetParentTid
+ *
+ *  @return native OS ID of for the given system thread id.
+ *
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
+ * \b CPU:   All\n
+ */
+extern NATIVE_TID PIN_GetNativeTidFromSysTid(OS_THREAD_ID sysThreadId);
+
+/*! @ingroup THREADS
+ *  Get native OS identifier from Pin's internal thread id.
+ *
+ *  @param[in] tid  The pin thread id as returned from:
+ *                         @ref PIN_ThreadId
+ *
+ *  @return native OS ID for the given thread id.
+ *
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
+ * \b CPU:   All\n
+ */
+extern NATIVE_TID PIN_GetNativeTidFromThreadId(THREADID tid);
+
+/*! @ingroup THREADS
+ *  Get Pin's internal identifier of the current thread in Pin.
  *  @return ID of the current thread in Pin or INVALID_THREADID upon failure.
- *          Usually, the failure means that the function is called in a private
- *          tool's thread which is created by a direct call to a system service
- *          and not via the @ref PIN_SpawnInternalThread() function.
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern THREADID PIN_ThreadId();
 
 /*! @ingroup THREADS
- *  Get unique identifier of the current thread in Pin.
- *  @return Unique ID of the current thread in Pin or INVALID_PIN_THREAD_UID upon failure.
- *          Usually, the failure means that the function is called in a private
- *          tool's thread which is created by a direct call to a system service
- *          and not via the @ref PIN_SpawnInternalThread() function.
- *
- * @par Availability:
- * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
- * \b CPU:   All\n
- */
-extern PIN_THREAD_UID PIN_ThreadUid();
-
-/*! @ingroup THREADS
  *  Get system identifier of the parent thread, if known.
  *  @return  system ID of the parent thread or INVALID_OS_THREAD_ID if the
  *           parent thread is unknown.
+ *           For internal threads this function always returns INVALID_OS_THREAD_ID.
  *           On Windows the result is always INVALID_OS_THREAD_ID, since there is,
  *           in general, no well defined parent child relationship between threads.
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern OS_THREAD_ID PIN_GetParentTid();
 
 /*! @ingroup THREADS
- * Delay execution of the current thread for the specified time interval.
- * @param[in]  milliseconds     time interval, in milliseconds.
- *
- * @par Availability:
- * \b Mode:  JIT & Probe\n
- * \b O/S:   Linux, Windows & macOS*\n
- * \b CPU:   All\n
- */
-extern VOID PIN_Sleep(UINT32 milliseconds);
-
-/*! @ingroup THREADS
- * Yield the processor to another thread.
- *
- * @par Availability:
- * \b Mode:  JIT & Probe\n
- * \b O/S:   Linux, Windows & macOS*\n
- * \b CPU:   All\n
- */
-extern VOID PIN_Yield();
-
-/*! @ingroup THREADS
  * Create a new tool internal thread in the current process.
  *
- * It is safe to create internal threads in the tool's main procedure and spawn new
- * internal threads from existing ones. However new internal threads cannot be created
- * in any other places, like Pin callbacks and analysis routines in application threads.\n
- *
+ * It is safe to create internal threads anywhere in the tool's code, including from
+ * instrumentation callbacks, analysis callbacks or from from existing internal threads.
+ * 
  * In order to ensure graceful termination of internal threads on the application's exit,
  * the tool can use the following recommended method:
  *      - The tool uses the @ref PIN_AddPrepareForFiniFunction() function to register a
  *        @ref PREPARE_FOR_FINI_CALLBACK callback. When the registered function is called
  *        in an "unlocked" thread, the tool requests each other internal thread to exit
  *        and waits until the @ref PIN_WaitForThreadTermination() function returns.
- *      @Note: Pin doesn't wait for internal threads termination after the callbacks.
+ *      @note Pin doesn't wait for internal threads termination after the callbacks.
  *
  * Many of Pin's APIs, that are primarily intended for application threads, are also available in
  * internal threads. Look at the API's description ( \b Availability paragraph) or the description
@@ -111,15 +119,15 @@ extern VOID PIN_Yield();
  *                          DEFAULT_THREAD_STACK_SIZE bytes will be allocated for the stack.
  * @param[out] pThreadUid   pointer to a variable that receives the unique identifier of the
  *                          new thread in Pin. This identifier can be used in the
- *                          PIN_WaitForThreadTermination() function to monitor the thread's state.
+ *                          @ref PIN_WaitForThreadTermination() function to join the thread.
  *                          If the caller specifies NULL for this parameter, the unique thread ID
- *                          is not returned.
+ *                          is not returned and the creatred thread will not be joinable using 
+ *                          @ref PIN_WaitForThreadTermination.
  *
- * @return  ID of the new thread in Pin or INVALID_THREADID if the thread creation failed.
+ * @return  Pin thread ID of the new thread in Pin or INVALID_THREADID if the thread creation failed.
  *
- * @note The @ref PIN_SpawnInternalThread() API is the only way for tools to create a private thread
- *       in the Pin-controlled process. System services, like CreateThread() in Windows or
- *       clone() in Linux should not be used for this purpose.
+ * @note Starting with Pin 4.0, internal threads may also be created using \a pthread_create() and \a std::thread().
+ *       \a clone()/clone3() on Linux or \a CreateThread() on Windows should not be used.
  * @par
  *       Pin makes an effort to hide internal threads from the application so, usually, a tool's
  *       threads do not interfere with the application. However, the complete transparency of
@@ -132,20 +140,23 @@ extern VOID PIN_Yield();
  *       reentrancy and isolation problems.
  * @par
  *       Internal threads remain blocked inside Pin until @ref PIN_StartProgram() is called and Pin
- *       completes some initialization.  On Linux, internal threads start running \a pThreadFunc
- *       before Pin executes the first application instruction.  On Windows all threads, including
+ *       completes some initialization. On Linux, internal threads start running \a pThreadFunc
+ *       before Pin executes the first application instruction. On Windows all threads, including
  *       Pin internal threads, start executing from the system runtime before they execute the
- *       \a pThreadFunc function.  However, the system runtime blocks threads until the application
+ *       \a pThreadFunc function. However, the system runtime blocks threads until the application
  *       has finished initializing its DLL's (i.e. until the application releases the internal
- *       "loader lock").  As a result, Pin internal threads on Windows do not execute \a pThreadFunc
+ *       "loader lock"). As a result, Pin internal threads on Windows do not execute \a pThreadFunc
  *       until after the application finishes executing the DLL initialization code.
- *       On macOS* in launch mode internal threads start running \a pThreadFun only after the application
- *       loader initialize the main executable. Hence don't expect the internal thread to start running after
- *       calling this function from the tool main() function in launch mode.
+ *       On Linux for all architectures and on Windows for 64 bit applications, it is possible to start
+ *       a thread before @ref PIN_StartProgram by using \a pthread_create() or \a std::thread() instead of 
+ *       @ref PIN_SpawnInternalThread(). See @ref PIN_InitializeInternalThread and @ref PIN_WaitForProgramStart().
+ *       @note Trying to create a thread using \a pthread_create or \a std::thread  in Windows 32-bit applications
+ *       running on Windows 64-bit OS (WOW64) before @ref PIN_StartProgram might result in a deadlock.
+ *       
  *
  * @par Availability:
- * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows, macOS*\n
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern THREADID PIN_SpawnInternalThread(ROOT_THREAD_FUNC* pThreadFunc, VOID* arg, size_t stackSize, PIN_THREAD_UID* pThreadUid);
@@ -167,7 +178,7 @@ extern THREADID PIN_SpawnInternalThread(ROOT_THREAD_FUNC* pThreadFunc, VOID* arg
  * @note The vm lock is obtained during the call of this API.
  *
  * @par Availability:
- * \b Mode:  JIT\n
+ * \b Mode:  JIT & Probe\n
  * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
@@ -198,10 +209,14 @@ extern BOOL PIN_IsApplicationThread();
  * an application thread or an internal thread that uses Pin APIs. This is because most of Pin
  * APIs and callbacks are serialized by the same internal lock.\n
  *
- * This function can not be used to wait for the termination of the calling thread.
+ * * This function can not be used to wait for the termination of the calling thread.
+ * * This function can not be used to wait for an application thread.
+ * * This function can not be used to wait on threads created using \c pthread_create or \c std::thread.
+ *   Use \c pthread_join and \c std::thread::join respectively.
+ * * This function can not be called twice on the same unique id.
  *
  * @param[in]  threadUid        unique identifier of the thread to be waited for termination,
- *                              provided by @ref PIN_SpawnInternalThread() or @ref PIN_ThreadUid().
+ *                              provided by @ref PIN_SpawnInternalThread().
  * @param[in]  milliseconds     time-out interval, in milliseconds. If this parameter
  *                              is zero, the function tests the thread's state and
  *                              returns immediately. If this parameter is PIN_INFINITE_TIMEOUT,
@@ -215,10 +230,68 @@ extern BOOL PIN_IsApplicationThread();
  *                  or specified thread is not yet started when application shutdown begins.
  *
  * @par Availability:
- * \b Mode:  JIT\n
+ * \b Mode:  JIT & Probe\n
  * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern BOOL PIN_WaitForThreadTermination(const PIN_THREAD_UID& threadUid, UINT32 milliseconds, INT32* pExitCode);
 
+/*! @ingroup THREADS
+ * Block the calling thread until Pin finishes it's internal initialization after
+ * a call to PIN_StartProgram or PIN_StartProgramProbed.
+ *
+ * This function is intended to be called from a thread created using pthread_create or std::thread to mimic
+ * the behavior of threads created using PIN_SpawnInternalThread, that waits for program start.
+ * 
+ * To avoid deadlocks this function must be called from a thread different than the main tool thread.
+ * It's possible to call this function from any other thread in the tool, even from an application thread.
+ * However calling this function from a thread created using PIN_SpawnInternalThread or an application thread,
+ * will return immediately with a return value of true.
+ *
+ * @return  TRUE  - the program has started and the thread can continue,
+ *          FALSE - shutdown was initiated before the program started. The calling
+ *                  thread should exit.
+ *
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
+ * \b CPU:   All\n
+ */
+extern BOOL PIN_WaitForProgramStart();
+
+/**
+ * @ingroup THREADS
+ * @brief Perform initialization required for a thread created using std::thread/pthread_create
+ *        to work properly with pin API. Among other things this function allocates Pin fast TLS
+ *        for the thread and blocks asynchronous signals for the thread.
+ * 
+ * Pin 4.x allows a pintool writers to use std::thread and pthreads to create and manage threads.
+ * However using the standard API circumvents initialization done by @ref PIN_SpawInternalThread.
+ * To be able to properly and safely use PIN API from the new thread one should call
+ * PIN_InitializeInternalThread at the begining of the thread function.
+ * To properly release resources allocated by this function, the thread should exit using @ref PIN_ExitThread.
+ * It is reccomended that the thread function/procedure that is used for std::thread/pthreead_create has the
+ * following structure:
+ * @code 
+ *    {
+ *     // Thread proc body
+ *     PIN_InitializeInternalThread(); // PIN specific per thread initialization
+ * 
+ *     // Optional wait for program start
+ *     // PIN_WaitForProgramStart();
+ *
+ *     ...// Thread logic
+ * 
+ *     PIN_ExitThread(exitCode); // Exit thread using PIN to release resources
+ *    }
+ * @endcode
+ * 
+ * @return VOID 
+ * 
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Linux, Windows\n
+ * \b CPU:   All\n
+ */
+extern VOID PIN_InitializeInternalThread();
 #endif // PIN_G_THREAD_CLIENT_PH

@@ -5,14 +5,9 @@
 
 .text
 .align 4
-
-#ifdef TARGET_MAC
-.global _SupportsTsx
-_SupportsTsx:
-#else
 .global SupportsTsx
 SupportsTsx:
-#endif
+
     push %ebp
     mov  %esp, %ebp
     

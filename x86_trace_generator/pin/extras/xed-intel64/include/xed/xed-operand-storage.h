@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -40,8 +40,10 @@ typedef struct xed_operand_storage_s {
     xed_uint8_t dummy;
     xed_uint8_t encoder_preferred;
     xed_uint8_t encode_force;
+    xed_uint8_t enc_delete;
     xed_uint8_t has_egpr;
     xed_uint8_t has_sib;
+    xed_uint8_t ibhf;
     xed_uint8_t ild_f2;
     xed_uint8_t ild_f3;
     xed_uint8_t imm0;
@@ -52,7 +54,6 @@ typedef struct xed_operand_storage_s {
     xed_uint8_t mem0;
     xed_uint8_t mem1;
     xed_uint8_t modep5;
-    xed_uint8_t modep55c;
     xed_uint8_t mode_first_prefix;
     xed_uint8_t mode_short_ud0;
     xed_uint8_t mpxmode;
@@ -69,6 +70,8 @@ typedef struct xed_operand_storage_s {
     xed_uint8_t osz;
     xed_uint8_t out_of_bytes;
     xed_uint8_t p4;
+    xed_uint8_t prefetchit;
+    xed_uint8_t prefetchrst;
     xed_uint8_t prefix66;
     xed_uint8_t ptr;
     xed_uint8_t realmode;
@@ -120,6 +123,7 @@ typedef struct xed_operand_storage_s {
     xed_uint8_t srm;
     xed_uint8_t vexdest210;
     xed_uint8_t vexvalid;
+    xed_uint8_t dfv;
     xed_uint8_t error;
     xed_uint8_t esrc;
     xed_uint8_t map;
