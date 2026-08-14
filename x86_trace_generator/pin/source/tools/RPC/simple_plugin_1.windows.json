@@ -1,9 +1,0 @@
-{
-    "ExtraRPCPlugins": [
-        {
-            "lib": "simple_plugin.dll",
-            "name": "simple plugin 1",
-            "log" : false
-        }
-    ]
-}
