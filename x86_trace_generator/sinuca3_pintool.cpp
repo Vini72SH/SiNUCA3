@@ -35,38 +35,37 @@
 
 #include "intrinsics.hpp"
 #include "pin.H"
+#include "utils/logger.hpp"
 
 extern "C" {
 #include <sys/stat.h>
 #include <unistd.h>
 }
 
-/**
- * @brief When enabled, this flag allows the instrumentation phase to insert
- * analysis code into the target program.
- */
+/** @brief When enabled, this flag allows the instrumentation phase to insert
+ * analysis code into the target program. */
 bool isInstrumentating;
 /** @brief Flag indicating whether instrumentation has been initialized. */
 bool wasInitInstrumentationCalled = false;
-
+/** @brief One static file for all threads. */
 const char* pathToStaticFile = NULL;
-
 /** @brief Directory to store the trace files. */
 std::string directory;
 /** @brief OpenMP routines to ignore. */
 std::vector<const char*> routinesToIgnore;
 /** @brief List of intrinsic instructions. */
 std::vector<IntrinsicInfo> intrinsics;
-
-/** @brief Logger for instruction traces. */
+/** @brief Logger for traces containing instructions. */
 Writer<StaticTraceEntry> staticLogger;
-/** @brief Metadata for the static trace file. */
+/** @brief Metadata from the static trace file. */
 StaticFileMetadata staticMetadata;
-
+/** @brief Counts the number of entries in static trace. */
 EntriesCounter entriesStaticTrace = 0;
+/** @brief Counts the number of entries in dynamic trace. */
 EntriesCounter entriesDynamicTrace = 0;
+/** @brief Counts the number of entries in memory trace. */
 EntriesCounter entriesMemoryTrace = 0;
-
+/** @brief Locks protects from race conditions in analysis functions. */
 PIN_LOCK analysisLock;
 
 /* A KNOB is a class that encapsulates a command line argument. When the
@@ -207,7 +206,7 @@ VOID OnThreadFini(THREADID tid, const CONTEXT* ctxt, INT32 code, VOID* v) {
 
 /** @brief Append basic block identifier to dynamic trace. */
 VOID AppendToDynamicTrace(THREADID tid, UINT32 bbl, UINT64 inst) {
-    assert(WasThreadCreated(tid));
+    if (!WasThreadCreated(tid)) return;
 
     threads[tid]->executionMetadata.executed += inst;
 
@@ -239,7 +238,7 @@ VOID AppendToDynamicTrace(THREADID tid, UINT32 bbl, UINT64 inst) {
 
 /** @brief Add memory operations to trace. */
 VOID AppendToMemTrace(THREADID tid, PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
-    assert(WasThreadCreated(tid));
+    if (!WasThreadCreated(tid)) return;
 
     /* Save the number of memory operations to fetch from the trace. */
     int count = accessInfo->numberOfMemops;
@@ -404,7 +403,7 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
 }
 
 VOID OnExecutionEvent(THREADID tid, UINT32 ev, BOOL onlyInMaster) {
-    assert(WasThreadCreated(tid));
+    if (!WasThreadCreated(tid)) return;
 
     PIN_GetLock(&analysisLock, tid);
 
