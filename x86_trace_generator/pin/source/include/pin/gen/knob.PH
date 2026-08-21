@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2022 Intel Corporation.
+ * Copyright (C) 2020-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -56,7 +56,7 @@ template< class TYPE > class KNOBVALUE
   public:
     // conversion methods
     STATIC TYPE FromString(const std::string& strvalue);
-    STATIC std::string ToString(const TYPE& value, const std::string& origString) { return origString; }
+    STATIC std::string ToString(const TYPE&, const std::string& origString) { return origString; }
 
     //acumulation method
     STATIC TYPE Accumulate(TYPE& lVal, const TYPE& rVal) { return (lVal += rVal); }
@@ -182,7 +182,8 @@ template< class TYPE > class KNOBVALUE_LIST
         }
         else
         {
-            node                 = new listnode;
+            node = new (std::nothrow) listnode;
+            OS_ASSERT(nullptr != node); // Use OS_ASSERT because Pin objects may not be fully initialized
             listnode* const last = Node(_numNodes - 1);
             last->Append(node);
         }
@@ -409,8 +410,7 @@ template< class TYPE > class KNOB : public KNOB_BASE
                 {
                     PIN_ERROR("trying to overwrite write-once knob '" + _name + "'\n");
                 }
-
-                // intentional fall-through
+                [[fallthrough]];
             case KNOB_MODE_OVERWRITE:
                 if (SetByUser())
                 {
@@ -493,7 +493,7 @@ class ADDRESS_RANGE
     ADDRINT _low;
     ADDRINT _high;
 
-    ADDRESS_RANGE& operator+=(const ADDRESS_RANGE& right) { return *this; }
+    ADDRESS_RANGE& operator+=(const ADDRESS_RANGE&) { return *this; }
 
     std::string String() const { return hexstr(_low) + ":" + hexstr(_high); }
 

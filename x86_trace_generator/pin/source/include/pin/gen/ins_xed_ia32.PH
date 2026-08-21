@@ -25,13 +25,6 @@ extern xed_decoded_inst_t* INS_XedDec(INS ins);
 extern REG INS_XedExactMapToPinReg(xed_reg_enum_t xed_reg);
 
 /*! @ingroup INS_INSPECTION
-  Convert a Intel(R) X86 Encoder Decoder xed_reg_enum_t register to a Pin REG type.
-  @returns a valid pin register, but never an invalid one. Asserts if there is no exact map.
-  @note DEPRECATED: Use  INS_XedExactMapToPinReg(xed_reg_enum_t xed_reg) instead
- */
-extern PIN_DEPRECATED_API REG INS_XedExactMapToPinReg(unsigned int r);
-
-/*! @ingroup INS_INSPECTION
   Convert  Pin REG type (application register) to an Intel(R) X86 Encoder Decoder xed_reg_enum_t
   register.
   @returns xed reg mapping to pin reg. if no map returns XED_REG_INVALID

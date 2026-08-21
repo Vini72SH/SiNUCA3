@@ -99,7 +99,7 @@ static bool SetupSignalHandler()
     sigemptyset(&sigact.sa_mask);
     if (sigaction(SIGSEGV, &sigact, 0) == -1)
     {
-        cerr << "Unable to set up handler" << endl;
+        std::cerr << "Unable to set up handler" << std::endl;
         return false;
     }
     return true;

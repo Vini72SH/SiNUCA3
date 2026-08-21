@@ -267,7 +267,7 @@ extern VOID PIN_RemoveDebugInterpreter(DEBUG_INTERPRETER_CALLBACK fun);
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows, macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern PIN_CALLBACK PIN_AddBreakpointHandler(DEBUG_BREAKPOINT_CALLBACK fun, VOID* val);
@@ -281,7 +281,7 @@ extern PIN_CALLBACK PIN_AddBreakpointHandler(DEBUG_BREAKPOINT_CALLBACK fun, VOID
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows, macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern VOID PIN_RemoveBreakpointHandler(DEBUG_BREAKPOINT_CALLBACK fun);
@@ -295,7 +295,7 @@ extern VOID PIN_RemoveBreakpointHandler(DEBUG_BREAKPOINT_CALLBACK fun);
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows, macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern VOID PIN_ResetBreakpointAt(ADDRINT addr);

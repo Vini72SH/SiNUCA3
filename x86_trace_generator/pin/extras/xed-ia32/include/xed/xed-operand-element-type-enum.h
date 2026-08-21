@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -34,6 +34,9 @@ END_LEGAL */
 #define XED_OPERAND_ELEMENT_TYPE_VARIABLE_DEFINED 1
 #define XED_OPERAND_ELEMENT_TYPE_FLOAT16_DEFINED 1
 #define XED_OPERAND_ELEMENT_TYPE_BFLOAT16_DEFINED 1
+#define XED_OPERAND_ELEMENT_TYPE_BFLOAT8_DEFINED 1
+#define XED_OPERAND_ELEMENT_TYPE_FLOAT8_DEFINED 1
+#define XED_OPERAND_ELEMENT_TYPE_HFLOAT8_DEFINED 1
 #define XED_OPERAND_ELEMENT_TYPE_INT8_DEFINED 1
 #define XED_OPERAND_ELEMENT_TYPE_UINT8_DEFINED 1
 #define XED_OPERAND_ELEMENT_TYPE_LAST_DEFINED 1
@@ -49,6 +52,9 @@ typedef enum {
   XED_OPERAND_ELEMENT_TYPE_VARIABLE, ///< depends on other fields in the instruction
   XED_OPERAND_ELEMENT_TYPE_FLOAT16, ///< 16b floating point
   XED_OPERAND_ELEMENT_TYPE_BFLOAT16, ///< bfloat16 floating point
+  XED_OPERAND_ELEMENT_TYPE_BFLOAT8, ///< bfloat8 floating point
+  XED_OPERAND_ELEMENT_TYPE_FLOAT8, ///< float8 floating point
+  XED_OPERAND_ELEMENT_TYPE_HFLOAT8, ///< hybrid float8
   XED_OPERAND_ELEMENT_TYPE_INT8, ///< 8 bit integer
   XED_OPERAND_ELEMENT_TYPE_UINT8, ///< 8 bit unsigned integer
   XED_OPERAND_ELEMENT_TYPE_LAST

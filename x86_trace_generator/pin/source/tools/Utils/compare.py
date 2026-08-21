@@ -1,14 +1,15 @@
 #
-# Copyright (C) 2008-2018 Intel Corporation.
+# Copyright (C) 2008-2025 Intel Corporation.
 # SPDX-License-Identifier: MIT
 #
 
 #
-# This script compares a multi-line input file with a multi-line comparison file, where
+# This script compares a multi-line input file with a multi-line comparison pattern file, where
 # each line in the comparison file is a Python regular expression (re).  The input file
 # matches if there is some sequence of lines that match (in order) the patterns from the
 # comparison file.  The input file may have additional non-matching lines, so long as
 # there is a matching line for each pattern.
+# @note - A line starts with "//" inside the comparison pattern file is considered a comment and is skipped.
 #
 
 import optparse
@@ -58,6 +59,11 @@ def CompareFile(filePattern, fileCompare):
 
     patterns = []
     for line in filePattern.readlines():
+        if(line.startswith("//")):
+            # If a line inside a pattern starts with "//", consider it a comment line, therefore skip it.
+            # There is some change that "//" might be a pattern I would like to check in the compare file
+            # but currently we don't. If we need to we can change comment to starts with ";;" or with "%%"
+            continue
         line = line.rstrip('\r\n')
         pat = re.compile(line)
         patterns.append((pat,line))

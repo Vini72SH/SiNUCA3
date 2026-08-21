@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2023 Intel Corporation.
+ * Copyright (C) 2010-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -23,6 +23,13 @@ typedef UTIL::FXSAVE_INTEL64_PROMOTED FXSAVE;
 struct XSAVE_HEADER
 {
     XSAVE_HEADER() {}
+    // Active/in-use mask: each bit indicates whether the corresponding xstate component has
+    // non-INIT data in this buffer.  XRSTOR uses this to decide per-component whether to restore
+    // from the buffer (bit set) or reset to INIT state (bit clear).
+    // NOTE: This is NOT the same as FPX_SW_BYTES._xstateBv, which is the LAYOUT mask describing
+    // which features the signal frame is sized to hold (derived from XCR0).  FPX_SW_BYTES is a
+    // Linux software structure embedded in the FXSAVE padding (last 48 bytes of _pad4, at offset
+    // 464 within FXSAVE).  See fpstate_linux.H for its definition and accessors.
     UINT64 _xstate_bv;
     UINT64 _xcomp_bv;
     UINT64 _reserved[6];
@@ -70,7 +77,17 @@ struct FPSTATE
         UINT8 _zmms[16 * 64];     // 16 512-bit zmm registers (zmm16-zmm31)   1024 bytes at offset 1664
     } _vstate;
 
-    // Total of 2688 bytes.
+    // The following is only applicable on processors that support AMX (XTILE_CFG, xstate bit 17).
+    // XTILE_CFG is a non-dynamic feature included in the kernel's signal frame xstate area.
+    // CPUID reports XTILE_CFG at absolute offset 2752 with size 64 on SPR, so there is a 64-byte
+    // gap between the end of VSTATE (offset 2688) and the start of XTILE_CFG.
+    //
+    // Note: XTILE_DATA (xstate bit 18, 8KB of tile register data) is intentionally excluded.
+    //
+    UINT8 _xtileCfgPadding[64]; // padding                                  64   bytes at offset 2688
+    UINT8 _xtileCfg[64];        // TILECFG register (AMX configuration)     64   bytes at offset 2752
+
+    // Total of 2816 bytes.
 };
 
 /*! @ingroup CONTEXT

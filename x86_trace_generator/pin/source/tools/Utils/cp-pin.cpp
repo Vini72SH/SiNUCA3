@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2006-2023 Intel Corporation.
+ * Copyright (C) 2006-2024 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -8,15 +8,15 @@
 #include <iostream>
 #include <fstream>
 #include <chrono>
-using std::cerr;
-using std::endl;
-using std::ifstream;
-using std::ios;
-using std::ofstream;
+
+
+
+
+
 
 void Usage(char** argv)
 {
-    cerr << "Usage: " << argv[0] << " input-file output-file [-s]" << endl;
+    std::cerr << "Usage: " << argv[0] << " input-file output-file [-s]" << std::endl;
     exit(1);
 }
 
@@ -45,18 +45,18 @@ int main(int argc, char** argv)
 
     if (time_probe) start = std::chrono::high_resolution_clock::now();
 
-    ifstream* i = new ifstream(ifn, ios::in | ios::binary);
+    std::ifstream* i = new std::ifstream(ifn, std::ios::in | std::ios::binary);
 
     if (!i)
     {
-        cerr << "Could not open input file " << ifn << endl;
+        std::cerr << "Could not open input file " << ifn << std::endl;
         exit(1);
     }
 
-    ofstream* o = new ofstream(ofn, ios::out | ios::trunc | ios::binary);
+    std::ofstream* o = new std::ofstream(ofn, std::ios::out | std::ios::trunc | std::ios::binary);
     if (!o)
     {
-        cerr << "Could not open output file " << ofn << endl;
+        std::cerr << "Could not open output file " << ofn << std::endl;
         exit(1);
     }
 

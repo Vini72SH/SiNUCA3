@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2021 Intel Corporation.
+ * Copyright (C) 2020-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -48,10 +48,15 @@ class LOGFILE
  */
 enum LOGTYPE
 {
+    LOGTYPE_NONE,               //!< Does not output to log or console (for internal use)
     LOGTYPE_CONSOLE,            //!< log only to the console
     LOGTYPE_LOGFILE,            //!< log only to the log file
     LOGTYPE_CONSOLE_AND_LOGFILE //!< log to both the log file and console
 };
+
+///NOTE: At the moment all knob parsing is also done inside Pin. This means that if we want
+///      message types that are used outside of Pin, we still need to declare them inside Pin,
+///      for that purpose we introduce LOGTYPE_NONE.
 
 /*! @ingroup MESSAGE
  * A call-back function that is called whenever a MESSAGE_TYPE object prints

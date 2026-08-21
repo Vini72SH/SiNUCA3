@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2021-2021 Intel Corporation.
+ * Copyright (C) 2021-2023 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -24,7 +24,7 @@ typedef UINT16 OPCODE;
 static inline OPCODE OPCODE_INVALID() { return 0; }
 static inline BOOL OPCODE_valid(OPCODE opc) { return opc != 0; }
 
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#if defined(TARGET_LINUX)
 #define KNOB_ONLY_ON_UNIX "1"
 #else
 #define KNOB_ONLY_ON_UNIX "0"
@@ -52,12 +52,6 @@ static inline BOOL OPCODE_valid(OPCODE opc) { return opc != 0; }
 #define KNOB_ONLY_ON_LINUX "1"
 #else
 #define KNOB_ONLY_ON_LINUX "0"
-#endif
-
-#if defined(TARGET_MAC)
-#define KNOB_ONLY_ON_MAC "1"
-#else
-#define KNOB_ONLY_ON_MAC "0"
 #endif
 
 #if defined(TARGET_WINDOWS)
@@ -92,14 +86,8 @@ static inline BOOL OPCODE_valid(OPCODE opc) { return opc != 0; }
 
 #define HEX(val) 0x##val
 
-#if defined(TARGET_MAC)
-// on macOS* the section name must start with '__'
-#define PIN_VERSION_SECNAME "__pinversion"
-#define PIN_CLIENTINT_SECNAME "__pinclientint"
-#else
 #define PIN_VERSION_SECNAME ".pinversion"
 #define PIN_CLIENTINT_SECNAME ".pinclientint"
-#endif
 
 class STAT;
 class STAT_NORM;
@@ -108,9 +96,7 @@ class STAT_NORM;
   x
 */
 
-#if !defined(TARGET_MAC)
-
-typedef struct
+typedef struct LINUX_LOADER_IMAGE_INFO
 {
   public:
     char* name;
@@ -119,8 +105,6 @@ typedef struct
     ADDRINT l_addr;
 } LINUX_LOADER_IMAGE_INFO;
 
-#endif
-
 /*! @ingroup MISC_BASIC
  *  Timeout interval that never elapses.
  */
@@ -128,17 +112,8 @@ const UINT32 PIN_INFINITE_TIMEOUT = static_cast< UINT32 >(-1);
 
 /*! @ingroup THREADS_INTERNAL
  * Maximum number of threads supported by PIN.
- * All 32-bit systems support up to 2048 threads.
- * Only Linux and Windows 64-bit systems support up to 8192 threads.
+ * PINOS supports upto (64K - 1) threads
  */
-#if (defined(TARGET_IA32) || !(defined(TARGET_LINUX) || defined (TARGET_WINDOWS)))
-
-const UINT32 PIN_MAX_THREADS = 2048;
-
-#else
-
-const UINT32 PIN_MAX_THREADS = 8192;
-
-#endif
+constexpr size_t PIN_MAX_THREADS = (1<<16) - 1;
 
 #endif

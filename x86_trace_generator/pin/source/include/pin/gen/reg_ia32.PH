@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2023 Intel Corporation.
+ * Copyright (C) 2020-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -116,7 +116,7 @@ typedef enum
     REG_EFLAGS,
     REG_GFLAGS = REG_EFLAGS,
     REG_EIP,
-    REG_INST_PTR = REG_EIP,
+    REG_INST_PTR              = REG_EIP,
 #endif // not defined(TARGET_IA32E)
 
     REG_PHYSICAL_INTEGER_END = REG_INST_PTR,
@@ -243,10 +243,10 @@ typedef enum
     REG_XMM_AVX512_LAST      = REG_XMM_AVX512_HI16_LAST,
     REG_XMM_LAST             = REG_XMM_AVX512_LAST,
 #else // not TARGET_IA32E
-    REG_XMM_SSE_LAST    = REG_XMM7,
-    REG_XMM_AVX_LAST    = REG_XMM_SSE_LAST,
-    REG_XMM_AVX512_LAST = REG_XMM_AVX_LAST,
-    REG_XMM_LAST        = REG_XMM_AVX512_LAST,
+    REG_XMM_SSE_LAST          = REG_XMM7,
+    REG_XMM_AVX_LAST          = REG_XMM_SSE_LAST,
+    REG_XMM_AVX512_LAST       = REG_XMM_AVX_LAST,
+    REG_XMM_LAST              = REG_XMM_AVX512_LAST,
 #endif // not TARGET_IA32E
 
     REG_YMM_BASE,
@@ -291,9 +291,9 @@ typedef enum
     REG_YMM_AVX512_LAST      = REG_YMM_AVX512_HI16_LAST,
     REG_YMM_LAST             = REG_YMM_AVX512_LAST,
 #else // not TARGET_IA32E
-    REG_YMM_AVX_LAST    = REG_YMM7,
-    REG_YMM_AVX512_LAST = REG_YMM_AVX_LAST,
-    REG_YMM_LAST        = REG_YMM_AVX512_LAST,
+    REG_YMM_AVX_LAST          = REG_YMM7,
+    REG_YMM_AVX512_LAST       = REG_YMM_AVX_LAST,
+    REG_YMM_LAST              = REG_YMM_AVX512_LAST,
 #endif // not TARGET_IA32E
 
     REG_ZMM_BASE,
@@ -386,7 +386,7 @@ typedef enum
     REG_ORIG_GAX = REG_ORIG_RAX,
 #else // not defined(TARGET_IA32E)
     REG_ORIG_EAX,
-    REG_ORIG_GAX = REG_ORIG_EAX,
+    REG_ORIG_GAX  = REG_ORIG_EAX,
 #endif // not defined(TARGET_IA32E)
 
     REG_FPST_BASE,
@@ -795,14 +795,38 @@ typedef enum
     REG_PIN_IPRELADDR,           // virtual reg holding ip-rel address value
     REG_PIN_SYSENTER_RESUMEADDR, // virtual reg holding the resume address from sysenter
     REG_PIN_SYSCALL_NEXT_PC,     // virtual reg holding the next PC when Pin emulates a system call
+    REG_PIN_SYSCALL_NUMBER,      // virtual reg holding the last system call number that Pin executed
     REG_PIN_VMENTER,             // virtual reg holding the address of VmEnter
                                  // actually it is the spill slot of this register that holds
                                  // the address
 #if defined(TARGET_IA32E)
     REG_PIN_TRACKED_TILECFG,     ///< virtual reg holding latest tile configuration value (64 bytes).
-                                 ///< Always mapped to spill area. Needed to optimization purposes.
+                                 ///< Always mapped to spill area. Needed for optimization purposes.
 #endif
 
+#if defined(TARGET_IA32E)
+    // Before each BBL, Time emulation does:
+    // thread_ins_count     = max(thread_ins_count, GIC) + bbl_ins_num;
+    // local_thread_inscount += bbl_ins_num;
+    REG_PIN_TE_INS_COUNT, // virtual reg  of the instruction count of a thread in time emulation. This counter tries to be consistent with GIC.
+    REG_PIN_TE_LOCAL_INS_COUNT, // virtual reg of the local instruction count of a thread in time emulation. This counter is regardless of GIC.
+#else
+    REG_PIN_TE_INS_COUNT_LOW, // virtual reg holding low 32 bits of the instruction count of a thread in time emulation. This counter tries to be consistent with GIC.
+    REG_PIN_TE_INS_COUNT_HIGH, // virtual reg high 32 bits of the instruction count of a thread in time emulation. This counter tries to be consistent with GIC.
+    REG_PIN_TE_LOCAL_INS_COUNT_LOW, // virtual reg low 32 bits of the local instruction count of a thread in time emulation. This counter is regardless of GIC.
+    REG_PIN_TE_LOCAL_INS_COUNT_HIGH, // virtual reg high 32 bits of the local instruction count of a thread in time emulation. This counter is regardless of GIC.
+    REG_PIN_TE_TEMP_GIC_LOW,  // virtual register to hold GIC low after reading it before BBL.
+    REG_PIN_TE_TEMP_GIC_HIGH, // virtual register to hold GIC high after reading it before BBL.
+
+    //Alternate stack for TE (see add_update_ins_count_logic() 32 bit for more information).
+    REG_PIN_TE_SLOT_1, // virtual reg holding alternate stack slot 1 for TE
+    REG_PIN_TE_SLOT_2, // virtual reg holding alternate stack slot 2 for TE
+    REG_PIN_TE_SLOT_3, // virtual reg holding alternate stack slot 3 for TE
+    REG_PIN_TE_SLOT_4, // virtual reg holding alternate stack slot 4 for TE
+    REG_PIN_TE_SLOT_5, // virtual reg holding alternate stack slot 5 for TE
+
+    REG_PIN_TE_STACK_HEAD, // virtual reg holding the head of the alternate stack for TE
+#endif
     // ISA-independent gr regs holding temporary values
     REG_PIN_T_BASE,
 #ifdef TARGET_IA32E
@@ -857,7 +881,7 @@ typedef enum
     REG_PIN_INST_T2,
     REG_PIN_INST_T2D = REG_PIN_INST_T2,
     REG_PIN_INST_T3,
-    REG_PIN_INST_T3D = REG_PIN_INST_T3,
+    REG_PIN_INST_T3D              = REG_PIN_INST_T3,
 #endif // not TARGET_IA32E
     REG_PIN_INST_T0W, // lower 16 bits of temporary register
     REG_PIN_INST_T1W,
@@ -970,10 +994,10 @@ typedef enum
     REG_PIN_XMM_AVX512_LAST      = REG_PIN_XMM_AVX512_HI16_LAST,
     REG_PIN_XMM_LAST             = REG_PIN_XMM_AVX512_LAST,
 #else // not TARGET_IA32E
-    REG_PIN_XMM_SSE_LAST    = REG_PIN_XMM7,
-    REG_PIN_XMM_AVX_LAST    = REG_PIN_XMM_SSE_LAST,
-    REG_PIN_XMM_AVX512_LAST = REG_PIN_XMM_AVX_LAST,
-    REG_PIN_XMM_LAST        = REG_PIN_XMM_AVX512_LAST,
+    REG_PIN_XMM_SSE_LAST          = REG_PIN_XMM7,
+    REG_PIN_XMM_AVX_LAST          = REG_PIN_XMM_SSE_LAST,
+    REG_PIN_XMM_AVX512_LAST       = REG_PIN_XMM_AVX_LAST,
+    REG_PIN_XMM_LAST              = REG_PIN_XMM_AVX512_LAST,
 #endif // TARGET_IA32E
 
     REG_PIN_YMM_BASE,
@@ -1017,9 +1041,9 @@ typedef enum
     REG_PIN_YMM_AVX512_LAST      = REG_PIN_YMM_AVX512_HI16_LAST,
     REG_PIN_YMM_LAST             = REG_PIN_YMM_AVX512_LAST,
 #else // not TARGET_IA32E
-    REG_PIN_YMM_AVX_LAST    = REG_PIN_YMM7,
-    REG_PIN_YMM_AVX512_LAST = REG_PIN_YMM_AVX_LAST,
-    REG_PIN_YMM_LAST        = REG_PIN_YMM_AVX512_LAST,
+    REG_PIN_YMM_AVX_LAST          = REG_PIN_YMM7,
+    REG_PIN_YMM_AVX512_LAST       = REG_PIN_YMM_AVX_LAST,
+    REG_PIN_YMM_LAST              = REG_PIN_YMM_AVX512_LAST,
 #endif // not TARGET_IA32E
 
     REG_PIN_ZMM_BASE,
@@ -1101,9 +1125,9 @@ const ADDRINT NUM_PHYSICAL_REGS = REG_PHYSICAL_INTEGER_END - REG_PHYSICAL_INTEGE
 const ADDRINT NUM_SCRATCH_REGS = REG_INST_SCRATCH_LAST - REG_INST_SCRATCH_BASE + 1;
 
 /*! @ingroup CONTEXT
- * REG_SEG_FS_BASE and REG_SEG_GS_BASE are represented as special IA-32/Intel(R) 64 architecture registers
+ * REG_SEG_FS_BASE, REG_SEG_GS_BASE, and REG_PIN_SYSCALL_NUMBER are represented as special IA-32/Intel(R) 64 architecture registers
  */
-const ADDRINT NUM_SPECIAL_REGS = 2 + NUM_SCRATCH_REGS;
+const ADDRINT NUM_SPECIAL_REGS = 3 + NUM_SCRATCH_REGS;
 
 /*! @ingroup CONTEXT
  * Total number of integer registers in CONTEXT
@@ -1265,12 +1289,12 @@ inline BOOL REG_is_fr(REG reg)
 /*! @ingroup REG
    @return true if reg is a branch register
 */
-inline BOOL REG_is_br(REG reg) { return FALSE; }
+inline BOOL REG_is_br([[maybe_unused]] REG reg) { return FALSE; }
 
 /*! @ingroup REG
   @return true if reg is a 64-bit general purpose register
 */
-inline BOOL REG_is_gr64(REG reg)
+inline BOOL REG_is_gr64([[maybe_unused]] REG reg)
 {
 #if defined(TARGET_IA32E)
     // all gr on Intel(R) 64 architectures are 64-bits
@@ -1534,7 +1558,7 @@ inline BOOL REG_is_pin_k_mask(REG reg) { return (_regClassBitMapTable[reg] == (_
 /*! @ingroup REG
  * @return  true if the given xmm is one of xmm16-xmm31
  */
-inline BOOL REG_is_avx512_hi16_xmm(const REG xmm)
+inline BOOL REG_is_avx512_hi16_xmm([[maybe_unused]] const REG xmm)
 {
 #ifdef TARGET_IA32
     return FALSE;
@@ -1557,7 +1581,7 @@ inline BOOL REG_is_avx512_hi16_xmm(const REG xmm)
 /*! @ingroup REG
  * @return  true if the given ymm is one of ymm16-ymm31
  */
-inline BOOL REG_is_avx512_hi16_ymm(const REG ymm)
+inline BOOL REG_is_avx512_hi16_ymm([[maybe_unused]] const REG ymm)
 {
 #ifdef TARGET_IA32
     return FALSE;
@@ -1578,7 +1602,13 @@ inline BOOL REG_is_avx512_hi16_ymm(const REG ymm)
 }
 
 /*! @ingroup REG
- * @return true if it is a gr reg
+ * 
+ * @brief Returns true if \a reg is a full-width GR register.
+ *
+ * @note  full-width means that for instance for 64 bits passing REG_RAX will
+ *        return true, but passing REG_EAX will return false.
+ * 
+ * @return true if it is a full-width gr reg
  */
 inline BOOL REG_is_gr_type(REG reg)
 {

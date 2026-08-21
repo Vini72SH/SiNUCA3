@@ -95,6 +95,8 @@ const char* logger::Logger::Level2String(const Level level) {
 #endif
         default:
             assert(0 && "unreachable");
+            // Never reached but compiler complains
+            return 0;
     }
 }
 

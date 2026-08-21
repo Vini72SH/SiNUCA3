@@ -16,7 +16,7 @@
 
   @par Availability:
   \b Mode:  JIT & Probe\n
-  \b O/S:   Linux, Windows & macOS*\n
+  \b O/S:   Linux, Windows\n
   \b CPU:   All\n
 */
 extern UINT32 BBL_NumIns(BBL bbl);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2007-2021 Intel Corporation.
+ * Copyright (C) 2007-2024 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -49,7 +49,7 @@ const UINT32 MAX_CLIENT_TLS_KEYS = (TLS_KEY_CLIENT_LAST - TLS_KEY_CLIENT_FIRST +
 
   @par Availability:
   \b Mode:  JIT\n
-  \b O/S:   Linux, Windows & macOS*\n
+  \b O/S:   Linux, Windows\n
   \b CPU:   All\n
  */
 extern TLS_KEY PIN_CreateThreadDataKey(DESTRUCTFUN destruct_func);
@@ -65,30 +65,10 @@ extern TLS_KEY PIN_CreateThreadDataKey(DESTRUCTFUN destruct_func);
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern BOOL PIN_DeleteThreadDataKey(TLS_KEY key);
-
-/* This version of PIN_SetThreadData is now deprecated. Please use the version of this function which takes
- * a THREADID argument.
- */
-/*! @ingroup DEPRECATED
- * Store specified value in the specified TLS slot of the thread.
- *
- * @note DEPRECATED and NO LONGER SUPPORTED. Please use the version of this function which takes a THREADID argument.
- *
- * @par Availability:
- * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
- * \b CPU:   All\n
- */
-inline BOOL PIN_SetThreadData(TLS_KEY key, const VOID* data)
-{
-    ASSERT(FALSE, "This version of PIN_SetThreadData is now deprecated. Please use the version of this function which "
-                  "takes a THREADID argument.");
-    return FALSE;
-}
 
 /*! @ingroup THREADS
  * Store specified value in the specified TLS slot of the thread.
@@ -111,30 +91,10 @@ inline BOOL PIN_SetThreadData(TLS_KEY key, const VOID* data)
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern BOOL PIN_SetThreadData(TLS_KEY key, const VOID* data, THREADID threadId);
-
-/* This version of PIN_GetThreadData is now deprecated. Please use the version of this function which takes
- * a THREADID argument.
- */
-/*! @ingroup DEPRECATED
- * Get the value stored in the specified TLS slot of the thread.
- *
- * @note DEPRECATED and NO LONGER SUPPORTED. Please use the version of this function which takes a THREADID argument.
- *
- * @par Availability:
- * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
- * \b CPU:   All\n
- */
-inline VOID* PIN_GetThreadData(TLS_KEY key)
-{
-    ASSERT(FALSE, "This version of PIN_GetThreadData is now deprecated. Please use the version of this function which "
-                  "takes a THREADID argument.");
-    return FALSE;
-}
 
 /*! @ingroup THREADS
  * Get the value stored in the specified TLS slot of the thread.
@@ -156,7 +116,7 @@ inline VOID* PIN_GetThreadData(TLS_KEY key)
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   All\n
  */
 extern VOID* PIN_GetThreadData(TLS_KEY key, THREADID threadId);

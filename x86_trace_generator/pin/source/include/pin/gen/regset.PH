@@ -44,6 +44,26 @@ template< UINT32 _min, UINT32 _max > class REGISTER_SET
         }
     }
 
+    REGISTER_SET(const REGISTER_SET& rhs)
+    {
+        for (UINT32 k = 0; k < _NUM_SETS; k++)
+        {
+            _set[k] = rhs._set[k];
+        }
+    }
+
+    REGISTER_SET& operator=(const REGISTER_SET& rhs)
+    {
+        if (this != &rhs)
+        {
+            for (UINT32 k = 0; k < _NUM_SETS; k++)
+            {
+                _set[k] = rhs._set[k];
+            }
+        }
+        return *this;
+    }
+
     REG Min() const { return REG(_min); }
     REG Max() const { return REG(_max); }
 

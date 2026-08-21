@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2023 Intel Corporation.
+ * Copyright (C) 2011-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -9,7 +9,7 @@
 #ifndef PINSYNC_HPP
 #define PINSYNC_HPP
 
-#include "os-apis.h"
+#include "pinrt_adaptor_sync.PH"
 #include <map>
 #include <string>
 
@@ -101,7 +101,7 @@ class PINSYNC_LOCK /*<UTILITY>*/
 /*!
  * Basic non-recursive lock with POD semantics.
  */
-typedef struct
+typedef struct PINSYNC_POD_LOCK
 {
   public:
     /*!
@@ -234,7 +234,7 @@ class PINSYNC_RWLOCK /*<UTILITY>*/
 /*!
  * Read-writer lock with POD semantics.
  */
-typedef struct
+typedef struct PINSYNC_POD_RWLOCK
 {
   public:
     /*!
@@ -420,7 +420,9 @@ template< int MaxThreads > class PINSYNC_RECURSIVE_RWLOCK /*<UTILITY>*/
         _mutex.Lock();
         typename SNAPSHOTS_MAP::iterator it_snp = _snapshots.find(tid);
         ASSERTX(it_snp == _snapshots.end());
-        _snapshots.insert(std::make_pair(tid, new Snapshot(rd_recursion, wr_recursion)));
+        auto pSnapshot = new (std::nothrow) Snapshot(rd_recursion, wr_recursion);
+        ASSERTX(nullptr != pSnapshot);
+        _snapshots.insert(std::make_pair(tid, pSnapshot));
         _pausedInAtLeastOneThread = true;
         if (wr_recursion >= 1)
         {
@@ -534,6 +536,16 @@ template< int MaxThreads > class PINSYNC_RECURSIVE_RWLOCK /*<UTILITY>*/
             int* recursion_level_ptr = _read_recursion_level.Find(tid);
             return (NULL != recursion_level_ptr) && (*recursion_level_ptr > 0);
         }
+    }
+
+    /*!
+     * Returns TRUE if the thread 'tid' has acquired the Write lock.
+     *
+     * @return  Returns TRUE if the Write lock is acquired, FALSE if not.
+     */
+    virtual bool IsWriteLockedByThread(NATIVE_TID tid)
+    {
+        return _writer_tid == tid;
     }
 
   private:
@@ -838,7 +850,7 @@ class PINSYNC_SEMAPHORE /*<UTILITY>*/
  * Binary semaphore with POD semantics.
  * This synchronization object works as a barrier.
  */
-typedef struct
+typedef struct PINSYNC_POD_SEMAPHORE
 {
   public:
     /*!

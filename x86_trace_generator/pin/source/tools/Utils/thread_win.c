@@ -1,11 +1,13 @@
 /*
- * Copyright (C) 2006-2021 Intel Corporation.
+ * Copyright (C) 2006-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <windows.h>
+
+#define MAXTHREADS 64
 
 int ThreadRoutine()
 {
@@ -18,14 +20,13 @@ int ThreadRoutine()
     return 0;
 }
 
-int ThreadCreation()
+int ThreadCreation(unsigned long num_threads, int createDetached)
 {
-    const unsigned long num_threads = 64;
-    static HANDLE aThreads[64]      = {0};
-    unsigned long slot              = 0;
-    unsigned long thread_id         = 0;
-    unsigned long cnt_th            = 0;
-    unsigned long thread_ret        = 0;
+    static HANDLE aThreads[MAXTHREADS] = {0};
+    unsigned long slot                 = 0;
+    unsigned long thread_id            = 0;
+    unsigned long cnt_th               = 0;
+    unsigned long thread_ret           = 0;
 
     fprintf(stderr, "creating %d threads \n", num_threads);
 
@@ -36,10 +37,17 @@ int ThreadCreation()
 
     while (cnt_th > 0)
     {
-        slot = WaitForMultipleObjects(cnt_th, aThreads, FALSE, INFINITE);
-        GetExitCodeThread(aThreads[slot], &thread_ret);
-        CloseHandle(aThreads[slot]);
-        aThreads[slot] = aThreads[cnt_th - 1];
+        if (createDetached)
+        {
+            CloseHandle(aThreads[slot++]);
+        }
+        else
+        {
+            slot = WaitForMultipleObjects(cnt_th, aThreads, FALSE, INFINITE);
+            GetExitCodeThread(aThreads[slot], &thread_ret);
+            CloseHandle(aThreads[slot]);
+            aThreads[slot] = aThreads[cnt_th - 1];
+        }
         cnt_th--;
     }
     fprintf(stderr, "all %d threads terminated\n", num_threads);
@@ -47,8 +55,18 @@ int ThreadCreation()
     return 1;
 }
 
-int main()
+int main(int argc, char* argv[])
 {
-    ThreadCreation();
+    int numthreads     = (2 <= argc) ? atoi(argv[1]) : 20;
+    int createDetached = (3 == argc) ? atoi(argv[2]) : 0;
+
+    if (numthreads < 1 || numthreads > MAXTHREADS)
+    {
+        numthreads = 20;
+    }
+
+    printf("Creating %d threads\n", numthreads);
+
+    ThreadCreation((unsigned long)numthreads, createDetached);
     return 0;
 }

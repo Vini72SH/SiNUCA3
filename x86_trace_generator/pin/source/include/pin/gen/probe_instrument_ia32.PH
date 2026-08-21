@@ -10,6 +10,6 @@
 /*! @file
  DWARF specific instrumentation in probe mode
 */
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#if defined(TARGET_LINUX)
 #endif //defined(TARGET_LINUX)
 #endif // PIN_G_PROBE_INSTRUMENT_IA32_PH

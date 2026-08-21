@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef TARGET_MAC
-.global _SupportsAvx2
-_SupportsAvx2:
-#else
 .type SupportsAvx2, @function
 .global SupportsAvx2
 SupportsAvx2:
-#endif
+
     push %rbp
     mov  %rsp, %rbp
     push %rbx

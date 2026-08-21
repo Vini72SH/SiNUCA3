@@ -41,7 +41,7 @@
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
 */
 extern BOOL PIN_StopApplicationThreads(THREADID tid);
@@ -83,7 +83,7 @@ extern BOOL PIN_IsThreadStoppedInDebugger(THREADID tid);
  *
  * @par Availability:
  * \b Mode:  JIT\n
- * \b O/S:   Linux, Windows & macOS*\n
+ * \b O/S:   Linux, Windows\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern VOID PIN_ResumeApplicationThreads(THREADID tid);

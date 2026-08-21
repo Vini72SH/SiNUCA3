@@ -14,21 +14,21 @@
 /*! @ingroup VERSION
  * The Pin major version number.
  */
-#define PIN_PRODUCT_VERSION_MAJOR 3
+#define PIN_PRODUCT_VERSION_MAJOR 4
 
 /*! @ingroup VERSION
  * The Pin minor version number.
  */
-#define PIN_PRODUCT_VERSION_MINOR 31
+#define PIN_PRODUCT_VERSION_MINOR 3
 
 /*! @ingroup VERSION
  * The Pin kit build number. This is unique for every Pin kit.
  */
-#define PIN_BUILD_NUMBER 98869
+#define PIN_BUILD_NUMBER 99850
 
 /*! @ingroup VERSION
  * The git hash for this Pin build. This is unique for every Pin kit.
  */
-#define PIN_COMMIT_HASH "fa6f126a8"
+#define PIN_COMMIT_HASH "ce5652921"
 
 #endif // PIN_VERSION_H

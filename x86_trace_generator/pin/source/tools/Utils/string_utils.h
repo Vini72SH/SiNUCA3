@@ -20,12 +20,12 @@ enum elementFormat
     formatDouble
 };
 
-// This function returns a string represeting the content of a list of elements in memory.
+// This function returns a std::string represeting the content of a list of elements in memory.
 //  [in] addr           : The base address.
 //  [in] elementSize    : The number of bytes in each element. Elements are delimited by a space.
 //  [in] numElements    : The number of elements to read.
 //  [in] format         : The print format of each element (decimal/hex/double).
-//  [in] minWidth       : The minimal number of characters to print for each element (padded with zeros for hex format)
+//  [in] minWidth       : The minimal number of characters to print for each element (padded with zeros for std::hex format)
 inline std::string bytes2str(const char* addr, int elementSize, int numElements, elementFormat format, int minWidth = 1)
 {
     std::stringstream ss;
