@@ -71,7 +71,6 @@ void FileHeader::Print(bool printMetadata) const {
     SINUCA3_LOG_PRINTF("  %-18s: 0x%X\n", "Magic", this->magic);
     SINUCA3_LOG_PRINTF("  %-18s: %.*s\n", "Prefix", PREFIX_SIZE, this->prefix);
     SINUCA3_LOG_PRINTF("  %-18s: %d\n", "Version", this->version);
-    SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Entries", this->entries);
 
     const char* targetStr = "Unknown";
     (void)targetStr;
@@ -103,29 +102,6 @@ void FileHeader::Print(bool printMetadata) const {
         SINUCA3_DEBUG_PRINTF(" %-18s: %ld\n", "Executed Instr.",
                              this->dyn.executed);
     }
-}
-
-void FileHeader::SetPrefix(FileType type) {
-    switch (type) {
-        case FileTypeStaticTrace:
-            memcpy(this->prefix, PREFIX_STATIC_FILE, PREFIX_SIZE);
-            break;
-        case FileTypeDynamicTrace:
-            memcpy(this->prefix, PREFIX_DYNAMIC_FILE, PREFIX_SIZE);
-            break;
-        case FileTypeMemoryTrace:
-            memcpy(this->prefix, PREFIX_MEMORY_FILE, PREFIX_SIZE);
-            break;
-        default:
-            assert(false && "Invalid file type");
-    }
-}
-
-void FileHeader::Setup(TargetArchitecture target, EntriesCounter entries) {
-    this->magic = TRACE_MAGIC;
-    this->version = TRACE_VERSION;
-    this->target = target;
-    this->entries = entries;
 }
 
 void CompressedInstToStaticInfo(const CompressedInstruction* compressed,

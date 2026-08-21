@@ -25,9 +25,10 @@
 
 #include <cassert>
 #include <cstdio>
-#include <engine/default_packets.hpp>
+#include <cstring>
 
-#include "utils/logger.hpp"
+#include <engine/default_packets.hpp>
+#include <utils/logger.hpp>
 
 extern "C" {
 #include <stdint.h>
@@ -49,21 +50,23 @@ typedef int32_t ThreadCounter;
 typedef int32_t TraceVersion;
 typedef int32_t BasicBlockSize;
 typedef int32_t BasicBlockIdentifier;
-typedef int8_t MemoryAccessSize;
+typedef uint32_t MemoryAccessSize;
 typedef int8_t MemoryAccessCounter;
-typedef int64_t MemoryAccessAddress;
+typedef uint64_t MemoryAccessAddress;
 typedef int64_t EntriesCounter;
 
 enum FileType : int8_t {
     FileTypeStaticTrace,
     FileTypeDynamicTrace,
-    FileTypeMemoryTrace
+    FileTypeMemoryTrace,
+    FileTypeUndef
 };
 
 enum TargetArchitecture : int8_t {
     TargetArchX86,
     TargetArchARM,
-    TargetArchRISCV
+    TargetArchRISCV,
+    TargetArchUndef
 };
 
 enum StaticTraceEntryType : int8_t {
@@ -82,7 +85,8 @@ enum EventType : int8_t {
     EventTypeBarrierSync,
     EventTypeCriticalStart,
     EventTypeCriticalEnd,
-    EventTypeAbruptEnd
+    EventTypeAbruptEnd,
+    EventTypeUndef
 };
 
 enum MemoryAccessType : int8_t { MemoryAccessLoad, MemoryAccessStore };
@@ -230,51 +234,57 @@ struct FileHeader {
     FileType type;
     TargetArchitecture target;
     TraceVersion version;
-    EntriesCounter entries;
 
     union {
         StaticFileMetadata st;
         DynamicFileMetadata dyn;
     };
 
-    FileHeader() : entries(0) {}
+    FileHeader() : magic(0), type(FileTypeUndef), target(TargetArchUndef), version(0) {
+        this->prefix[0] = '\0';
+    }
+
+    FileHeader(FileType file, TargetArchitecture arch) : magic(TRACE_MAGIC), version(TRACE_VERSION) {
+        this->type = file;
+        this->target = arch;
+        switch (this->type) {
+        case FileTypeDynamicTrace:
+            strncpy(this->prefix, PREFIX_DYNAMIC_FILE, sizeof(prefix));
+            break;
+        case FileTypeStaticTrace:
+            strncpy(this->prefix, PREFIX_STATIC_FILE, sizeof(prefix));
+            break;
+        case FileTypeMemoryTrace:
+            strncpy(this->prefix, PREFIX_MEMORY_FILE, sizeof(prefix));
+            break;
+        default:
+            SINUCA3_WARNING_PRINTF("File type is invalid!\n");
+            break;
+        }
+    }
 
     /** @brief Print the file header information. */
     void Print(bool printMetadata = false) const;
-    /** @brief Setup new file header. */
-    void Setup(TargetArchitecture target, EntriesCounter entries);
-    /** @brief Set the prefix for the file header. */
-    void SetPrefix(FileType type);
 
-    inline void SetFileType(FileType type) {
-        this->type = type;
-        this->SetPrefix(type);
-    }
     inline void Set(const StaticFileMetadata* meta) {
         assert(meta != NULL);
-        assert(entries > 0);
+        assert(magic != 0);
         this->st = *meta;
-        this->type = FileTypeStaticTrace;
-        this->SetPrefix(this->type);
     }
     inline void Set(const DynamicFileMetadata* meta) {
         assert(meta != NULL);
-        assert(entries > 0);
+        assert(magic!= 0);
         this->dyn = *meta;
-        this->type = FileTypeDynamicTrace;
-        this->SetPrefix(this->type);
     }
     inline int Get(StaticFileMetadata* meta) const {
-        if (this->type != FileTypeStaticTrace) return 1;
+        assert (this->type == FileTypeStaticTrace);
         assert(meta != NULL);
-        assert(entries > 0);
         *meta = this->st;
         return 0;
     }
     inline int Get(DynamicFileMetadata* meta) const {
-        if (this->type != FileTypeDynamicTrace) return 1;
+        assert(this->type == FileTypeDynamicTrace);
         assert(meta != NULL);
-        assert(entries > 0);
         *meta = this->dyn;
         return 0;
     }
