@@ -45,6 +45,11 @@ enum Branch {
     BranchCond
 };
 
+struct Register {
+    unsigned short val;
+    unsigned char isFloat;
+};
+
 /**
  * @brief Stores details of an instruction.
  * These details are static and wont change during program execution.
@@ -56,8 +61,8 @@ struct StaticInstructionInfo {
 
     Branch branchType;
 
-    unsigned short readRegsArray[MAX_REGISTERS];
-    unsigned short writtenRegsArray[MAX_REGISTERS];
+    Register readRegsArray[MAX_REGISTERS];
+    Register writtenRegsArray[MAX_REGISTERS];
 
     unsigned char numberOfReadRegs;
     unsigned char numberOfWriteRegs;

@@ -33,12 +33,12 @@
 #include <filesystem>
 #include <queue>
 #include <string>
-#include <vector>
 #include <tracer/sinuca/file_handler.hpp>
+#include <utils/logger.hpp>
+#include <vector>
 
 #include "intrinsics.hpp"
 #include "pin.H"
-#include <utils/logger.hpp>
 
 struct ThreadData {
     bool isInstrumenting{true};
@@ -50,9 +50,7 @@ struct ThreadData {
     std::string pathToMemFile{};
     std::queue<EventType> requests{};
 
-    DynamicFileMetadata dynamicTraceMetadata{
-        .executed{0}
-    };
+    DynamicFileMetadata dynamicTraceMetadata{.executed{0}};
 };
 
 struct GlobalData {
@@ -66,8 +64,7 @@ struct GlobalData {
     InstructionCounter totalExecuted{0};
     Writer<StaticTraceEntry> staticTraceLogger;
     StaticFileMetadata staticTraceMetadata{
-        .instructions{0}, .basicBlocks{0}, .threads{0}
-    };
+        .instructions{0}, .basicBlocks{0}, .threads{0}};
 } global;
 
 std::vector<IntrinsicInfo> intrinsics{};
@@ -276,75 +273,98 @@ VOID AppendToMemTrace(THREADID tid, PIN_MULTI_MEM_ACCESS_INFO* accessInfo) {
     }
 }
 
-int TranslatePinInst(CompressedInstruction* inst, const INS* pinInst) {
+VOID FetchRegisters(CompressedInstruction* inst, const INS& pinInst) {
+    const auto rArraySize{std::size(inst->readRegs.regs)};
+    const auto wArraySize{std::size(inst->writtenRegs.regs)};
+    for (unsigned int i = 0; i < INS_OperandCount(pinInst); i++) {
+        /* Interest only in register operands */
+        if (!INS_OperandIsReg(pinInst, i)) {
+            continue;
+        }
+
+        const auto reg{static_cast<unsigned short>(INS_OperandReg(pinInst, i))};
+
+        const xed_decoded_inst_t* xed{INS_XedDec(pinInst)};
+
+        auto isFp = [&xed, &inst](unsigned int idx) {
+            xed_operand_element_type_enum_t type =
+                xed_decoded_inst_operand_element_type(xed, idx);
+            switch (type) {
+                case XED_OPERAND_ELEMENT_TYPE_SINGLE:
+                case XED_OPERAND_ELEMENT_TYPE_DOUBLE:
+                case XED_OPERAND_ELEMENT_TYPE_LONGDOUBLE:
+                case XED_OPERAND_ELEMENT_TYPE_FLOAT16:
+                case XED_OPERAND_ELEMENT_TYPE_BFLOAT16:
+                case XED_OPERAND_ELEMENT_TYPE_BFLOAT8:
+                case XED_OPERAND_ELEMENT_TYPE_FLOAT8:
+                case XED_OPERAND_ELEMENT_TYPE_HFLOAT8:
+                    return 1;
+                default:
+                    return 0;
+            }
+        };
+
+        if (INS_OperandRead(pinInst, i)) {
+            if (inst->readRegs.occupation >= rArraySize) {
+                SINUCA3_ERROR_PRINTF("Not enough registers!\n");
+                assert(false);
+            }
+            inst->readRegs.regs[inst->readRegs.occupation].val = reg;
+            inst->readRegs.regs[inst->readRegs.occupation].isFp = isFp(i);
+            inst->readRegs.occupation++;
+        }
+        if (INS_OperandWritten(pinInst, i)) {
+            if (inst->writtenRegs.occupation >= wArraySize) {
+                SINUCA3_ERROR_PRINTF("Not enough registers!\n");
+                assert(false);
+            }
+            inst->writtenRegs.regs[inst->writtenRegs.occupation].val = reg;
+            inst->writtenRegs.regs[inst->writtenRegs.occupation].isFp = isFp(i);
+            inst->writtenRegs.occupation++;
+        }
+    }
+}
+
+VOID TranslatePinInst(CompressedInstruction* inst, const INS& pinInst) {
     assert(inst != NULL);
     assert(pinInst != NULL);
 
     memset(inst, 0, sizeof(*inst));
 
-    std::string mnemonic = INS_Mnemonic(*pinInst);
+    std::string mnemonic = INS_Mnemonic(pinInst);
     long size = sizeof(inst->instructionMnemonic) - 1;
-
     assert(size >= (long)mnemonic.size());
-
     strncpy(inst->instructionMnemonic, mnemonic.c_str(), size);
 
-    inst->instructionAddress = INS_Address(*pinInst);
-    /* at most 15 bytes len (for now) */
-    inst->instructionSize = INS_Size(*pinInst);
-    /* manual flush with CLFLUSH/CLFLUSHOPT/CLWB/WBINVD/INVD */
-    /* or cache coherence induced flush */
-    inst->instCausesCacheLineFlush = INS_IsCacheLineFlush(*pinInst);
-    /* false for any instruction which in practice is a system call */
-    inst->isCallInstruction = INS_IsCall(*pinInst);
-    inst->isSyscallInstruction = INS_IsSyscall(*pinInst);
-    inst->isRetInstruction = INS_IsRet(*pinInst);
-    inst->isSysretInstruction = INS_IsSysret(*pinInst);
-    /* false for unconditional branches and calls */
-    inst->instHasFallthrough = INS_HasFallThrough(*pinInst);
-    /* false for system call */
-    inst->isBranchInstruction = INS_IsBranch(*pinInst);
-    inst->isIndirectCtrlFlowInst = INS_IsIndirectControlFlow(*pinInst);
-    /* field checked before reading from memory trace */
-    inst->instReadsMemory = INS_IsMemoryRead(*pinInst);
-    inst->instWritesMemory = INS_IsMemoryWrite(*pinInst);
-    /* e.g. CMOV */
-    inst->isPredicatedInst = INS_IsPredicated(*pinInst);
-    inst->instPerformsAtomicUpdate = INS_IsAtomicUpdate(*pinInst);
+    inst->instructionAddress = INS_Address(pinInst);
 
-    for (long i = 0; i < INS_OperandCount(*pinInst); ++i) {
-        /* Interest only in register operands */
-        if (!INS_OperandIsReg(*pinInst, i)) {
-            continue;
-        }
+    // at most 15 bytes len for now
+    inst->instructionSize = INS_Size(pinInst);
 
-        const unsigned long readRegsArraySize =
-            sizeof(inst->readRegsArray) / sizeof(*inst->readRegsArray);
-        const unsigned long writeRegsArraySize =
-            sizeof(inst->writtenRegsArray) / sizeof(*inst->writtenRegsArray);
+    // manual flush or cache coherence induced flush
+    inst->instCausesCacheLineFlush = INS_IsCacheLineFlush(pinInst);
 
-        short reg = INS_OperandReg(*pinInst, i);
-        if (INS_OperandRead(*pinInst, i)) {
-            if (inst->rRegsArrayOccupation >= readRegsArraySize) {
-                SINUCA3_ERROR_PRINTF(
-                    "More registers read than readRegsArray can store\n");
-                return 1;
-            }
-            inst->readRegsArray[inst->rRegsArrayOccupation] = reg;
-            ++inst->rRegsArrayOccupation;
-        }
-        if (INS_OperandWritten(*pinInst, i)) {
-            if (inst->wRegsArrayOccupation >= writeRegsArraySize) {
-                SINUCA3_ERROR_PRINTF(
-                    "More registers written than writtenRegsArray can store\n");
-                return 1;
-            }
-            inst->writtenRegsArray[inst->wRegsArrayOccupation] = reg;
-            ++inst->wRegsArrayOccupation;
-        }
-    }
+    // false for any instruction which in practice is a system call
+    inst->isCallInstruction = INS_IsCall(pinInst);
+    inst->isSyscallInstruction = INS_IsSyscall(pinInst);
+    inst->isRetInstruction = INS_IsRet(pinInst);
+    inst->isSysretInstruction = INS_IsSysret(pinInst);
+    // false for unconditional branches and calls
+    inst->instHasFallthrough = INS_HasFallThrough(pinInst);
+    inst->isBranchInstruction = INS_IsBranch(pinInst);
+    inst->isIndirectCtrlFlowInst = INS_IsIndirectControlFlow(pinInst);
 
-    return 0;
+    // fields checked before reading from memory trace
+    inst->instReadsMemory = INS_IsMemoryRead(pinInst);
+    inst->instWritesMemory = INS_IsMemoryWrite(pinInst);
+
+    // e.g. CMOV
+    inst->isPredicatedInst = INS_IsPredicated(pinInst);
+
+    // check if instruction is atomic
+    inst->instPerformsAtomicUpdate = INS_IsAtomicUpdate(pinInst);
+
+    FetchRegisters(inst, pinInst);
 }
 
 VOID OnTrace(TRACE trace, VOID* ptr) {
@@ -400,7 +420,7 @@ VOID OnTrace(TRACE trace, VOID* ptr) {
                 continue;
             }
 
-            TranslatePinInst(&compressed, &ins);
+            TranslatePinInst(&compressed, ins);
             global.staticTraceLogger.Write(&compressed);
 
             if (INS_IsMemoryRead(ins) || INS_IsMemoryWrite(ins)) {

@@ -121,18 +121,18 @@ void CompressedInstToStaticInfo(const CompressedInstruction* compressed,
     info->instReadsMemory = compressed->instReadsMemory;
     info->instWritesMemory = compressed->instWritesMemory;
     info->isIndirectControlFlowInst = compressed->isIndirectCtrlFlowInst;
-    info->numberOfReadRegs = compressed->rRegsArrayOccupation;
-    info->numberOfWriteRegs = compressed->wRegsArrayOccupation;
 
-    long occupation = 0;
-
-    occupation =
-        sizeof(*compressed->readRegsArray) * compressed->rRegsArrayOccupation;
-    memcpy(info->readRegsArray, compressed->readRegsArray, occupation);
-
-    occupation = sizeof(*compressed->writtenRegsArray) *
-                 compressed->wRegsArrayOccupation;
-    memcpy(info->writtenRegsArray, compressed->writtenRegsArray, occupation);
+    info->numberOfReadRegs = compressed->readRegs.occupation;
+    info->numberOfWriteRegs = compressed->writtenRegs.occupation;
+    for (unsigned i = 0; i < info->numberOfReadRegs; i++) {
+        info->readRegsArray[i].val = compressed->readRegs.regs[i].val;
+        info->readRegsArray[i].isFloat = compressed->readRegs.regs[i].isFp;
+    }
+    for (unsigned i = 0; i < info->numberOfWriteRegs; i++) {
+        info->writtenRegsArray[i].val = compressed->writtenRegs.regs[i].val;
+        info->writtenRegsArray[i].isFloat =
+            compressed->writtenRegs.regs[i].isFp;
+    }
 
     if (compressed->isCallInstruction) {
         info->branchType = BranchCall;
