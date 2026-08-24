@@ -171,28 +171,32 @@ int IntrinsicToSinucaInst(const INS* originalCall, IntrinsicInfo* info,
 
     inst->instructionAddress = INS_Address(*originalCall);
     inst->instructionSize = INS_Size(*originalCall);
-    inst->rRegsArrayOccupation = info->numReadRegs;
-    inst->wRegsArrayOccupation = info->numWriteRegs;
+    inst->readRegs.occupation = info->numReadRegs;
+    inst->writtenRegs.occupation = info->numWriteRegs;
 
     // outros campos nao preenchidos
 
     const unsigned long readRegsArraySize =
-        sizeof(inst->readRegsArray) / sizeof(*inst->readRegsArray);
+        sizeof(inst->readRegs.regs) / sizeof(*inst->readRegs.regs);
     if (readRegsArraySize < info->numReadRegs) {
         SINUCA3_WARNING_PRINTF("Insufficient space to store read regs\n");
         return 1;
     }
-    memcpy(inst->readRegsArray, info->read,
-           info->numReadRegs * sizeof(*info->read));
+    for (unsigned long i = 0; i < readRegsArraySize; i++) {
+        inst->readRegs.regs[i].val = info->read[i];
+        inst->readRegs.regs[i].isFp = 0;
+    }
 
     const unsigned long writeRegsArraySize =
-        sizeof(inst->writtenRegsArray) / sizeof(*inst->writtenRegsArray);
+        sizeof(inst->writtenRegs.regs) / sizeof(*inst->writtenRegs.regs);
     if (writeRegsArraySize < info->numWriteRegs) {
         SINUCA3_WARNING_PRINTF("Insufficient space to store write regs\n");
         return 1;
     }
-    memcpy(inst->writtenRegsArray, info->write,
-           info->numWriteRegs * sizeof(*info->write));
+    for (unsigned long i = 0; i < writeRegsArraySize; i++) {
+        inst->writtenRegs.regs[i].val = info->write[i];
+        inst->writtenRegs.regs[i].isFp = 0;
+    }
 
     return 0;
 }
