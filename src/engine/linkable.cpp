@@ -134,7 +134,7 @@ long Linkable::GetNumberOfConnections() { return this->numberOfConnections; }
 
 void Linkable::PosClock() {
     for (unsigned int i = 0; i < this->connections.size(); ++i)
-        this->connections[i]->SwapBuffers();
+        this->connections[i]->PushBuffers();
 }
 
 bool Linkable::IsConnectionAvailable(int connectionID) {
