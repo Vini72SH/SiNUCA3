@@ -120,6 +120,38 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
 
         this->rob.Insert(packet, intNewPRD, intOldPRD, intPhysicalReg1,
                          intPhysicalReg2);
+    } else {
+        int fpPhysicalReg1 =
+            this->mapTable[packet.staticInfo->readRegsArray[0]] -
+            this->numIntPhysicalRegisters;
+        int fpPhysicalReg2 =
+            this->mapTable[packet.staticInfo->readRegsArray[1]] -
+            this->numIntPhysicalRegisters;
+
+        int fpOldPRD = this->mapTable[packet.staticInfo->writtenRegsArray[0]] -
+                       this->numIntPhysicalRegisters;
+        int fpNewPRD = -1;
+
+        for (int i = 0; i < this->numFpPhysicalRegisters; ++i) {
+            if (this->fpFreeTable.GetElementIterator() == true) {
+                fpNewPRD = this->fpFreeTable.GetIterator();
+                break;
+
+                this->fpFreeTable.Next();
+            }
+        }
+
+        if (fpNewPRD == -1) {
+            return 1;
+        }
+
+        this->fpFreeTable.ResetBin(fpNewPRD);
+        this->fpFreeBusyTable.SetBin(fpNewPRD);
+        this->mapTable[packet.staticInfo->writtenRegsArray[0]] =
+            fpNewPRD + this->numIntPhysicalRegisters;
+
+        this->rob.Insert(packet, fpNewPRD, fpOldPRD, fpPhysicalReg1,
+                         fpPhysicalReg2);
     }
 
     return 0;

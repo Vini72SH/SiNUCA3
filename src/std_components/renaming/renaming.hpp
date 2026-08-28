@@ -40,10 +40,10 @@ struct RenamingPacket {
 };
 
 /**
- * @brief The Renaming Component is responsible for handling with hazards and
- * improve IPC.
- * @details It stores and manages the states of the physical registers, sending
- * renamed instructions to the next stages of the pipeline.
+ * @brief The Renaming Component is responsible for handling with
+ * hazards and improve IPC.
+ * @details It stores and manages the states of the physical registers,
+ * sending renamed instructions to the next stages of the pipeline.
  */
 class Renaming : public Component<RenamingPacket> {
   private:
