@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010-2021 Intel Corporation.
+ * Copyright (C) 2010-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -116,6 +116,25 @@ extern VOID PIN_ReplaySyscallExit(THREADID tid, CONTEXT* ctxt, SYSCALL_STANDARD 
 extern VOID PIN_ReplayContextChange(THREADID tid, const CONTEXT* from, CONTEXT* to, CONTEXT_CHANGE_REASON reason, INT32 info);
 
 /*! @ingroup IMG REPLAY
+  Replays the image load of an IMG object (created by IMG_CreateAt()).
+  This means that all the image load callbacks will be called for the
+  specified IMG object.
+  If PIN_StartProgram() wasn't called yet, PIN will enqueue this request and
+  will process this request after PIN_StartProgram() was called
+
+  @param[in] img            The image object to replay its load
+
+  @note The vm and pin client locks are obtained during the call of this API.
+
+  @par Availability:
+  \b Mode:  JIT\n
+  \b O/S:   All\n
+  \b CPU:   All\n
+
+ */
+extern VOID IMG_ReplayImageLoad(IMG img);
+
+/*! @ingroup IMG REPLAY
   Ask Pin to perform all the functions it would normally do when it detects that a shared library
   has been unloaded. This is intended for use in a replay system, where the replay tool has recorded
   library unload operations, and now wants to replay them.
@@ -140,20 +159,23 @@ extern VOID PIN_ReplayContextChange(THREADID tid, const CONTEXT* from, CONTEXT* 
 */
 extern VOID IMG_ReplayImageUnload(IMG img);
 
-/*! @ingroup PIN_CONTROL REPLAY
-  Return TRUE if PIN was successfully reserved the neccessary memory at application load
-  time (specified on the -reserve_memory knob), and was successfully restricted the memory
-  from the loader (specified on the -restrict_memory knob).
-  It is guaranteed this is the return value is FALSE then none the memory specified in the
-  mentioned knobs was reserved/restricted
-
-  @return            TRUE if all the memory was reserved/restricted
-
-  @par Availability:
-  \b Mode:  JIT\n
-  \b O/S:   Linux\n
-  \b CPU:   All\n
-*/
+/** 
+ * @ingroup PIN_CONTROL REPLAY
+ *
+ * @brief Return TRUE if PIN successfully reserved \b all the necessary memory at injection time.
+ * time (specified on the -reserve_memory/-restrict_memory knobs).
+ *
+ * It is guaranteed that if the return value is TRUE then all the memory specified in the
+ * mentioned knobs was reserved/restricted. If the return value is FALSE then none of the 
+ * reservation/restriction requests were performed.
+ *
+ * @return  TRUE if all the memory was reserved/restricted
+ *
+ * @par Availability:
+ * \b Mode:  JIT\n
+ * \b O/S:   Linux\n
+ * \b CPU:   All\n
+ */
 extern BOOL PIN_WasMemoryReservedInLoadTime();
 
 /*! @ingroup PIN_PROCESS

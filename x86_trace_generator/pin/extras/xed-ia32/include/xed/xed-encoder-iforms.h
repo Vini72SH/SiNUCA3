@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -38,9 +38,6 @@ typedef struct xed_encoder_iforms_s {
     xed_uint32_t x_REX_PREFIX_ENC;
     xed_uint32_t x_PREFIX_ENC;
     xed_uint32_t x_VEXED_REX;
-    xed_uint32_t x_XOP_TYPE_ENC;
-    xed_uint32_t x_XOP_MAP_ENC;
-    xed_uint32_t x_XOP_REXXB_ENC;
     xed_uint32_t x_VEX_TYPE_ENC;
     xed_uint32_t x_VEX_REXR_ENC;
     xed_uint32_t x_VEX_REXXB_ENC;
@@ -50,6 +47,9 @@ typedef struct xed_encoder_iforms_s {
     xed_uint32_t x_SE_IMM8;
     xed_uint32_t x_VSIB_ENC_BASE;
     xed_uint32_t x_VSIB_ENC;
+    xed_uint32_t x_XOP_TYPE_ENC;
+    xed_uint32_t x_XOP_MAP_ENC;
+    xed_uint32_t x_XOP_REXXB_ENC;
     xed_uint32_t x_EVEX_62_REXR_ENC;
     xed_uint32_t x_EVEX_REXX_ENC;
     xed_uint32_t x_EVEX_REXB_ENC;
@@ -62,6 +62,7 @@ typedef struct xed_encoder_iforms_s {
     xed_uint32_t x_EVEX_BYTE3_ENC;
     xed_uint32_t x_APX_EVEX_BYTE3_ENC;
     xed_uint32_t x_APX_CC_EVEX_BYTE3_ENC;
+    xed_uint32_t x_EVAPX_SCC;
     xed_uint32_t x_UIMMv;
     xed_uint32_t x_SIMMz;
     xed_uint32_t x_SIMM8;

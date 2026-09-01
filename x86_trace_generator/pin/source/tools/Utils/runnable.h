@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2021 Intel Corporation.
+ * Copyright (C) 2008-2025 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -14,7 +14,6 @@
 #if defined(TARGET_LINUX) || defined(TARGET_BSD)
 #include <stdlib.h> /* gcc4.3.x required */
 #endif
-using namespace std;
 
 /*!
  * Abstract interface of a runnable object.
@@ -50,9 +49,9 @@ class FUNC_OBJ : public RUNNABLE_OBJ
     //          FALSE - the function failed or returned an unexpected result
     virtual bool Status() const = 0;
 
-    // Return human-readable string representation of the status of the last
+    // Return human-readable std::string representation of the status of the last
     // Execute() invocation.
-    virtual string ErrorMessage() const
+    virtual std::string ErrorMessage() const
     {
         if (Status())
         {
@@ -70,13 +69,13 @@ class FUNC_OBJ : public RUNNABLE_OBJ
     {
         if (!Status())
         {
-            cerr << Name() << ": " << ErrorMessage() << endl;
+            std::cerr << Name() << ": " << ErrorMessage() << std::endl;
             exit(1);
         }
     }
 
     // Return name of the function.
-    virtual string Name() const = 0;
+    virtual std::string Name() const = 0;
 
     // Create a copy of this object.
     virtual FUNC_OBJ* Clone() const = 0;

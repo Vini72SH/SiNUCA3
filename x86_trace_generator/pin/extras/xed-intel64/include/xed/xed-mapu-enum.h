@@ -1,6 +1,6 @@
 /* BEGIN_LEGAL 
 
-Copyright (c) 2024 Intel Corporation
+Copyright (c) 2026 Intel Corporation
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -42,6 +42,7 @@ END_LEGAL */
 #define XED_MAPU_VEX_MAP1_DEFINED 1
 #define XED_MAPU_VEX_MAP2_DEFINED 1
 #define XED_MAPU_VEX_MAP3_DEFINED 1
+#define XED_MAPU_VEX_MAP5_DEFINED 1
 #define XED_MAPU_VEX_MAP7_DEFINED 1
 #define XED_MAPU_LAST_DEFINED 1
 typedef enum {
@@ -64,6 +65,7 @@ typedef enum {
   XED_MAPU_VEX_MAP1,
   XED_MAPU_VEX_MAP2,
   XED_MAPU_VEX_MAP3,
+  XED_MAPU_VEX_MAP5,
   XED_MAPU_VEX_MAP7,
   XED_MAPU_LAST
 } xed_mapu_enum_t;

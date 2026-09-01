@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2021 Intel Corporation.
+ * Copyright (C) 2009-2024 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -27,23 +27,69 @@ void* start(void* arg)
     return 0;
 }
 
+static void create_threads(int numthreads, int createDetached, pthread_t* threads)
+{
+    int i;
+    pthread_attr_t attr;
+
+    // Initialize the thread attribute
+    if (pthread_attr_init(&attr) != 0) {
+        perror("pthread_attr_init");
+        exit(1);
+    }
+
+    if(createDetached)
+    {
+        // Set the thread attribute to create the thread in a detached state
+        if (pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED) != 0) {
+            perror("pthread_attr_setdetachstate");
+            pthread_attr_destroy(&attr);
+            exit(1);
+        }
+    }
+
+    for (i = 0; i < numthreads; i++)
+    {
+        pthread_create(&threads[i], &attr, start, 0);
+        if(createDetached)
+        {
+            usleep(1000); // Allow some delay so threads can finish and TLS by glibc recycled
+        }
+    }
+
+    pthread_attr_destroy(&attr);
+}
+
+
+
 int main(int argc, char* argv[])
 {
     pthread_t threads[MAXTHREADS];
     int i;
-    int numthreads = 20;
+    int numthreads = (2 <= argc) ? atoi(argv[1]) : 20;
+    int createDetached = (3 == argc) ? atoi(argv[2]) : 0;
+
+    if(numthreads < 1 || numthreads > MAXTHREADS)
+    {
+        numthreads = 20;
+    }
 
     printf("Creating %d threads\n", numthreads);
 
-    for (i = 0; i < numthreads; i++)
+    create_threads(numthreads, createDetached, threads);
+
+    if(createDetached)
     {
-        pthread_create(&threads[i], 0, start, 0);
+        usleep(numthreads * 5000); // Give threads time to finish
+    }
+    else
+    {
+        for (i = 0; i < numthreads; i++)
+        {
+            pthread_join(threads[i], 0);
+        }
     }
 
-    for (i = 0; i < numthreads; i++)
-    {
-        pthread_join(threads[i], 0);
-    }
     printf("All threads joined\n");
 
     return 0;

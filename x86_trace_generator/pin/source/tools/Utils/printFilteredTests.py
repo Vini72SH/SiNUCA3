@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 #
-# Copyright (C) 2020-2020 Intel Corporation.
+# Copyright (C) 2020-2026 Intel Corporation.
 # SPDX-License-Identifier: MIT
 #
 
@@ -20,6 +20,7 @@ def print_filtered(tests, unfiltered_tests):
     testPrefix = os.environ.get('TEST_PREFIX')
     
     print("{} filtered tests: {}".format(len(filtered_tests), filtered_tests))
+    print("{} remaining tests: {}".format(len(after_filter), after_filter))
     
     if testPrefix != None:    # wrapper for generating Junit exist
         for test in filtered_tests:

@@ -1,5 +1,5 @@
 #
-# Copyright (C) 2012-2022 Intel Corporation.
+# Copyright (C) 2012-2026 Intel Corporation.
 # SPDX-License-Identifier: MIT
 #
 
@@ -32,6 +32,7 @@ TOOLS := $(TEST_TOOL_ROOTS:%=$(OBJDIR)%$(PINTOOL_SUFFIX)) $(TOOL_ROOTS:%=$(OBJDI
 SA_TOOLS := $(SA_TOOL_ROOTS:%=$(OBJDIR)%$(SATOOL_SUFFIX))
 APPS := $(APP_ROOTS:%=$(OBJDIR)%$(EXE_SUFFIX))
 OBJECTS := $(OBJECT_ROOTS:%=$(OBJDIR)%$(OBJ_SUFFIX))
+APP_OBJECTS := $(APP_OBJECT_ROOTS:%=$(OBJDIR)%$(APP_OBJ_SUFFIX))
 DLLS := $(DLL_ROOTS:%=$(OBJDIR)$(DLL_PREFIX)%$(DLL_SUFFIX))
 LIBS := $(LIB_ROOTS:%=$(OBJDIR)%$(LIB_SUFFIX))
 
@@ -57,7 +58,7 @@ obj-%:
 $(TEST_TOOL_ROOTS:%=%.test) $(TEST_ROOTS:%=%.test): %: | dir
 $(TESTS) $(SANITY) $(SERAIL): %: | dir
 $(TOOLS) $(TOOLS:%$(PINTOOL_SUFFIX)=%$(OBJ_SUFFIX)) $(SA_TOOLS) $(SA_TOOLS:%$(SATOOL_SUFFIX)=%$(OBJ_SUFFIX)): %: | dir
-$(APPS) $(OBJECTS) $(DLLS) $(LIBS): %: | dir
+$(APPS) $(OBJECTS) $(APP_OBJECTS) $(DLLS) $(LIBS): %: | dir
 
 ###### Build ######
 
@@ -68,7 +69,7 @@ tools: dir $(TOOLS) $(SA_TOOLS)
 apps: dir $(APPS)
 
 # Build the additional object files.
-objects: dir $(OBJECTS)
+objects: dir $(OBJECTS) $(APP_OBJECTS)
 
 # Build the additional dlls.
 dlls: dir $(DLLS)
@@ -94,6 +95,12 @@ amxcheck: $(CHECKAMX)
 # Build the program which checks the hardware and OS for amx support.
 movdir64bcheck: $(CHECKMOVDIR64B)
 
+# Build the program which checks the hardware and OS for apx support.
+apxcheck: $(CHECKAPX)
+
+# Build the program which checks the hardware for serialize support.
+serializecheck: $(CHECKSERIALIZE)
+
 ###### Install ######
 
 # Build all and run a predefined installer where applicable.
@@ -106,10 +113,10 @@ install: all
 # Run all tests.
 test: print_filtered_tests $(TESTS)
 
-# Run the "short" sanity list. 
+# Run the "short" sanity list.
 sanity: print_filtered_sanity_tests $(SANITY)
 
-# Run the "Serial" list. 
+# Run the "Serial" list.
 serial: $(SERIAL)
 
 summary:
@@ -124,7 +131,7 @@ clean:
 clean-remote:
 	-$(INSTALLER) $(INSTALL_FLAGS) --clean
 
-###### Build the common components - for internal use ###### 
+###### Build the common components - for internal use ######
 
 $(TESTAPP):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)cp-pin$(EXE_SUFFIX)
@@ -156,8 +163,14 @@ $(CHECKAVX2):
 $(CHECKAMX):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)amx_check$(EXE_SUFFIX)
 
+$(CHECKAPX):
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)apx_check$(EXE_SUFFIX)
+
 $(CHECKMOVDIR64B):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)movdir64b_check$(EXE_SUFFIX)
+
+$(CHECKSERIALIZE):
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)serialize_check$(EXE_SUFFIX)
 
 $(CHECKTSX):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)tsx_check$(EXE_SUFFIX)
@@ -166,22 +179,25 @@ $(CHECKAVX512F):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)avx512f_check$(EXE_SUFFIX)
 
 $(THREADLIB):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)threadlib$(OBJ_SUFFIX)
-  
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)threadlib$(APP_OBJ_SUFFIX)
+
 $(RUNNABLE):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)runnable$(OBJ_SUFFIX)
-  
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)runnable$(APP_OBJ_SUFFIX)
+
 $(THREADPOOL):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)thread_pool$(OBJ_SUFFIX)
-  
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)thread_pool$(APP_OBJ_SUFFIX)
+
 $(SYSMEMORY):
-	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)sys_memory$(OBJ_SUFFIX)
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)sys_memory$(APP_OBJ_SUFFIX)
+
+$(SHARED_MEM_OBJ_FOR_APP):
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)shared_memory_for_app$(APP_OBJ_SUFFIX)
+
+$(SHARED_MEM_OBJ_FOR_TOOL):
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)shared_memory_for_tool$(OBJ_SUFFIX)
 
 $(REGVALLIB):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)regvallib$(LIB_SUFFIX)
-
-$(CONTROLLERLIB):
-	$(MAKE) -C $(TOOLS_ROOT)/InstLib dir $(OBJDIR)controller$(LIB_SUFFIX)
 
 $(SUPPORTS_AVX_OBJ):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)supports_avx$(OBJ_SUFFIX)
@@ -195,6 +211,10 @@ $(SUPPORTS_AVX512F_OBJ):
 ifeq ($(TARGET),intel64)
 $(SUPPORTS_AMX_OBJ):
 	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)supports_amx_intel64$(OBJ_SUFFIX)
+
+$(SUPPORTS_APX_OBJ):
+	$(MAKE) -C $(TOOLS_ROOT)/Utils dir $(OBJDIR)supports_apx_intel64$(OBJ_SUFFIX)
+
 endif
 
 $(SET_XMM_SCRATCHES_OBJ):
@@ -213,12 +233,12 @@ $(OBJDIR)%.tested:
 
 # Don't delete the files generated in the Utils directory.
 .PRECIOUS: $(TESTAPP) $(HELLO_APP) $(HELLO_APP_DWARF4) $(DISABLE_ASLR) $(ATTACH_LAUNCHER) $(THREAD_APP)
-.PRECIOUS: $(CHECKAVX) $(CHECKAVX2) $(CHECKTSX) $(CHECKAVX512F) $(CHECKAMX)
+.PRECIOUS: $(CHECKAVX) $(CHECKAVX2) $(CHECKTSX) $(CHECKAVX512F) $(CHECKAMX) $(CHECKAPX) $(CHECKSERIALIZE)
 .PRECIOUS: $(THREADLIB) $(SUPPORTS_AVX_OBJ) $(SUPPORTS_AVX2_OBJ) $(SUPPORTS_AVX512F_OBJ) $(SET_XMM_SCRATCHES_OBJ)
-.PRECIOUS: $(RUNNABLE) $(THREADPOOL) $(SYSMEMORY)
+.PRECIOUS: $(RUNNABLE) $(THREADPOOL) $(SYSMEMORY) SHARED_MEM_OBJ_FOR_APP SHARED_MEM_OBJ_FOR_TOOL
 
 # Accelerate the make process and prevent errors.
-.PHONY: tools apps objects dlls libs avxcheck tsxcheck install test sanity serial summary clean %.test %.wrap
+.PHONY: tools apps objects dlls libs avxcheck tsxcheck serializecheck install test sanity serial summary clean %.test %.wrap
 
 ##############################################################
 #
@@ -229,23 +249,59 @@ $(OBJDIR)%.tested:
 ###### Default build rules for tools ######
 
 # Build the intermediate object file.
-$(OBJDIR)%$(OBJ_SUFFIX): %.cpp
-	$(CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
+# $(OBJDIR)%$(OBJ_SUFFIX): %.cpp
+#	$(TOOL_CXX) $(TOOL_CXXFLAGS) $(COMP_OBJ)$@ $<
 
 # Build the intermediate object file.
 $(OBJDIR)%$(OBJ_SUFFIX): %.c
-	$(CC) $(TOOL_CFLAGS) $(COMP_OBJ)$@ $<
+	$(TOOL_CC) $(TOOL_CFLAGS) $(COMP_OBJ)$@ $<
 
 # Build the tool as a dll (shared object).
+
 $(OBJDIR)%$(PINTOOL_SUFFIX): $(OBJDIR)%$(OBJ_SUFFIX)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(TOOL_LPATHS) $(TOOL_LIBS)
+	$(TOOL_LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $< $(TOOL_LPATHS) $(TOOL_LIBS)
 
 # Build the static analysis tools.
 $(SA_TOOLS): %$(SATOOL_SUFFIX): %$(OBJ_SUFFIX)
-	$(LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
+	$(TOOL_LINKER) $(SATOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(SATOOL_LPATHS) $(SATOOL_LIBS)
 
 # Don't delete the object files and dlls.
 .PRECIOUS: $(OBJDIR)%$(OBJ_SUFFIX) $(OBJDIR)%$(PINTOOL_SUFFIX)
+
+###### Default build rules for application asm objects ######
+
+# Source and target have the same name.
+$(OBJDIR)%$(APP_OBJ_SUFFIX): %$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Target name includes the string "_asm".
+$(OBJDIR)%_asm$(APP_OBJ_SUFFIX): %$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Several source versions depending on architecture.
+$(OBJDIR)%$(APP_OBJ_SUFFIX): %_$(TARGET)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Same as above, but target name includes the string "_asm".
+$(OBJDIR)%_asm$(APP_OBJ_SUFFIX): %_$(TARGET)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Several source versions depending on OS type.
+$(OBJDIR)%$(APP_OBJ_SUFFIX): %_$(OS_TYPE)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Same as above, but target name includes the string "_asm".
+$(OBJDIR)%_asm$(APP_OBJ_SUFFIX): %_$(OS_TYPE)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Several source versions depending on architecture and OS type.
+$(OBJDIR)%$(APP_OBJ_SUFFIX): %_$(TARGET)_$(OS_TYPE)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
+# Same as above, but target name includes the string "_asm".
+$(OBJDIR)%_asm$(APP_OBJ_SUFFIX): %_$(TARGET)_$(OS_TYPE)$(ASM_SUFFIX)
+	$(APP_ASMBLR) $(ASM_FLAGS) $(COMP_OBJ)$@ $<
+
 
 ###### Default build rules for asm objects ######
 
@@ -287,7 +343,7 @@ $(OBJDIR)%$(EXE_SUFFIX): %.cpp
 	$(APP_CXX) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS) $(CXX_LPATHS) $(CXX_LIBS)
 
 $(OBJDIR)%$(EXE_SUFFIX): %.c
-	$(APP_CC) $(APP_CXXFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
+	$(APP_CC) $(APP_CFLAGS) $(COMP_EXE)$@ $< $(APP_LDFLAGS) $(APP_LIBS)
 
 
 ##############################################################
@@ -303,7 +359,7 @@ $(OBJDIR)%$(EXE_SUFFIX): %.c
 #%.wrap: $(OBJDIR) $(OBJDIR)%.tested $(OBJDIR)%.failed
 %.wrap: $(OBJDIR) $(OBJDIR)%.tested
 	touch $(OBJDIR)$(@:.wrap=.failed)
-	$(TEST_PREFIX) $(MAKE) $(MAKE_TESTFLAGS) $(@:.wrap=.test) 	
+	$(TEST_PREFIX) $(MAKE) $(MAKE_TESTFLAGS) $(@:.wrap=.test)
 	rm $(OBJDIR)$(@:.wrap=.failed)
 
 # Not all tools produce output so the .out file might not be created. We don't want the test to fail in this case,

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2020-2021 Intel Corporation.
+ * Copyright (C) 2020-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -19,7 +19,7 @@ typedef void* CHILD_PROCESS;
  *  Call back function before child(Windows*)/exec-ed(Linux*) process is starting to execute.
  *  The function can be registered by @ref PIN_AddFollowChildProcessFunction().
  *
- *  @param[in] childProcess   Child process handle, it's lifetime is in the scope of the
+ *  @param[in] childProcess   Child process handle, its lifetime is in the scope of the
  *                             callback
  *  @param[in] val            The tool's call-back value
  *
@@ -45,7 +45,7 @@ typedef BOOL (*FOLLOW_CHILD_PROCESS_CALLBACK)(CHILD_PROCESS cProcess, VOID* val)
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Windows, Linux, macOS*\n
+ * \b O/S:   Windows, Linux\n
  * \b CPU:   All\n
  */
 extern PIN_CALLBACK PIN_AddFollowChildProcessFunction(FOLLOW_CHILD_PROCESS_CALLBACK fun, VOID* val);
@@ -59,7 +59,7 @@ extern PIN_CALLBACK PIN_AddFollowChildProcessFunction(FOLLOW_CHILD_PROCESS_CALLB
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Windows\n
+ * \b O/S:   Windows, Linux\n
  * \b CPU:   All\n
  */
 extern OS_PROCESS_ID CHILD_PROCESS_GetId(CHILD_PROCESS cProcess);
@@ -71,11 +71,11 @@ extern OS_PROCESS_ID CHILD_PROCESS_GetId(CHILD_PROCESS cProcess);
  * @param[out] pArgc         pointer to application's argc
  * @param[out] pArgv         pointer to application's argv
  *                            this data is allocated by Pin and can't be modified by tool,
- *                            it's lifetime is in the scope of the callback
+ *                            its lifetime is in the scope of the callback
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Windows\n
+ * \b O/S:   Windows, Linux\n
  * \b CPU:   All\n
  */
 extern VOID CHILD_PROCESS_GetCommandLine(CHILD_PROCESS cProcess, INT* pArgc, const CHAR* const** pArgv);
@@ -96,13 +96,36 @@ extern VOID CHILD_PROCESS_GetCommandLine(CHILD_PROCESS cProcess, INT* pArgc, con
  * @param[in] argc           Pin's (and tool's) argc
  * @param[in] argv           Pin's (and tool's) argv,
  *                            this data is allocated by tool and can't be modified by Pin,
- *                            it's lifetime is in the scope of this function
+ *                            its lifetime is in the scope of this function
  *
  * @par Availability:
  * \b Mode:  JIT & Probe\n
- * \b O/S:   Windows\n
+ * \b O/S:   Windows, Linux\n
  * \b CPU:   All\n
  */
 extern VOID CHILD_PROCESS_SetPinCommandLine(CHILD_PROCESS cProcess, INT argc, const CHAR* const* argv);
+
+/*! @ingroup PIN_PROCESS
+ * Get Pin's (and tool's) command line for the child process.
+ * The first element (argv[0]) is the Pin executable path.
+ *
+ * This is useful for tools that need to read the current Pin command line,
+ * modify it (e.g. append tool-specific arguments), and set it back via
+ * @ref CHILD_PROCESS_SetPinCommandLine().
+ *
+ * @param[in]  childProcess  child process handle
+ * @param[out] pArgc         pointer to Pin's argc
+ * @param[out] pArgv         pointer to Pin's argv
+ *                            this data is allocated by Pin and can't be modified by tool,
+ *                            its lifetime is in the scope of the callback.
+ *                            The data is invalidated if @ref CHILD_PROCESS_SetPinCommandLine()
+ *                            is called after this call.
+ *
+ * @par Availability:
+ * \b Mode:  JIT & Probe\n
+ * \b O/S:   Windows, Linux\n
+ * \b CPU:   All\n
+ */
+extern VOID CHILD_PROCESS_GetPinCommandLine(CHILD_PROCESS cProcess, INT* pArgc, const CHAR* const** pArgv);
 
 #endif // PIN_G_CHILD_PROCESS_CLIENT_PH

@@ -21,12 +21,6 @@
  * Get thread Id
  */
 unsigned long GetTid() { return (unsigned long)syscall(__NR_gettid); }
-#elif defined(TARGET_MAC)
-#include <mach/mach.h>
-/*
- * Get thread Id
- */
-unsigned long GetTid() { return mach_thread_self(); }
 #endif
 
 BOOL CreateOneThread(THREAD_HANDLE* pThreadHandle, THREAD_RTN_PTR threadRtn, void* arg)

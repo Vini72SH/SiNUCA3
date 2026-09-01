@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef TARGET_MAC
-.global _SupportsAmx
-_SupportsAmx:
-#else
 .type SupportsAmx, @function
 .global SupportsAmx
 SupportsAmx:
-#endif
+
     push    %rbp
     mov     %rsp, %rbp
     push    %rbx

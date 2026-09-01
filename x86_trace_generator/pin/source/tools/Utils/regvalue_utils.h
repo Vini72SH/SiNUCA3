@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2013-2021 Intel Corporation.
+ * Copyright (C) 2013-2022 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -14,8 +14,8 @@
 #include <ostream>
 #include "pin.H"
 
-using std::ostream;
-using std::string;
+
+
 
 /////////////////////
 // GLOBAL VARIABLES
@@ -71,11 +71,11 @@ union PINTOOL_REGISTER
 // FUNCTION DECLARATIONS
 ///////////////////////////
 
-// Returns a string of the hex representation of the given "value" of length "size" bytes.
-string Val2Str(const void* value, unsigned int size);
+// Returns a std::string of the std::hex representation of the given "value" of length "size" bytes.
+std::string Val2Str(const void* value, unsigned int size);
 
 // Compare two values of length "size" bytes.
-bool CompareValues(const void* value, const void* expected, unsigned int size, ostream& ost);
+bool CompareValues(const void* value, const void* expected, unsigned int size,std::ostream& ost);
 
 // Assign a PINTOOL_REGISTER object with a new value.
 void AssignNewPinRegisterValue(PINTOOL_REGISTER* pinreg, const UINT64* newval, UINT qwords);

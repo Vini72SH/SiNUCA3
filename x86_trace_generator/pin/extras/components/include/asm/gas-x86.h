@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 Intel Corporation.
+ * Copyright (C) 2008-2023 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -12,7 +12,7 @@
 #define ASM_GAS_X86_H
 
 /*
- * Toolchain should define ASM_WINDOWS for Windows targets, ASM_MAC for macOS* targets.
+ * Toolchain should define ASM_WINDOWS for Windows targets
  */
 
 #define ASM_FILEBEGIN() .intel_syntax noprefix; .globl _GLOBAL_OFFSET_TABLE_
@@ -32,7 +32,7 @@
 
 #define ASM_HEX(val)    0x##val
 
-#if defined(TARGET_WINDOWS) || defined(TARGET_MAC)
+#if defined(TARGET_WINDOWS)
 #   define ASM_NAME(name)   _##name
 #else
 #   define ASM_NAME(name)   name

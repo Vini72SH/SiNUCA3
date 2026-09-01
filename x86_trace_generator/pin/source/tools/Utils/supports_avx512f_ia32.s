@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef TARGET_MAC
-.global _SupportsAvx512f
-_SupportsAvx512f:
-#else
 .type SupportsAvx512f, @function
 .global SupportsAvx512f
 SupportsAvx512f:
-#endif
+
     push    %ebp
     mov     %esp, %ebp
     push    %ebx          # CPUID clobbers ebx, which may be used as the PIC register

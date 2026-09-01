@@ -8,11 +8,6 @@
 #else
 #define PIN_G_OS_INFO_WIN_PH
 /*! @file
-    Declares class representing Windows system-wide information in pin.
+    Declarations representing Windows OS system-wide information in Pin.
 */
-/*! @ingroup WINDOWS_SYSCALL_API_UNDOC
- *  Value used as invalid system call number
- */
-const SYSCALL_NUMBER_T SYSCALL_NUMBER_INVALID = ~0;
-
 #endif // PIN_G_OS_INFO_WIN_PH

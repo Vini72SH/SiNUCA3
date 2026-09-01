@@ -2,7 +2,7 @@
 #define SINUCA3_SINUCA_TRACER_FILE_HANDLER_HPP_
 
 //
-// Copyright (C) 2025  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2026  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -19,74 +19,92 @@
 //
 
 /**
- * @file x86_file_handler.hpp
+ * @file file_handler.hpp
  * @brief Common trace file handling API.
  */
 
+#include <cassert>
 #include <cstdio>
 #include <cstring>
-#include <sinuca3.hpp>
+#include <engine/default_packets.hpp>
+#include <utils/logger.hpp>
 
 extern "C" {
-#include <alloca.h>
-#include <errno.h>
 #include <stdint.h>
 }
 
-#define _PACKED __attribute__((packed))
+const uint32_t TRACE_VERSION = 2;
+const uint32_t TRACE_MAGIC = 0x54524345;  // TRCE
+const uint32_t PREFIX_SIZE = 6;
+const uint32_t MAX_MEM_ACCESS_SIZE = 0x7F;
 
-const int MAX_IMAGE_NAME_SIZE = 255;
-const int RECORD_ARRAY_SIZE = 10000;
-const int CURRENT_TRACE_VERSION = 1;
-const unsigned char MAGIC_NUMBER = 187;
+const char PREFIX_STATIC_FILE[PREFIX_SIZE] = "_S3S_";
+const char PREFIX_DYNAMIC_FILE[PREFIX_SIZE] = "_S3D_";
+const char PREFIX_MEMORY_FILE[PREFIX_SIZE] = "_S3M_";
 
-const char TRACE_TARGET_X86[] = "X86";
-const char TRACE_TARGET_ARM[] = "ARM";
-const char TRACE_TARGET_RISCV[] = "RISCV";
-const char PREFIX_STATIC_FILE[] = "S3S";
-const char PREFIX_DYNAMIC_FILE[] = "S3D";
-const char PREFIX_MEMORY_FILE[] = "S3M";
-const int PREFIX_SIZE = sizeof(PREFIX_STATIC_FILE);
+typedef uint32_t MagicNumber;
+typedef int64_t InstructionCounter;
+typedef int32_t BasicBlockCounter;
+typedef int32_t ThreadCounter;
+typedef int32_t TraceVersion;
+typedef int32_t BasicBlockSize;
+typedef int32_t BasicBlockIdentifier;
+typedef uint32_t MemoryAccessSize;
+typedef int8_t MemoryAccessCounter;
+typedef uint64_t MemoryAccessAddress;
+typedef int64_t EntriesCounter;
 
-enum FileType : uint8_t {
+enum FileType : int8_t {
     FileTypeStaticTrace,
     FileTypeDynamicTrace,
-    FileTypeMemoryTrace
+    FileTypeMemoryTrace,
+    FileTypeUndef
 };
 
-enum TargetArch : uint8_t { TargetArchX86, TargetArchARM, TargetArchRISCV };
-
-enum StaticTraceRecordType : uint8_t {
-    StaticRecordInstruction,
-    StaticRecordBasicBlockSize
+enum TargetArchitecture : int8_t {
+    TargetArchX86,
+    TargetArchARM,
+    TargetArchRISCV,
+    TargetArchUndef
 };
 
-enum DynamicTraceRecordType : uint8_t {
-    DynamicRecordBasicBlockIdentifier,
-    DynamicRecordThreadEvent
+enum StaticTraceEntryType : int8_t {
+    StaticEntryInstruction,
+    StaticEntryBasicBlockSize
 };
 
-enum ThreadEventType : uint32_t {
-    ThreadEventBarrierSync,
-    ThreadEventCriticalStart,
-    ThreadEventCriticalEnd,
-    ThreadEventAbruptEnd
+enum DynamicTraceEntryType : int8_t {
+    DynamicEntryBasicBlockIdentifier,
+    DynamicEntryEvent
 };
 
-enum MemoryRecordType : uint8_t {
-    MemoryRecordHeader,
-    MemoryRecordLoad,
-    MemoryRecordStore
+enum MemoryEntryType : int8_t { MemoryEntryAccessCount, MemoryEntryAccess };
+
+enum EventType : int8_t {
+    EventTypeBarrierSync,
+    EventTypeCriticalStart,
+    EventTypeCriticalEnd,
+    EventTypeAbruptEnd,
+    EventTypeUndef
 };
 
-/** @brief Instruction extracted informations */
-struct Instruction {
+enum MemoryAccessType : int8_t { MemoryAccessLoad, MemoryAccessStore };
+
+struct x86Register {
+    uint16_t val;
+    uint8_t isFp;
+} __attribute__((packed));
+
+struct RegisterArray {
+    x86Register regs[MAX_REGISTERS];
+    uint8_t occupation;
+} __attribute__((packed));
+
+struct CompressedInstruction {
+    RegisterArray readRegs;
+    RegisterArray writtenRegs;
     uint64_t instructionAddress;
     uint64_t instructionSize;
-    uint16_t readRegsArray[MAX_REGISTERS];
-    uint16_t writtenRegsArray[MAX_REGISTERS];
-    uint8_t wRegsArrayOccupation;
-    uint8_t rRegsArrayOccupation;
     uint8_t instHasFallthrough;
     uint8_t isBranchInstruction;
     uint8_t isSyscallInstruction;
@@ -101,124 +119,366 @@ struct Instruction {
     uint8_t instReadsMemory;
     uint8_t instWritesMemory;
     char instructionMnemonic[INST_MNEMONIC_LEN];
-} _PACKED;
+} __attribute__((packed));
 
-/** @brief Written to static trace file. */
-struct StaticTraceRecord {
-    union _PACKED {
-        uint16_t basicBlockSize;
-        Instruction instruction;
-    } data;
-    uint8_t recordType;
+struct StaticTraceEntry {
+    union {
+        CompressedInstruction instruction;
+        BasicBlockSize size;
+    };
 
-    inline StaticTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
+    StaticTraceEntryType type;
 
-/** @brief Written to dynamic trace file. */
-struct DynamicTraceRecord {
-    union _PACKED {
-        uint32_t basicBlockId;
-        uint32_t threadEvent;
-    } data;
-    uint8_t recordType;
+    inline void Set(const CompressedInstruction* inst) {
+        this->type = StaticEntryInstruction;
+        assert(inst != NULL);
+        this->instruction = *inst;
+    }
+    inline void Set(const BasicBlockSize* size) {
+        this->type = StaticEntryBasicBlockSize;
+        assert(size != NULL);
+        this->size = *size;
+    }
+    inline int Get(CompressedInstruction* inst) const {
+        if (this->type != StaticEntryInstruction) return 1;
+        assert(inst != NULL);
+        *inst = this->instruction;
+        return 0;
+    }
+    inline int Get(BasicBlockSize* size) const {
+        if (this->type != StaticEntryBasicBlockSize) return 1;
+        assert(size != NULL);
+        *size = this->size;
+        return 0;
+    }
+} __attribute__((packed));
 
-    inline DynamicTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
+struct DynamicTraceEntry {
+    union {
+        BasicBlockIdentifier bbl;
+        EventType event;
+    };
 
-/** @brief Written to memory trace file. */
-struct MemoryTraceRecord {
-    union _PACKED {
-        struct _PACKED {
-            uint64_t address; /**<Virtual address accessed. */
-            uint16_t size;    /**<Size in bytes of memory read or written. */
-        } operation;
-        int32_t numberOfMemoryOps;
-    } data;
-    uint8_t recordType;
+    DynamicTraceEntryType type;
 
-    inline MemoryTraceRecord() { memset(this, 0, sizeof(*this)); }
-} _PACKED;
+    inline void Set(const BasicBlockIdentifier* idx) {
+        this->type = DynamicEntryBasicBlockIdentifier;
+        assert(idx != NULL);
+        this->bbl = *idx;
+    }
+    inline void Set(const EventType* event) {
+        this->type = DynamicEntryEvent;
+        assert(event != NULL);
+        this->event = *event;
+    }
+    inline int Get(BasicBlockIdentifier* idx) const {
+        if (this->type != DynamicEntryBasicBlockIdentifier) return 1;
+        assert(idx != NULL);
+        *idx = this->bbl;
+        return 0;
+    }
+    inline int Get(EventType* event) const {
+        if (this->type != DynamicEntryEvent) return 1;
+        assert(event != NULL);
+        *event = this->event;
+        return 0;
+    }
+} __attribute__((packed));
+
+struct MemoryAccess {
+    MemoryAccessAddress address;
+    MemoryAccessType typeOfAccess;
+    MemoryAccessSize size;
+} __attribute__((packed));
+
+struct MemoryTraceEntry {
+    union {
+        MemoryAccess access;
+        MemoryAccessCounter count;
+    };
+
+    MemoryEntryType type;
+
+    inline void Set(const MemoryAccess* access) {
+        this->type = MemoryEntryAccess;
+        assert(access != NULL);
+        this->access = *access;
+    }
+    inline void Set(const MemoryAccessCounter* count) {
+        this->type = MemoryEntryAccessCount;
+        assert(count != NULL);
+        this->count = *count;
+    }
+    inline int Get(MemoryAccess* access) const {
+        if (this->type != MemoryEntryAccess) return 1;
+        assert(access != NULL);
+        *access = this->access;
+        return 0;
+    }
+    inline int Get(MemoryAccessCounter* count) const {
+        if (this->type != MemoryEntryAccessCount) return 1;
+        assert(count != NULL);
+        *count = this->count;
+        return 0;
+    }
+} __attribute__((packed));
+
+struct StaticFileMetadata {
+    InstructionCounter instructions;
+    BasicBlockCounter basicBlocks;
+    ThreadCounter threads;
+};
+
+struct DynamicFileMetadata {
+    InstructionCounter executed;
+};
 
 /** @brief File header for general usage. */
 struct FileHeader {
-    uint8_t magicNumber;
-    int8_t prefix[PREFIX_SIZE];
-    uint8_t fileType;
-    uint8_t traceVersion;
-    uint8_t targetArch;
+    MagicNumber magic;
+    char prefix[PREFIX_SIZE];
 
-    union _PACKED {
-        struct _PACKED {
-            uint32_t instCount;
-            uint32_t bblCount;
-            uint16_t threadCount;
-        } staticHeader;
-        struct {
-            uint64_t totalExecutedInstructions;
-        } dynamicHeader;
-    } data;
+    FileType type;
+    TargetArchitecture target;
+    TraceVersion version;
 
-    inline FileHeader() {
-        memset(this, 0, sizeof(*this));
-        magicNumber = MAGIC_NUMBER;
-        traceVersion = CURRENT_TRACE_VERSION;
+    union {
+        StaticFileMetadata st;
+        DynamicFileMetadata dyn;
+    };
+
+    FileHeader()
+        : magic(0), type(FileTypeUndef), target(TargetArchUndef), version(0) {
+        this->prefix[0] = '\0';
     }
 
-    /** @brief Write header to file. */
-    int FlushHeader(FILE* file);
-    /** @brief Read header from file. */
-    int LoadHeader(FILE* file);
-    /** @brief Read header from file if it is mapped to virtual memory. */
-    int LoadHeader(char* file, unsigned long* fileOffset);
-    /** @brief Adjust file pointer. The header is generally written at file
-     * clousure, so the file ptr must be moved to leave enough space for it. */
-    void ReserveHeaderSpace(FILE* file);
-    /** @brief Set header type and prefix. */
-    void SetHeaderType(uint8_t fileType);
-} _PACKED;
+    FileHeader(FileType file, TargetArchitecture arch)
+        : magic(TRACE_MAGIC), version(TRACE_VERSION) {
+        this->type = file;
+        this->target = arch;
+        switch (this->type) {
+            case FileTypeDynamicTrace:
+                strncpy(this->prefix, PREFIX_DYNAMIC_FILE, sizeof(prefix));
+                break;
+            case FileTypeStaticTrace:
+                strncpy(this->prefix, PREFIX_STATIC_FILE, sizeof(prefix));
+                break;
+            case FileTypeMemoryTrace:
+                strncpy(this->prefix, PREFIX_MEMORY_FILE, sizeof(prefix));
+                break;
+            default:
+                SINUCA3_WARNING_PRINTF("File type is invalid!\n");
+                break;
+        }
+    }
 
-inline void printFileErrorLog(const char* path, const char* mode) {
-    SINUCA3_ERROR_PRINTF("Could not open [%s] in [%s] mode: ", path, mode);
-    SINUCA3_ERROR_PRINTF("%s\n", strerror(errno));
-}
+    /** @brief Print the file header information. */
+    void Print(bool printMetadata = false) const;
+
+    inline void Set(const StaticFileMetadata* meta) {
+        assert(meta != NULL);
+        assert(magic != 0);
+        this->st = *meta;
+    }
+    inline void Set(const DynamicFileMetadata* meta) {
+        assert(meta != NULL);
+        assert(magic != 0);
+        this->dyn = *meta;
+    }
+    inline int Get(StaticFileMetadata* meta) const {
+        assert(this->type == FileTypeStaticTrace);
+        assert(meta != NULL);
+        *meta = this->st;
+        return 0;
+    }
+    inline int Get(DynamicFileMetadata* meta) const {
+        assert(this->type == FileTypeDynamicTrace);
+        assert(meta != NULL);
+        *meta = this->dyn;
+        return 0;
+    }
+};
+
+struct TraceFile {
+    FILE* file;
+    FileHeader header;
+
+    inline TraceFile(const char* path, const char* mode) : file(0) {
+        if (this->Open(path, mode) != 0)
+            SINUCA3_LOG_PRINTF("Failed to open file: [%s] for [%s]\n", path,
+                               mode);
+    }
+    inline int Write(const void* entry, long size) {
+        if (this->file == NULL || entry == NULL) return 1;
+        return (fwrite(entry, size, 1, this->file) != 1);
+    }
+    inline int Read(void* entry, long size) {
+        if (this->file == NULL || entry == NULL) return 1;
+        return (fread(entry, size, 1, this->file) != 1);
+    }
+    inline int WriteAt(const void* entry, long size, long offset) {
+        if (this->file == NULL || entry == NULL) return 1;
+        if (fseek(this->file, offset, SEEK_SET) != 0) return 1;
+        return (this->Write(entry, size));
+    }
+    inline int Reserve(long bytes) {
+        if (this->file == NULL) return 1;
+        return (fseek(this->file, bytes, SEEK_CUR) != 0);
+    }
+    inline int Open(const char* path, const char* mode) {
+        if (path == NULL) return 1;
+        this->file = fopen(path, mode);
+        return (this->file == NULL);
+    }
+    inline void Close() {
+        if (this->file == NULL) return;
+        fclose(this->file);
+        this->file = NULL;
+    }
+    inline ~TraceFile() { this->Close(); }
+};
+
+template <typename T>
+class Reader {
+  private:
+    TraceFile* trace;
+    bool wasHeaderRead;
+
+  public:
+    inline Reader() : trace(0), wasHeaderRead(0) {}
+
+    inline int Open(const char* path) {
+        if (this->trace != NULL) return 1;
+        this->trace = new TraceFile(path, "rb");
+        if (this->trace->Read(&this->trace->header, sizeof(FileHeader)))
+            return 1;
+        this->wasHeaderRead = true;
+        return 0;
+    }
+    template <typename U>
+    inline int Read(U* data) {
+        T entry;
+        if (this->trace->Read(&entry, sizeof(T))) return 1;
+        if (this->trace == NULL || data == NULL) return 1;
+        return entry.Get(data);
+    }
+    inline int Read(T* entry) {
+        if (this->trace == NULL || entry == NULL) return 1;
+        return this->trace->Read(entry, sizeof(T));
+    }
+    inline int GetHeader(FileHeader* header) {
+        if (this->trace == NULL || !this->wasHeaderRead) return 1;
+        assert(header != NULL);
+        *header = this->trace->header;
+        return 0;
+    }
+    inline int EndOfFile() const {
+        assert(this->trace != NULL);
+        if (this->trace->file == NULL) return 1;
+        return feof(this->trace->file);
+    }
+    inline ~Reader() {
+        assert(this->wasHeaderRead);
+        if (this->trace != NULL) {
+            delete this->trace;
+            this->trace = NULL;
+        }
+    }
+};
+
+template <typename T>
+class Writer {
+  private:
+    TraceFile* trace;
+    bool wasSpaceReserved;
+
+  public:
+    inline Writer() : trace(0), wasSpaceReserved(0) {}
+
+    inline int Open(const char* path) {
+        if (this->trace != NULL) return 1;
+        this->trace = new TraceFile(path, "wb");
+        if (this->trace->Reserve(sizeof(this->trace->header))) return 1;
+        this->wasSpaceReserved = true;
+        return 0;
+    }
+    template <typename U>
+    inline int Write(const U* data) {
+        T entry;
+        if (this->trace == NULL || data == NULL) return 1;
+        entry.Set(data);
+        return this->trace->Write(&entry, sizeof(T));
+    }
+    inline int SetHeader(const FileHeader* header) {
+        if (!this->trace || !this->wasSpaceReserved) return 1;
+        assert(header != NULL);
+        this->trace->header = *header;
+        return 0;
+    }
+    inline ~Writer() {
+        assert(this->wasSpaceReserved);
+        if (this->trace != NULL) {
+            this->trace->WriteAt(&this->trace->header, sizeof(FileHeader), 0);
+            delete this->trace;
+            this->trace = NULL;
+        }
+    }
+};
+
+/** @brief Convert a compressed instruction to a static instruction info. */
+void CompressedInstToStaticInfo(const CompressedInstruction* compressedInst,
+                                StaticInstructionInfo* staticInfo);
+
+/** @brief Get alloc'd string with the formatted path for a trace file without
+ * the thread id. */
+const char* GetFormattedPath(const char* directory, const char* prefix);
+
+/** @brief Get alloc'd string with the formatted path for a trace file with the
+ * thread id. */
+const char* GetFormattedPath(const char* directory, const char* prefix,
+                             int tid);
 
 /**
  * @brief Get max size of the formatted path string that includes the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
+ * @param executable Name of the executable used to generate the traces.
  */
-unsigned long GetPathTidInSize(const char* sourceDir, const char* prefix,
-                               const char* imageName);
+long GetPathTidInSize(const char* directory, const char* prefix);
 
 /**
  * @brief Format the path in dest string including the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
- * @param tid Thread identier
- * @param destSize Max capacity of dest string.
+ * @param executable Name of the executable used to generate the traces.
+ * @param tid Thread identifier
+ * @param capacity Max capacity of dest string.
  */
-void FormatPathTidIn(char* dest, const char* sourceDir, const char* prefix,
-                     const char* imageName, int tid, long destSize);
+void FormatPathTidIn(char* dest, const char* directory, const char* prefix,
+                     int tid, long capacity);
 
 /**
  * @brief Get size of the formatted path string without the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'
- * @param imageName Name of the executable used to generate the traces.
+ * @param executable Name of the executable used to generate the traces.
  */
-unsigned long GetPathTidOutSize(const char* sourceDir, const char* prefix,
-                                const char* imageName);
+long GetPathTidOutSize(const char* directory, const char* prefix);
 
 /**
  * @brief Format the path in dest string without the thread id.
- * @param sourceDir Complete path to the directory that stores the traces.
+ * @param directory Complete path to the directory that stores the traces.
  * @param prefix 'dynamic', 'memory' or 'static'.
- * @param imageName Name of the executable used to generate the traces.
- * @param destSize Max capacity of dest string.
+ * @param executable Name of the executable used to generate the traces.
+ * @param capacity Max capacity of dest string.
  */
-void FormatPathTidOut(char* dest, const char* sourceDir, const char* prefix,
-                      const char* imageName, long destSize);
+void FormatPathTidOut(char* dest, const char* directory, const char* prefix,
+                      long capacity);
+
+/** @brief Check if the event type is valid. */
+bool IsValidEventType(int8_t eventType);
+
+/** @brief Check if the memory access type is valid. */
+bool IsValidMemoryAccessType(int8_t accessType);
 
 #endif

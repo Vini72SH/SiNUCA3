@@ -227,16 +227,16 @@ InputIterator ParseUnsigned(InputIterator first, InputIterator last, unsigned ba
     T myVal = 0;
     while (it != last)
     {
-        char c = std::tolower(*it);
+        int c = std::tolower(*it);
         unsigned digit;
         if (c >= '0' && c <= '9')
-            digit = c - '0';
+            digit = unsigned(c - '0');
         else if (c >= 'a' && c <= 'z')
-            digit = 10 + c - 'a';
+            digit = unsigned(10 + c - 'a');
         else
             break;
         if (digit >= base) break;
-        T newVal = myVal * base + digit;
+        T newVal = T(myVal * base + digit);
 
         // Check for overflow.
         //

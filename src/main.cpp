@@ -1,5 +1,5 @@
 //
-// Copyright (C) 2024  HiPES - Universidade Federal do Paraná
+// Copyright (C) 2026  HiPES - Universidade Federal do Paraná
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -48,7 +48,7 @@ void license() {
         "SiNUCA 3 - Simulator of Non-Uniform Cache Architectures, Third "
         "iteration.\n"
         "\n"
-        " Copyright (C) 2024  HiPES - Universidade Federal do Paraná\n"
+        " Copyright (C) 2026  HiPES - Universidade Federal do Paraná\n"
         "\n"
         " This program is free software: you can redistribute it and/or "
         "modify\n"
@@ -73,18 +73,21 @@ void license() {
  */
 void usage() {
     license();
-    printf("\n");
-    // TODO: Make this pretty.
-    printf(
-        "Use -h to see this text, -c to set a configuration file (required for "
-        "simulation), -t to set a trace (also required for simulation) and -l "
-        "to see license information.\n"
-        "\n"
-        "Other simulation options:\n"
-        "   -T <string> sets the trace reader to use (orcs, foo, bar, "
-        "TODO...)\n"
-        "   -L<0..3> sets the log level\n"
-        "   -f<file> adds a logger file filter\n");
+    printf("\nUsage: sinuca3 [OPTIONS]\n\n");
+    printf("Required options:\n");
+    printf("  -c <file>     Configuration file for simulation\n");
+    printf("  -t <file>     Path to folder containing trace file for "
+        "simulation (can be specified multiple times)\n");
+    printf("Other options:\n");
+    printf("  -h            Show this help message\n");
+    printf("  -l            Show license information\n");
+    printf("  -T <reader>   Trace reader to use (default: 'sinuca3')\n");
+    printf("  -L <0-3>      Set log level (0=Error, 1=Warning, 2=Info, 3=Debug)\n");
+    printf("  -f <file>     Add logger file filter\n");
+    printf("  -r <test>     Run a test (debug mode only)\n");
+    printf("  -P            Print trace file headers\n");
+    printf("\nExample:\n");
+    printf("  sinuca3 -c config.yaml -t path/to/trace1 -t path/to/trace2\n");
 }
 
 /**
@@ -104,22 +107,37 @@ TraceReader* AllocTraceReader(const char* traceReader) {
 int main(int argc, char* const argv[]) {
     const char* traceReaderName = "sinuca3";
     const char* rootConfigFile = NULL;
-    const char* traceDir = ".";
-    const char* traceFileName = NULL;
+    std::vector<TraceReader*> readers;
+    std::vector<const char*> traces;
+    bool printHeaders = false;
+
     char nextOpt;
 
     // When compiling debug mode, enable our testing facilities and set the log
     // level to debug.
+    struct option longOpts[] = {
+        {"help", no_argument, NULL, 'h'},
+        {"license", no_argument, NULL, 'l'},
+        {"config", required_argument, NULL, 'c'},
+        {"trace", required_argument, NULL, 't'},
+        {"trace-reader", required_argument, NULL, 'T'},
+        {"log-level", required_argument, NULL, 'L'},
+        {"log-file-filter", required_argument, NULL, 'f'},
+        {"print-headers", no_argument, NULL, 'P'},
+#ifndef NDEBUG
+        {"run-test", required_argument, NULL, 'r'},
+#endif
+        {NULL, 0, NULL, 0}};
 #ifdef NDEBUG
     logger::Level logLevel = logger::LevelInfo;
-#define SINUCA3_SWITCHES "lc:t:d:T:L:f:"
+#define SINUCA3_SWITCHES "lc:t:d:T:L:f:P"
 #else
     logger::Level logLevel = logger::LevelDebug;
-#define SINUCA3_SWITCHES "r:lc:t:d:T:L:f:"
+#define SINUCA3_SWITCHES "r:lc:t:d:T:L:f:P"
     const char* testToRun = NULL;
 #endif
 
-    while ((nextOpt = getopt(argc, argv, SINUCA3_SWITCHES)) != -1) {
+    while ((nextOpt = getopt_long(argc, argv, SINUCA3_SWITCHES, longOpts, NULL)) != -1) {
         switch (nextOpt) {
             // When compiling in debug mode, enable our testing facilities.
 #ifndef NDEBUG
@@ -131,10 +149,7 @@ int main(int argc, char* const argv[]) {
                 rootConfigFile = optarg;
                 break;
             case 't':
-                traceFileName = optarg;
-                break;
-            case 'd':
-                traceDir = optarg;
+                traces.push_back(optarg);
                 break;
             case 'T':
                 traceReaderName = optarg;
@@ -154,6 +169,9 @@ int main(int argc, char* const argv[]) {
                 break;
             case 'f':
                 SINUCA3_ADD_LOG_FILE_FILTER(optarg);
+                break;
+            case 'P':
+                printHeaders = true;
                 break;
         }
     }
@@ -182,7 +200,7 @@ int main(int argc, char* const argv[]) {
         usage();
         return 1;
     }
-    if (traceFileName == NULL) {
+    if (traces.empty()) {
         usage();
         return 1;
     }
@@ -202,16 +220,23 @@ int main(int argc, char* const argv[]) {
                configYamlValue.value.mapping, configYamlValue.location);
     if (engine.Configure(config)) return 1;
 
-    TraceReader* traceReader = AllocTraceReader(traceReaderName);
-    if (traceReader == NULL) {
-        SINUCA3_ERROR_PRINTF("The trace reader %s does not exist.",
-                             traceReaderName);
-        return 1;
+    for (unsigned int i = 0; i < traces.size(); i++) {
+        TraceReader* traceReader = AllocTraceReader(traceReaderName);
+        if (traceReader == NULL) {
+            SINUCA3_ERROR_PRINTF("The trace reader %s does not exist.",
+                                 traceReaderName);
+            return 1;
+        }
+        if (traceReader->OpenTrace(traces[i])) return 1;
+        readers.push_back(traceReader);
+        if (printHeaders) traceReader->PrintHeaders();
     }
-    if (traceReader->OpenTrace(traceFileName, traceDir)) return 1;
 
-    engine.Simulate(traceReader);
-    delete traceReader;
+    engine.Simulate(&readers);
+    for (unsigned int i = 0; i < readers.size(); i++) {
+        readers[i]->PrintStatistics();
+        delete readers[i];
+    }
 
     return 0;
 }

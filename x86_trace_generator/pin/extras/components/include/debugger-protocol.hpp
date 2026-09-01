@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2021 Intel Corporation.
+ * Copyright (C) 2008-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -45,6 +45,16 @@ namespace DEBUGGER_PROTOCOL
  * Thread ID's may be reused once a thread exits.
  */
 typedef unsigned long THREAD;
+
+/*!
+ * Invalid thread identifier.
+*/
+#define INVALID_THREAD THREAD(0)
+
+/*!
+ * No threads exists identifier.
+*/
+#define NO_THREADS_EXISTS THREAD(-1)
 
 /*!
  * Identifier representing a register.  This is either one of the "generic" registers
@@ -152,9 +162,7 @@ enum OS
     OS_LINUX32,
     OS_LINUX64,
     OS_WINDOWS32,
-    OS_WINDOWS64,
-    OS_MAC32,
-    OS_MAC64
+    OS_WINDOWS64
 };
 
 /*!
@@ -1206,19 +1214,20 @@ class /*<INTERFACE>*/ ICOMMANDS
      * @return  The ID of the indexed thread, invalid thread Id if \a iThread is out of range.
      *
      * @par Error Returns (when used by debugger front-end)
-     *  Returns invalid thread Id if called during "run mode".
+     *  Returns INVALID_THREAD if called during "run mode".
      */
     virtual THREAD GetThreadId(unsigned iThread) = 0;
 
     /*!
      * Retrieves the ID of a thread in the application that caused current stop
-     * or invalid thread Id if the focus thread can not be safely determined,
+     * or INVALID_THREAD if the focus thread can not be safely determined,
      * like when all stopped threads are blocked in OS.
      *
      * @return  The ID of the focus thread as determined by the back-end.
      *
      * @par Error Returns (when used by debugger front-end)
-     *  Returns invalid thread Id if called during "run mode".
+     *  Returns INVALID_THREAD if called during "run mode".
+     *  Returns NO_THREADS_EXISTS if no threads exist (program is not running).
      */
     virtual THREAD GetFocusThreadId() = 0;
 

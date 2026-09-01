@@ -9,11 +9,11 @@
 #include <sstream>
 #include "regvalue_utils.h"
 
-using std::endl;
-using std::flush;
-using std::hex;
-using std::string;
-using std::stringstream;
+
+
+
+
+
 
 /////////////////////
 // EXTERNAL FUNCTIONS
@@ -36,12 +36,12 @@ const bool hasAvx512fSupport = SupportsAvx512f();
 
 template< typename SIZETYPE >
 static bool CompareSizedWord(const unsigned char* value, const unsigned char* expected, unsigned int element,
-                             unsigned int totalSize, ostream& ost)
+                             unsigned int totalSize,std::ostream& ost)
 {
     if (*((SIZETYPE*)(&value[element << 3])) != *((SIZETYPE*)(&expected[element << 3])))
     {
-        ost << "WARNING: Expected value: " << Val2Str((void*)expected, totalSize) << endl << flush;
-        ost << "WARNING: Received value: " << Val2Str((void*)value, totalSize) << endl << flush;
+        ost << "WARNING: Expected value: " << Val2Str((void*)expected, totalSize) << std::endl << std::flush;
+        ost << "WARNING: Received value: " << Val2Str((void*)value, totalSize) << std::endl << std::flush;
         return false;
     }
     return true;
@@ -51,10 +51,10 @@ static bool CompareSizedWord(const unsigned char* value, const unsigned char* ex
 // API FUNCTIONS IMPLEMENTATION
 /////////////////////
 
-string Val2Str(const void* value, unsigned int size)
+std::string Val2Str(const void* value, unsigned int size)
 {
-    stringstream sstr;
-    sstr << hex;
+    std::stringstream sstr;
+    sstr << std::hex;
     const unsigned char* cval = (const unsigned char*)value;
     // Traverse cval from end to beginning since the MSB is in the last block of cval.
     while (size)
@@ -62,15 +62,15 @@ string Val2Str(const void* value, unsigned int size)
         --size;
         sstr << (unsigned int)cval[size];
     }
-    return string("0x") + sstr.str();
+    return std::string("0x") + sstr.str();
 }
 
-bool CompareValues(const void* value, const void* expected, unsigned int size, ostream& ost)
+bool CompareValues(const void* value, const void* expected, unsigned int size,std::ostream& ost)
 {
     if (0 != memcmp(value, expected, size))
     {
-        ost << "WARNING: Expected value: " << Val2Str(expected, size) << endl << flush;
-        ost << "WARNING: Received value: " << Val2Str(value, size) << endl << flush;
+        ost << "WARNING: Expected value: " << Val2Str(expected, size) << std::endl << std::flush;
+        ost << "WARNING: Received value: " << Val2Str(value, size) << std::endl << std::flush;
         return false;
     }
     return true;

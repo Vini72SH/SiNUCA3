@@ -15,11 +15,8 @@
 
   \b Linux:   Compile your program with -g to include line number information. Pin can only
               read dwarf4 information. If you using compiler which generates more advanced format,
-              please use -gdwarf-4 flag to generate dwarf4 debugging information. 
-
-  \b macOS*:  Compile your program with -g to include line number information. Pin can only
-              read dwarf4 information. If you using compiler which generates more advanced format,
-              please use -gdwarf-4 flag to generate dwarf4 debugging information.
+              please use -gdwarf-4 flag to generate dwarf4 debugging information or -gdwarf-5 
+              for dwarf5 debugging information. 
 
   \b Windows: Executable/dll has to have program data base (.pdb) file in order to support this
               API.
@@ -42,7 +39,7 @@
 
   @par Availability:
   \b Mode:  JIT & Probe\n
-  \b O/S:   Linux, Windows & macOS*\n
+  \b O/S:   Linux, Windows\n
   \b CPU:   All\n
  */
 extern void PIN_GetSourceLocation(ADDRINT address, INT32* column, INT32* line, std::string* fileName);

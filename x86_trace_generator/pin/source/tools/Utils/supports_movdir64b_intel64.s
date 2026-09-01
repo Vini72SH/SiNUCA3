@@ -3,14 +3,10 @@
  * SPDX-License-Identifier: MIT
  */
 
-#ifdef TARGET_MAC
-.globl _ProcessorSupportsMovdir64b;
-_ProcessorSupportsMovdir64b:
-#else
 .type ProcessorSupportsMovdir64b, @function
 .globl ProcessorSupportsMovdir64b;
 ProcessorSupportsMovdir64b:
-#endif
+
     push %rbp
     mov  %rsp, %rbp
     push %rax

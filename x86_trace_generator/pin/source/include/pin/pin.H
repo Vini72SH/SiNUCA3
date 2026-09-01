@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2021 Intel Corporation.
+ * Copyright (C) 2004-2026 Intel Corporation.
  * SPDX-License-Identifier: MIT
  */
 
@@ -19,14 +19,23 @@ extern "C"
 #include "xed-iclass-enum.h"
 #include "xed-category-enum.h"
 }
-#include "pin_version.h"
 
-#include "types_marker.h"
+#include <pinrt_adaptor.PH>
+
+#include "pin_version.h"
 #include "pin-errtype.h"
 
 #include "util/intel-fp.hpp"
-#include "atomic.hpp"
 #include "pinsync.hpp"
+
+#include <rscprotomsgtypes.h>
+#include <txll_utils.h>
+
+
+#if __cplusplus >= 201703L
+// Code below supported for C++17 and above
+#include <rscschema.h>
+#endif // __cplusplus >= 201703
 
 // BASE
 // foundation
@@ -60,8 +69,6 @@ namespace LEVEL_BASE
 #include "sysfuncs_windows.PH"
 #elif defined(TARGET_LINUX)
 #include "sysfuncs_linux.PH"
-#elif defined(TARGET_MAC)
-#include "sysfuncs_mac.PH"
 #else
 #error "no target OS defined"
 #endif
@@ -85,7 +92,7 @@ using namespace LEVEL_BASE;
 #include "ins_ia32.PH"
 #include "regset_ia32.PH"
 
-#if defined(TARGET_LINUX) || defined(TARGET_MAC)
+#if defined(TARGET_LINUX)
 #include "ins_syscall_ia32_unix.PH"
 #elif defined(TARGET_WINDOWS)
 #include "ins_syscall_ia32_windows.PH"
@@ -115,14 +122,13 @@ namespace LEVEL_PINCLIENT
 {
 // This includes the subset of vm types that pintools must access
 using namespace LEVEL_VM;
-
 #include "pin_client.PH"
+#include "pin_rpc_client.PH"
 #include "versions_client.PH"
 #include "pin_client_replay.PH"
 #include "thread_client.PH"
 #include "debugger_client.PH"
 #include "stopped_thread_client.PH"
-#include "deprecated_client.PH"
 #include "opin_client.PH"
 #include "tls_client.PH"
 #include "child_process_client.PH"
@@ -133,21 +139,22 @@ using namespace LEVEL_VM;
 
 #if defined(TARGET_LINUX)
 #include "image_elf.PH"
-#include "symbol_linux.PH"
-#include "backtrace_u.PH"
-#elif defined(TARGET_MAC)
-#include "image_macho.PH"
-#include "symbol_macho.PH"
-#include "debug_macho.PH"
 #include "backtrace_u.PH"
 #elif defined(TARGET_WINDOWS)
 #include "os_info_client_windows.PH"
 #include "image_win.PH"
-#include "symbol_win.PH"
 #include "debug_win.PH"
+#include "demangler.PH"
+
+#ifndef _WINDOWS_NAMESPACE_
+#define _WINDOWS_NAMESPACE_ WINDOWS
+#endif
+
 #else
 #error "Unknown OS"
 #endif
+
+#include "symbol.PH"
 
 } // namespace LEVEL_PINCLIENT
 

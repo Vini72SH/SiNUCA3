@@ -1,30 +1,31 @@
+NDEBUG = -DNDEBUG # Set NDEBUG="" via command line to enable debug mode (e.g., make NDEBUG="")
 SINUCA_TRACER_DIR = ../src/tracer/sinuca/
-SINUCA_LOGGER = ../src/utils/logger
-PINTOOL_UTILS_DIR = ./utils/
+SINUCA_LOGGER_DIR = ../src/utils/
+
 TOOL_ROOTS = sinuca3_pintool
-FILE_HANDLER = file_handler
-PINTOOL_UTILS = dynamic_trace_writer \
-				memory_trace_writer \
-				static_trace_writer
+HANDLER = file_handler
+INTRINSICS = intrinsics
+LOGGER = logger
+
 OBJ_DEPS = $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX) \
-		$(OBJDIR)$(FILE_HANDLER)$(OBJ_SUFFIX) \
-		$(addprefix $(OBJDIR),$(addsuffix $(OBJ_SUFFIX),$(PINTOOL_UTILS))) \
-		$(OBJDIR)logger$(OBJ_SUFFIX) \
+		$(OBJDIR)$(HANDLER)$(OBJ_SUFFIX) \
+		$(OBJDIR)$(INTRINSICS)$(OBJ_SUFFIX) \
+		$(OBJDIR)$(LOGGER)$(OBJ_SUFFIX) \
 
 # This section contains the build rules for all binaries that have special build rules.
 # See makefile.default.rules for the default build rules.
 
 $(OBJDIR)$(TOOL_ROOTS)$(OBJ_SUFFIX): $(TOOL_ROOTS).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+	$(TOOL_CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
-$(OBJDIR)$(FILE_HANDLER)$(OBJ_SUFFIX): $(SINUCA_TRACER_DIR)$(FILE_HANDLER).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+$(OBJDIR)$(HANDLER)$(OBJ_SUFFIX): $(SINUCA_TRACER_DIR)$(HANDLER).cpp
+	$(TOOL_CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
-$(OBJDIR)logger$(OBJ_SUFFIX): $(SINUCA_LOGGER).cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+$(OBJDIR)$(INTRINSICS)$(OBJ_SUFFIX): $(INTRINSICS).cpp
+	$(TOOL_CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
-$(OBJDIR)%_writer$(OBJ_SUFFIX): $(PINTOOL_UTILS_DIR)%_writer.cpp
-	$(CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $<
+$(OBJDIR)$(LOGGER)$(OBJ_SUFFIX): $(SINUCA_LOGGER_DIR)$(LOGGER).cpp
+	$(TOOL_CXX) $(TOOL_CXXFLAGS) -I../src -I. $(COMP_OBJ)$@ $< $(NDEBUG)
 
 $(OBJDIR)$(TOOL_ROOTS)$(PINTOOL_SUFFIX): $(OBJ_DEPS)
-	$(LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)
+	$(TOOL_LINKER) $(TOOL_LDFLAGS) $(LINK_EXE)$@ $^ $(TOOL_LPATHS) $(TOOL_LIBS)

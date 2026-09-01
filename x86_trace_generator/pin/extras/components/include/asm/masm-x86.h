@@ -39,7 +39,7 @@
 #define ASM_LABDEF(x)   $l##x##:
 #define ASM_LABF(x)     $l##x
 #define ASM_LABB(x)     $l##x
-#define ASM_GLABDEF(x)  ASM_NAME(x):
+#define ASM_GLABDEF(x)  PUBLIC ASM_NAME(x) ASM_NEWLINE ASM_NAME(x)::
 
 #define ASM_BYTE()      BYTE PTR
 #define ASM_WORD()      WORD PTR

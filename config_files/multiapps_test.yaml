@@ -1,0 +1,28 @@
+# Each core shall have one and only one fetcher!
+
+core1: &core1
+  class: SimpleCore
+  engine: *ENGINE
+  fetcher:
+    class: TraceDumperComponent
+  # mmu:
+  #   class: SimpleMmu
+  #   mapper: *MAPPER
+
+core2: &core2
+  class: SimpleCore
+  engine: *ENGINE
+  fetcher:
+    class: TraceDumperComponent
+  # mmu:
+  #   class: SimpleMmu
+  #   mapper: *MAPPER
+
+core3: &core3
+  class: SimpleCore
+  engine: *ENGINE
+  fetcher:
+    class: TraceDumperComponent
+  # mmu:
+  #   class: SimpleMmu
+  #   mapper: *MAPPER

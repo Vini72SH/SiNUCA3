@@ -21,7 +21,7 @@
  *
  * @par Availability:
  * \b Mode:  All\n
- * \b O/S:   Linux & macOS*\n
+ * \b O/S:   Linux\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern int PIN_GetInitialContextForUnwind(const CONTEXT* ctxt, void* cursor);
@@ -38,7 +38,7 @@ extern int PIN_GetInitialContextForUnwind(const CONTEXT* ctxt, void* cursor);
  *
  * @par Availability:
  * \b Mode:  All\n
- * \b O/S:   Linux & macOS*\n
+ * \b O/S:   Linux\n
  * \b CPU:   IA-32 and Intel(R) 64 architectures\n
  */
 extern int PIN_Backtrace(const CONTEXT* ctxt, void** buffer, int size);
