@@ -78,7 +78,28 @@ int Renaming::Configure(Config config) {
     return 0;
 }
 
-unsigned int MapRegister(Register reg) { return reg.val; }
+unsigned int Renaming::MapRegister(Register reg) {
+    if (reg.isFloat == false) {
+        for (unsigned int i = 1; i < this->numIntPhysicalRegisters; ++i) {
+            if (this->intFreeTable.GetBin(i) == 1) {
+                this->intFreeTable.ResetBin(i);
+                return i;
+            }
+        }
+    } else {
+        for (unsigned int i = 1; i < this->numFpPhysicalRegisters; ++i) {
+            if (this->fpFreeTable.GetBin(i) == 1) {
+                this->fpFreeTable.ResetBin(i);
+                return i + this->numIntPhysicalRegisters;
+            }
+        }
+    }
+
+    SINUCA3_ERROR_PRINTF(
+        "O NÚMERO DE REGISTRADORES FÍSICOS NÃO É SUFICIENTE\n");
+
+    exit(1);
+}
 
 int Renaming::RenameInstruction(const InstructionPacket packet) {
     if (this->rob.IsFull()) return 1;

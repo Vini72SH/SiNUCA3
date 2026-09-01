@@ -27,6 +27,7 @@
 #include "std_components/renaming/reorder_buffer.hpp"
 #include "utils/binary_table.hpp"
 #include "utils/circular_buffer.hpp"
+#include "utils/logger.hpp"
 
 const int MAP_MAX_SIZE = MAX_REGISTERS;
 const int DEFAULT_INT_PHYSICAL_REGISTERS = 96;
@@ -65,6 +66,7 @@ class Renaming : public Component<RenamingPacket> {
     unsigned int totalPhysicalRegisters;
     unsigned int robSize;
 
+    unsigned int MapRegister(Register reg);
     int RenameInstruction(const InstructionPacket packet);
 
     void PacketBuffering();
