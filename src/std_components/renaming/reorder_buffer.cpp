@@ -30,7 +30,7 @@ int ReorderBuffer::Enqueue(RobEntry input) {
     if (this->IsFull()) return -1;
 
     int idx = this->end;
-    this->robs[idx] = input;
+    this->rob[idx] = input;
     ++this->occupation;
     ++this->end;
 
@@ -43,8 +43,8 @@ int ReorderBuffer::Enqueue(RobEntry input) {
 
 int ReorderBuffer::Dequeue(RobEntry* output) {
     if (!(this->IsEmpty())) {
-        memcpy(output, &this->robs[this->start], this->robEntrySize);
-        this->robs[this->start].valid = false;
+        memcpy(output, &this->rob[this->start], this->robEntrySize);
+        this->rob[this->start].valid = false;
         --this->occupation;
         ++this->start;
 
@@ -62,16 +62,33 @@ int ReorderBuffer::Dequeue(RobEntry* output) {
 
 int ReorderBuffer::GetFirstElement(RobEntry* output) {
     if (!this->IsEmpty()) {
-        void* memoryAddress = (this->robs) + (this->start * this->robEntrySize);
-
+        void* memoryAddress = (this->rob) + (this->start * this->robEntrySize);
+        this->ptr = 0;
         memcpy(output, memoryAddress, this->robEntrySize);
 
-        return 0;
+        return this->start;
     }
 
     memset(output, 0, this->robEntrySize);
 
-    return 1;
+    return -1;
+}
+
+int ReorderBuffer::GetNextElement(RobEntry* output) {
+    if (!this->IsEmpty()) {
+        unsigned int idx = (this->start + this->ptr + 1) % this->robSize;
+        if (idx <= this->end) {
+            this->ptr++;
+            void* memoryAddress = (this->rob) + (idx * this->robEntrySize);
+            memcpy(output, memoryAddress, this->robEntrySize);
+
+            return idx;
+        }
+    }
+
+    memset(output, 0, this->robEntrySize);
+
+    return -1;
 }
 
 /**
@@ -96,16 +113,16 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
         this->robSize = sizeOfRob;
     };
 
-    this->robs = new RobEntry[this->robSize]();
+    this->rob = new RobEntry[this->robSize]();
     this->robEntrySize = sizeof(RobEntry);
-    if (!(this->robs)) return 1;
+    if (!(this->rob)) return 1;
 
     return 0;
 }
 
 int ReorderBuffer::Insert(const InstructionPacket instruction,
                           unsigned int newprd, unsigned int oldprd,
-                          unsigned int spr1, unsigned int spr2) {
+                          unsigned int spr1, unsigned int spr2, bool isFloat) {
     RobEntry newRobEntry;
 
     newRobEntry.instruction = instruction;
@@ -113,6 +130,7 @@ int ReorderBuffer::Insert(const InstructionPacket instruction,
     newRobEntry.oldPhysicalRegisterD = oldprd;
     newRobEntry.sourcePhysicalRegister1 = spr1;
     newRobEntry.sourcePhysicalRegister2 = spr2;
+    newRobEntry.isFloat = isFloat;
     newRobEntry.dispatched = false;
     newRobEntry.executed = false;
     newRobEntry.valid = true;
@@ -120,15 +138,18 @@ int ReorderBuffer::Insert(const InstructionPacket instruction,
     return this->Enqueue(newRobEntry);
 }
 
-void ReorderBuffer::SetExecuted(int idx) {
-    if ((idx < 0) || (idx >= this->robSize) || !(this->robs[idx].valid)) return;
+void ReorderBuffer::SetExecuted(unsigned int idx) {
+    if ((idx >= this->robSize) || !(this->rob[idx].valid)) return;
 
-    this->robs[idx].executed = true;
+    this->rob[idx].executed = true;
 }
 
-int ReorderBuffer::GetRobFirstInstruction(
-    InstructionPacket* instruction, unsigned int* newprd, unsigned int* oldprd,
-    unsigned int* spr1, unsigned int* spr2, bool* dispatched, bool* executed) {
+int ReorderBuffer::GetRobFirstInstruction(InstructionPacket* instruction,
+                                          unsigned int* newprd,
+                                          unsigned int* oldprd,
+                                          unsigned int* spr1,
+                                          unsigned int* spr2, bool* isFloat,
+                                          bool* dispatched, bool* executed) {
     RobEntry head;
 
     if (this->GetFirstElement(&head)) return 1;
@@ -138,21 +159,44 @@ int ReorderBuffer::GetRobFirstInstruction(
     (*oldprd) = head.oldPhysicalRegisterD;
     (*spr1) = head.sourcePhysicalRegister1;
     (*spr2) = head.sourcePhysicalRegister2;
+    (*isFloat) = head.isFloat;
     (*dispatched) = head.dispatched;
     (*executed) = head.executed;
 
     return (head.valid != 0);
 }
 
-void ReorderBuffer::DispatchInstruction(int idx) {
-    if ((idx < 0) || (idx >= this->robSize) || !(this->robs[idx].valid)) return;
+int ReorderBuffer::GetRobNextInstruction(InstructionPacket* instruction,
+                                         unsigned int* newprd,
+                                         unsigned int* oldprd,
+                                         unsigned int* spr1, unsigned int* spr2,
+                                         bool* isFloat, bool* dispatched,
+                                         bool* executed) {
+    RobEntry next;
 
-    this->robs[idx].dispatched = true;
+    if (this->GetNextElement(&next)) return 1;
+
+    memcpy(instruction, &next.instruction, sizeof(InstructionPacket));
+    (*newprd) = next.newPhysicalRegisterD;
+    (*oldprd) = next.oldPhysicalRegisterD;
+    (*spr1) = next.sourcePhysicalRegister1;
+    (*spr2) = next.sourcePhysicalRegister2;
+    (*isFloat) = next.isFloat;
+    (*dispatched) = next.dispatched;
+    (*executed) = next.executed;
+
+    return (next.valid != 0);
+}
+
+void ReorderBuffer::DispatchInstruction(unsigned int idx) {
+    if ((idx >= this->robSize) || !(this->rob[idx].valid)) return;
+
+    this->rob[idx].dispatched = true;
 }
 
 void ReorderBuffer::Commit() {
-    if (!(this->robs[this->start].executed)) return;
-    this->robs[this->start].valid = false;
+    if (!(this->rob[this->start].executed)) return;
+    this->rob[this->start].valid = false;
 
     if (this->IsEmpty()) return;
 

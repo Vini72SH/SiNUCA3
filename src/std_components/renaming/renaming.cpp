@@ -18,8 +18,7 @@
 #include "renaming.hpp"
 
 int Renaming::Configure(Config config) {
-    if (config.ComponentReference("BoomFetcher", &this->fetcher, true))
-        return 1;
+    if (config.ComponentReference("Fetcher", &this->fetcher, true)) return 1;
 
     if (config.Integer("numIntPhysicalRegisters",
                        (long*)&this->numIntPhysicalRegisters))
@@ -159,7 +158,7 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
         this->intFreeTable.ResetBin(newprd);
         this->intBusyTable.SetBin(newprd);
         this->mapTable[rd.val] = newprd;
-        this->rob.Insert(packet, newprd, oldprd, spr1, spr2);
+        this->rob.Insert(packet, newprd, oldprd, spr1, spr2, false);
         return 0;
     }
 
@@ -218,9 +217,36 @@ void Renaming::PacketHandler() {
     }
 }
 
+void Renaming::RobDispatcher() {
+    int rbx;
+
+    InstructionPacket packet;
+    unsigned int newprd, oldprd, spr1, spr2;
+    bool isFloat, dispatched, executed;
+    rbx = this->rob.GetRobFirstInstruction(&packet, &newprd, &oldprd, &spr1,
+                                           &spr2, &isFloat, &dispatched,
+                                           &executed);
+    while (rbx != -1) {
+        if (dispatched == false) {
+            if (isFloat == false) {
+                if (this->intBusyTable.GetBin(spr1) == 0 &&
+                    this->intBusyTable.GetBin(spr2) == 0) {
+                    // The operands are ready, dispatch this instruction to
+                    // scheduler (rbx, nprd, sr1, sr2, packet)
+                    this->rob.DispatchInstruction(rbx);
+                }
+            }
+        }
+        rbx = this->rob.GetRobNextInstruction(&packet, &newprd, &oldprd, &spr1,
+                                              &spr2, &isFloat, &dispatched,
+                                              &executed);
+    }
+}
+
 void Renaming::Clock() {
-    PacketBuffering();
-    PacketHandler();
+    this->PacketBuffering();
+    this->PacketHandler();
+    this->RobDispatcher();
 }
 
 void Renaming::PrintStatistics() {}

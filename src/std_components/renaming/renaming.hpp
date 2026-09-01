@@ -71,6 +71,7 @@ class Renaming : public Component<RenamingPacket> {
 
     void PacketBuffering();
     void PacketHandler();
+    void RobDispatcher();
 
   public:
     Renaming()

@@ -38,16 +38,18 @@ class ReorderBuffer {
         unsigned int oldPhysicalRegisterD;
         unsigned int sourcePhysicalRegister1;
         unsigned int sourcePhysicalRegister2;
+        bool isFloat;
         bool dispatched;
         bool executed;
         bool valid;
     } RobEntry;
 
-    int robSize;
-    int start, end;
-    int occupation;
+    unsigned int ptr;
+    unsigned int robSize;
+    unsigned int start, end;
+    unsigned int occupation;
     unsigned long robEntrySize;
-    RobEntry* robs;
+    RobEntry* rob;
 
     /**
      * @brief Inserts the element at the "top" of the buffer.
@@ -67,11 +69,20 @@ class ReorderBuffer {
 
     /**
      * @brief Retrieves the first element without removing it from the Buffer.
+     * Set a pointer to the first element
      * @param output A pointer to the memory region where the element
      * will be returned.
-     * @return 0 if sucessfuly, 1 otherwise.
+     * @return The idx of the element if sucessfuly, -1 otherwise.
      */
     int GetFirstElement(RobEntry* output);
+
+    /**
+     * @brief Advance the pointer to the next element and returns it
+     * @param output A pointer to the memory region where the element will be
+     * returned.
+     * @return The idx of the element if sucessfuly, -1 otherwise.
+     */
+    int GetNextElement(RobEntry* output);
 
     /**
      * @brief Removes the element contained in the "base" of the
@@ -80,7 +91,8 @@ class ReorderBuffer {
     void Pop();
 
   public:
-    ReorderBuffer() : robSize(0), start(0), end(0), occupation(0), robs(NULL) {}
+    ReorderBuffer()
+        : ptr(0), robSize(0), start(0), end(0), occupation(0), rob(NULL) {}
 
     inline bool IsFull() { return this->occupation == this->robSize; }
     inline bool IsEmpty() { return this->occupation == 0; }
@@ -103,16 +115,18 @@ class ReorderBuffer {
      * instruction
      * @param spr2 Index of the source physical register 2 used for this
      * instruction
+     * @param isFloat 1 if uses floating-point registers
      * @return -1 if the RoB is full, otherwise, the rob idx.
      */
     int Insert(const InstructionPacket instruction, unsigned int newprd,
-               unsigned int oldprd, unsigned int spr1, unsigned int spr2);
+               unsigned int oldprd, unsigned int spr1, unsigned int spr2,
+               bool isFloat);
 
     /**
      * @brief Mark a RoB entry as executed.
      * @param idx The index of entry.
      */
-    void SetExecuted(int idx);
+    void SetExecuted(unsigned int idx);
 
     /**
      * @brief Get the instruction from the "Head" of RoB.
@@ -130,18 +144,27 @@ class ReorderBuffer {
      * will be written to it.
      * @param executed A pointer to a boolean; The state of the instruction will
      * be written to it.
-     * @return 0 if the instruction is valid, 1 otherwise.
+     * @return The rob idx of the instruction
      */
     int GetRobFirstInstruction(InstructionPacket* instruction,
                                unsigned int* newprd, unsigned int* oldprd,
                                unsigned int* spr1, unsigned int* spr2,
-                               bool* dispatched, bool* executed);
+                               bool* isFloat, bool* dispatched, bool* executed);
+
+    /**
+     * @brief Get the next instruction of RoB, you should call this after
+     * calling GetRobFirstInstruction.
+     */
+    int GetRobNextInstruction(InstructionPacket* instruction,
+                              unsigned int* newprd, unsigned int* oldprd,
+                              unsigned int* spr1, unsigned int* spr2,
+                              bool* isFloat, bool* dispatched, bool* executed);
 
     /**
      * @brief Define the instruction as dispatched.
      * @param idx The index of entry.
      */
-    void DispatchInstruction(int idx);
+    void DispatchInstruction(unsigned int idx);
 
     /**
      * @brief Commit an instruction. In a real processor, this is the moment
@@ -152,8 +175,8 @@ class ReorderBuffer {
 
     ~ReorderBuffer() {
         this->robSize = 0;
-        if (robs) delete[] robs;
-        robs = NULL;
+        if (rob) delete[] rob;
+        rob = NULL;
     };
 };
 
