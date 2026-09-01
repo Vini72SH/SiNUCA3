@@ -78,19 +78,36 @@ int Renaming::Configure(Config config) {
     return 0;
 }
 
+unsigned int MapRegister(Register reg) { return 0; }
+
 int Renaming::RenameInstruction(const InstructionPacket packet) {
     if (this->rob.IsFull()) return 1;
 
+    Register rd, rsa, rsb;
+    rd = packet.staticInfo->writtenRegsArray[0];
+    rsa = packet.staticInfo->readRegsArray[0];
+    rsb = packet.staticInfo->readRegsArray[1];
     /*
-     * Instruction uses int registers
-     */
-    if (1) {
-        int intPhysicalReg1 =
-            this->mapTable[packet.staticInfo->readRegsArray[0]];
-        int intPhysicalReg2 =
-            this->mapTable[packet.staticInfo->readRegsArray[1]];
+      Instruction only uses integer registers
+    */
+    if ((rd.isFloat == 0) && (rsa.isFloat == 0) && (rsb.isFloat == 0)) {
+        unsigned int intPhysicalReg1, intPhysicalReg2, intOldPRD,
+            intNewPRD = -1;
+        if (this->mapTable.find(rsa) != this->mapTable.end())
+            intPhysicalReg1 = this->mapTable[rsa];
+        else
+            intPhysicalReg1 = MapRegister(rsa);
 
-        int intOldPRD = this->mapTable[packet.staticInfo->writtenRegsArray[0]];
+        if (this->mapTable.find(rsb) != this->mapTable.end())
+            intPhysicalReg2 = this->mapTable[rsb];
+        else
+            intPhysicalReg2 = MapRegister(rsb);
+
+        if (this->mapTable.find(rd) != this->mapTable.end())
+            intOldPRD = this->mapTable[rd];
+        else
+            intOldPRD = MapRegister(rd);
+
         int intNewPRD = -1;
 
         for (int i = 0; i < this->numIntPhysicalRegisters; ++i) {
@@ -146,7 +163,7 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
         }
 
         this->fpFreeTable.ResetBin(fpNewPRD);
-        this->fpFreeBusyTable.SetBin(fpNewPRD);
+        this->fpBusyTable.SetBin(fpNewPRD);
         this->mapTable[packet.staticInfo->writtenRegsArray[0]] =
             fpNewPRD + this->numIntPhysicalRegisters;
 
@@ -200,3 +217,5 @@ void Renaming::Clock() {
     PacketBuffering();
     PacketHandler();
 }
+
+void Renaming::PrintStatistics() {}

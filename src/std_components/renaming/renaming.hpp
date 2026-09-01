@@ -18,6 +18,8 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 //
 
+#include <map>
+
 #include "config/config.hpp"
 #include "engine/component.hpp"
 #include "engine/default_packets.hpp"
@@ -48,7 +50,7 @@ struct RenamingPacket {
 class Renaming : public Component<RenamingPacket> {
   private:
     BoomFetch* fetcher;
-    int mapTable[MAP_MAX_SIZE];
+    std::map<unsigned short, unsigned int> mapTable;
     BinaryTable intBusyTable;
     BinaryTable fpBusyTable;
     BinaryTable intFreeTable;
