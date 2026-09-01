@@ -58,12 +58,12 @@ class Renaming : public Component<RenamingPacket> {
     ReorderBuffer rob;
     CircularBuffer packets;
 
-    int fetcherID;
-    int numMapRegisters;
-    int numIntPhysicalRegisters;
-    int numFpPhysicalRegisters;
-    int totalPhysicalRegisters;
-    int robSize;
+    unsigned int fetcherID;
+    unsigned int numMapRegisters;
+    unsigned int numIntPhysicalRegisters;
+    unsigned int numFpPhysicalRegisters;
+    unsigned int totalPhysicalRegisters;
+    unsigned int robSize;
 
     int RenameInstruction(const InstructionPacket packet);
 

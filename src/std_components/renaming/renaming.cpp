@@ -59,13 +59,13 @@ int Renaming::Configure(Config config) {
     /*
      * Sets all registers with free
      */
-    for (int i = 0; i < this->numIntPhysicalRegisters; ++i)
+    for (unsigned int i = 0; i < this->numIntPhysicalRegisters; ++i)
         this->intFreeTable.SetBin(i);
 
-    for (int i = 0; i < this->numFpPhysicalRegisters; ++i)
+    for (unsigned int i = 0; i < this->numFpPhysicalRegisters; ++i)
         this->fpFreeTable.SetBin(i);
 
-    for (int i = 0; i < this->numMapRegisters; ++i) {
+    for (unsigned int i = 0; i < this->numMapRegisters; ++i) {
         this->mapTable[i] = (i + 1) % this->numIntPhysicalRegisters;
         this->intFreeTable.ResetBin((i + 1) % this->numIntPhysicalRegisters);
     }
@@ -78,7 +78,7 @@ int Renaming::Configure(Config config) {
     return 0;
 }
 
-unsigned int MapRegister(Register reg) { return 0; }
+unsigned int MapRegister(Register reg) { return reg.val; }
 
 int Renaming::RenameInstruction(const InstructionPacket packet) {
     if (this->rob.IsFull()) return 1;
@@ -87,32 +87,36 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
     rd = packet.staticInfo->writtenRegsArray[0];
     rsa = packet.staticInfo->readRegsArray[0];
     rsb = packet.staticInfo->readRegsArray[1];
+
+    unsigned int spr1, spr2, oldprd, newprd = 0;
+
     /*
-      Instruction only uses integer registers
-    */
-    if ((rd.isFloat == 0) && (rsa.isFloat == 0) && (rsb.isFloat == 0)) {
-        unsigned int intPhysicalReg1, intPhysicalReg2, intOldPRD,
-            intNewPRD = -1;
-        if (this->mapTable.find(rsa) != this->mapTable.end())
-            intPhysicalReg1 = this->mapTable[rsa];
-        else
-            intPhysicalReg1 = MapRegister(rsa);
+     * We are getting the map of the ISA registers used in this instruction
+     */
+    if (this->mapTable.find(rsa.val) != this->mapTable.end())
+        spr1 = this->mapTable[rsa.val];
+    else
+        spr1 = MapRegister(rsa);
 
-        if (this->mapTable.find(rsb) != this->mapTable.end())
-            intPhysicalReg2 = this->mapTable[rsb];
-        else
-            intPhysicalReg2 = MapRegister(rsb);
+    if (this->mapTable.find(rsb.val) != this->mapTable.end())
+        spr2 = this->mapTable[rsb.val];
+    else
+        spr2 = MapRegister(rsb);
 
-        if (this->mapTable.find(rd) != this->mapTable.end())
-            intOldPRD = this->mapTable[rd];
-        else
-            intOldPRD = MapRegister(rd);
+    if (this->mapTable.find(rd.val) != this->mapTable.end())
+        oldprd = this->mapTable[rd.val];
+    else
+        oldprd = MapRegister(rd);
 
-        int intNewPRD = -1;
-
-        for (int i = 0; i < this->numIntPhysicalRegisters; ++i) {
-            if (this->intFreeTable.GetElementIterator() == true) {
-                intNewPRD = this->intFreeTable.GetIterator();
+    /*
+     * Instruction only uses integer registers
+     */
+    if ((rd.isFloat == false) && (rsa.isFloat == false) &&
+        (rsb.isFloat == false)) {
+        for (unsigned int i = 0; i < this->numIntPhysicalRegisters; ++i) {
+            if (this->intFreeTable.GetIterator() != 0 &&
+                this->intFreeTable.GetElementIterator() == true) {
+                newprd = this->intFreeTable.GetIterator();
                 break;
             }
 
@@ -122,7 +126,7 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
         /*
          * There aren't int registers available.
          */
-        if (intNewPRD == -1) {
+        if (newprd == 0) {
             return 1;
         }
 
@@ -131,45 +135,25 @@ int Renaming::RenameInstruction(const InstructionPacket packet) {
          * Set the physical register as busy (the value isn't ready) and not
          * free.
          */
-        this->intFreeTable.ResetBin(intNewPRD);
-        this->intBusyTable.SetBin(intNewPRD);
-        this->mapTable[packet.staticInfo->writtenRegsArray[0]] = intNewPRD;
-
-        this->rob.Insert(packet, intNewPRD, intOldPRD, intPhysicalReg1,
-                         intPhysicalReg2);
-    } else {
-        int fpPhysicalReg1 =
-            this->mapTable[packet.staticInfo->readRegsArray[0]] -
-            this->numIntPhysicalRegisters;
-        int fpPhysicalReg2 =
-            this->mapTable[packet.staticInfo->readRegsArray[1]] -
-            this->numIntPhysicalRegisters;
-
-        int fpOldPRD = this->mapTable[packet.staticInfo->writtenRegsArray[0]] -
-                       this->numIntPhysicalRegisters;
-        int fpNewPRD = -1;
-
-        for (int i = 0; i < this->numFpPhysicalRegisters; ++i) {
-            if (this->fpFreeTable.GetElementIterator() == true) {
-                fpNewPRD = this->fpFreeTable.GetIterator();
-                break;
-
-                this->fpFreeTable.Next();
-            }
-        }
-
-        if (fpNewPRD == -1) {
-            return 1;
-        }
-
-        this->fpFreeTable.ResetBin(fpNewPRD);
-        this->fpBusyTable.SetBin(fpNewPRD);
-        this->mapTable[packet.staticInfo->writtenRegsArray[0]] =
-            fpNewPRD + this->numIntPhysicalRegisters;
-
-        this->rob.Insert(packet, fpNewPRD, fpOldPRD, fpPhysicalReg1,
-                         fpPhysicalReg2);
+        this->intFreeTable.ResetBin(newprd);
+        this->intBusyTable.SetBin(newprd);
+        this->mapTable[rd.val] = newprd;
+        this->rob.Insert(packet, newprd, oldprd, spr1, spr2);
+        return 0;
     }
+
+    /*
+     * Instruction only uses floating-point registers
+     */
+    if ((rd.isFloat == true) && (rsa.isFloat == true) &&
+        (rsb.isFloat == true)) {
+        // Only integer instructions for now
+
+        return 0;
+    }
+
+    SINUCA3_DEBUG_PRINTF("A instrução %s utiliza registradores mistos\n",
+                         packet.StaticInstructionInfo.instMnemonic);
 
     return 0;
 }

@@ -29,9 +29,9 @@ const int defaultTableSize = MAX_REGISTERS;
  */
 class BinaryTable {
   private:
-    int iterator;
-    int tableSize;
-    bool *bins;
+    unsigned int iterator;
+    unsigned int tableSize;
+    bool* bins;
 
   public:
     BinaryTable() : iterator(0), tableSize(0), bins(NULL) {}
@@ -43,18 +43,18 @@ class BinaryTable {
      */
     int Allocate(int sizeOfTable);
 
-    inline bool GetBin(int idx) {
+    inline bool GetBin(unsigned int idx) {
         if ((this->bins) && (idx < this->tableSize))
             return this->bins[idx];
         else
             return false;
     }
 
-    inline void SetBin(int idx) {
+    inline void SetBin(unsigned int idx) {
         if ((this->bins) && (idx < this->tableSize)) this->bins[idx] = 1;
     };
 
-    inline void ResetBin(int idx) {
+    inline void ResetBin(unsigned int idx) {
         if ((this->bins) && (idx < this->tableSize)) this->bins[idx] = 0;
     };
 

@@ -34,10 +34,10 @@ class ReorderBuffer {
   private:
     typedef struct {
         InstructionPacket instruction;
-        int newPhysicalRegisterD;
-        int oldPhysicalRegisterD;
-        int sourcePhysicalRegister1;
-        int sourcePhysicalRegister2;
+        unsigned int newPhysicalRegisterD;
+        unsigned int oldPhysicalRegisterD;
+        unsigned int sourcePhysicalRegister1;
+        unsigned int sourcePhysicalRegister2;
         bool dispatched;
         bool executed;
         bool valid;
@@ -47,7 +47,7 @@ class ReorderBuffer {
     int start, end;
     int occupation;
     unsigned long robEntrySize;
-    RobEntry *robs;
+    RobEntry* robs;
 
     /**
      * @brief Inserts the element at the "top" of the buffer.
@@ -63,7 +63,7 @@ class ReorderBuffer {
      * will be returned.
      * @return 0 if successfuly, 1 otherwise.
      */
-    int Dequeue(RobEntry *output);
+    int Dequeue(RobEntry* output);
 
     /**
      * @brief Retrieves the first element without removing it from the Buffer.
@@ -71,7 +71,7 @@ class ReorderBuffer {
      * will be returned.
      * @return 0 if sucessfuly, 1 otherwise.
      */
-    int GetFirstElement(RobEntry *output);
+    int GetFirstElement(RobEntry* output);
 
     /**
      * @brief Removes the element contained in the "base" of the
@@ -105,8 +105,8 @@ class ReorderBuffer {
      * instruction
      * @return -1 if the RoB is full, otherwise, the rob idx.
      */
-    int Insert(const InstructionPacket instruction, int newprd, int oldprd,
-               int spr1, int spr2);
+    int Insert(const InstructionPacket instruction, unsigned int newprd,
+               unsigned int oldprd, unsigned int spr1, unsigned int spr2);
 
     /**
      * @brief Mark a RoB entry as executed.
@@ -132,9 +132,10 @@ class ReorderBuffer {
      * be written to it.
      * @return 0 if the instruction is valid, 1 otherwise.
      */
-    int GetRobFirstInstruction(InstructionPacket *instruction, int *newprd,
-                               int *oldprd, int *spr1, int *spr2,
-                               bool *dispatched, bool *executed);
+    int GetRobFirstInstruction(InstructionPacket* instruction,
+                               unsigned int* newprd, unsigned int* oldprd,
+                               unsigned int* spr1, unsigned int* spr2,
+                               bool* dispatched, bool* executed);
 
     /**
      * @brief Define the instruction as dispatched.

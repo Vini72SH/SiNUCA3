@@ -41,7 +41,7 @@ int ReorderBuffer::Enqueue(RobEntry input) {
     return idx;
 }
 
-int ReorderBuffer::Dequeue(RobEntry *output) {
+int ReorderBuffer::Dequeue(RobEntry* output) {
     if (!(this->IsEmpty())) {
         memcpy(output, &this->robs[this->start], this->robEntrySize);
         this->robs[this->start].valid = false;
@@ -60,9 +60,9 @@ int ReorderBuffer::Dequeue(RobEntry *output) {
     return 1;
 }
 
-int ReorderBuffer::GetFirstElement(RobEntry *output) {
+int ReorderBuffer::GetFirstElement(RobEntry* output) {
     if (!this->IsEmpty()) {
-        void *memoryAddress = (this->robs) + (this->start * this->robEntrySize);
+        void* memoryAddress = (this->robs) + (this->start * this->robEntrySize);
 
         memcpy(output, memoryAddress, this->robEntrySize);
 
@@ -103,8 +103,9 @@ int ReorderBuffer::Allocate(int sizeOfRob) {
     return 0;
 }
 
-int ReorderBuffer::Insert(const InstructionPacket instruction, int newprd,
-                          int oldprd, int spr1, int spr2) {
+int ReorderBuffer::Insert(const InstructionPacket instruction,
+                          unsigned int newprd, unsigned int oldprd,
+                          unsigned int spr1, unsigned int spr2) {
     RobEntry newRobEntry;
 
     newRobEntry.instruction = instruction;
@@ -125,10 +126,9 @@ void ReorderBuffer::SetExecuted(int idx) {
     this->robs[idx].executed = true;
 }
 
-int ReorderBuffer::GetRobFirstInstruction(InstructionPacket *instruction,
-                                          int *newprd, int *oldprd, int *spr1,
-                                          int *spr2, bool *dispatched,
-                                          bool *executed) {
+int ReorderBuffer::GetRobFirstInstruction(
+    InstructionPacket* instruction, unsigned int* newprd, unsigned int* oldprd,
+    unsigned int* spr1, unsigned int* spr2, bool* dispatched, bool* executed) {
     RobEntry head;
 
     if (this->GetFirstElement(&head)) return 1;
