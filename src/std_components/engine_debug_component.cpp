@@ -27,65 +27,118 @@
 
 #include <sinuca3.hpp>
 
+static const unsigned long REQUEST_MARKER = 0xA1UL;
+static const unsigned long RESPONSE_MARKER = 0xB1UL;
+
 int EngineDebugComponent::Configure(Config config) {
     bool failNow = false;
     if (config.Bool("failNow", &failNow)) return 1;
     if (failNow) return config.Error("failNow", "it's true");
-    if (config.ComponentReference("pointerOther", &this->other)) return 1;
-    if (config.ComponentReference("fetch", &this->fetch)) return 1;
+    if (config.String("name", &this->name)) return 1;
 
-    if (this->other != NULL) this->otherConnectionID = this->other->Connect(0);
+    if (this->other == NULL &&
+        config.ComponentReference("pointer", &this->other)) {
+        return 1;
+    }
+    if (config.ComponentReference("fetch", &this->fetch)) {
+        return 1;
+    };
+
+    if (this->other != NULL) this->otherConnectionID = this->other->Connect(1);
     if (this->fetch != NULL) this->fetchConnectionID = this->fetch->Connect(0);
 
     return 0;
 }
 
 void EngineDebugComponent::Clock() {
-    SINUCA3_DEBUG_PRINTF("%p: Clock!\n", this);
-
     if (this->fetch != NULL) {
         FetchPacket packet;
         packet.request = 0;
-        SINUCA3_DEBUG_PRINTF("%p: Fetching instruction!\n", this);
+        // SINUCA3_DEBUG_PRINTF("%p: Fetching instruction!\n", this);
         this->fetch->SendRequest(this->fetchConnectionID, &packet);
         if (this->fetch->ReceiveResponse(this->fetchConnectionID, &packet) ==
             0) {
-            SINUCA3_DEBUG_PRINTF("%p: Received instruction %s\n", this,
-                                 packet.response.staticInfo->instMnemonic);
+            // SINUCA3_DEBUG_PRINTF("%p: Received instruction %s\n", this,
+            //                      packet.response.staticInfo->instMnemonic);
         }
+    }
+
+    if (strcmp(this->name, "") != 0) {
+        SINUCA3_DEBUG_PRINTF("Component: %s | Clock!\n", this->name);
     }
 
     InstructionPacket messageInput = {NULL, DynamicInstructionInfo(), 0};
     InstructionPacket messageOutput = {NULL, DynamicInstructionInfo(), 0};
 
-    if (this->other) {
+    if (strcmp(this->name, "A") == 0) {
         if (!(this->send)) {
-            messageInput.staticInfo = (const StaticInstructionInfo*)0xcafebabe;
-            SINUCA3_DEBUG_PRINTF("%p: Sending message (%p) to %p.\n", this,
-                                 messageInput.staticInfo, this->other);
-            this->other->SendRequest(this->otherConnectionID, &messageInput);
+            messageInput.nextInstruction = REQUEST_MARKER;
+            int firstSend = this->other->SendRequest(this->otherConnectionID,
+                                                     &messageInput);
+            int secondSend = this->other->SendRequest(this->otherConnectionID,
+                                                      &messageInput);
+            if (firstSend != 0 || secondSend != 1) {
+                SINUCA3_ERROR_PRINTF(
+                    "Linkable request buffer test failed: first=%d "
+                    "second=%d.\n",
+                    firstSend, secondSend);
+            } else {
+                SINUCA3_DEBUG_PRINTF(
+                    "PASS: request buffer rejects the second message when "
+                    "full.\n");
+                this->requestBufferTested = true;
+            }
             this->send = true;
-        } else {
+        } else if (!this->responseReceived) {
             if (this->other->ReceiveResponse(this->otherConnectionID,
                                              &messageOutput) == 0) {
-                SINUCA3_DEBUG_PRINTF("%p: Received response (%p) from %p.\n",
-                                     this, messageOutput.staticInfo,
-                                     this->other);
-                this->send = false;
-            } else {
-                SINUCA3_DEBUG_PRINTF("%p: No response from %p.\n", this,
-                                     this->other);
+                if (messageOutput.nextInstruction != RESPONSE_MARKER) {
+                    SINUCA3_ERROR_PRINTF(
+                        "Linkable response marker test failed: got=%lu.\n",
+                        messageOutput.nextInstruction);
+                } else {
+                    SINUCA3_DEBUG_PRINTF(
+                        "PASS: response arrived one cycle after B sent it.\n");
+                    this->responseReceived = true;
+                }
             }
         }
-    } else {
+    } else if (strcmp(this->name, "B") == 0) {
         for (long i = 0; i < this->GetNumberOfConnections(); ++i) {
             if (this->ReceiveRequestFromConnection(i, &messageOutput) == 0) {
-                SINUCA3_DEBUG_PRINTF("%p: Received message (%p)\n", this,
-                                     messageOutput.staticInfo);
-                messageInput.staticInfo = messageOutput.staticInfo + 1;
-                SINUCA3_DEBUG_PRINTF("%p: Sending response (%p)\n", this,
-                                     messageInput.staticInfo);
-                this->SendResponseToConnection(i, &messageInput);
+                if (messageOutput.nextInstruction != REQUEST_MARKER) {
+                    SINUCA3_ERROR_PRINTF(
+                        "Linkable request marker test failed: got=%lu.\n",
+                        messageOutput.nextInstruction);
+                    continue;
+                }
+
+                if (!this->requestBufferTested) {
+                    SINUCA3_ERROR_PRINTF(
+                        "Linkable request was received before buffer test "
+                        "completed.\n");
+                } else {
+                    SINUCA3_DEBUG_PRINTF(
+                        "PASS: request became visible to B in the next "
+                        "cycle.\n");
+                }
+
+                messageInput.nextInstruction = RESPONSE_MARKER;
+                int firstResponse =
+                    this->SendResponseToConnection(i, &messageInput);
+                int secondResponse =
+                    this->SendResponseToConnection(i, &messageInput);
+                if (firstResponse != 0 || secondResponse != 1) {
+                    SINUCA3_ERROR_PRINTF(
+                        "Linkable response buffer test failed: first=%d "
+                        "second=%d.\n",
+                        firstResponse, secondResponse);
+                } else if (!this->responseBufferTested) {
+                    SINUCA3_DEBUG_PRINTF(
+                        "PASS: response buffer rejects the second message when "
+                        "full.\n");
+                    this->responseBufferTested = true;
+                }
             }
         }
     }

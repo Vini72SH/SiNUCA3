@@ -1,11 +1,11 @@
 example: &example
   class: EngineDebugComponent
-  pointer:
-    class: EngineDebugComponent
-    pointerOther: *otherComponent
+  name: "A"
+  pointer: *otherComponent
 
 otherComponent: &otherComponent
   class: EngineDebugComponent
+  name: "B" 
   parameter1: 4.20
   parameter2: 69
   parameter3: true

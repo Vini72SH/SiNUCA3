@@ -1,0 +1,104 @@
+[INFO][address_mapper.cpp:49][Configure] Context [0] mapped to address space [0].
+
+[INFO][engine.cpp:278][Simulate] Simulation started at Sat Oct 31 16:35:01 2026
+[INFO][engine.cpp:279][Simulate] Total instructions: 0.
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   0 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:88][Clock] PASS: request buffer rejects the second message when full.
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   1 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[DEBUG][engine_debug_component.cpp:139][Clock] PASS: response buffer rejects the second message when full.
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   2 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:101][Clock] PASS: response arrived one cycle after B sent it.
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   3 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   4 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   5 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   6 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   7 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   8 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:   9 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  10 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  11 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  12 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  13 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  14 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  15 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  16 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  17 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  18 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  19 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  20 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  21 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  22 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  23 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  24 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  25 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  26 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  27 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:285][Simulate]  == Current Cycle:  28 ==
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: A | Clock!
+[DEBUG][engine_debug_component.cpp:67][Clock] Component: B | Clock!
+[INFO][engine.cpp:296][Simulate] Simulation ended at Sat Oct 31 16:35:01 2026
+[INFO][engine.cpp:297][Simulate] === SIMULATION STATISTICS ===
+[INFO][engine.cpp:208][PrintStatistics] Cycled 29 times.
+[INFO][engine.cpp:210][PrintStatistics] Fetched 0 instructions.
+[INFO][engine_debug_component.cpp:180][PrintStatistics] printing statistics
+[INFO][engine_debug_component.cpp:180][PrintStatistics] printing statistics
+[INFO][engine_debug_component.cpp:180][PrintStatistics] printing statistics
+[INFO][trace_reader.cpp:93][PrintStatistics] Trace Statistics:
+[INFO][trace_reader.cpp:94][PrintStatistics] 	 Barriers reached: [0]
+[INFO][trace_reader.cpp:96][PrintStatistics] 	 Critical sections reached: [0]

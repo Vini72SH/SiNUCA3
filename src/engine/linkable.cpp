@@ -78,15 +78,11 @@ void Connection::PushBuffers() {
     char* message = this->swapBuffer;
 
     while (!this->requestBuffers[SOURCE_ID]->IsEmpty()) {
-        SINUCA3_DEBUG_PRINTF("Req Size: %d\n",
-                             this->requestBuffers[SOURCE_ID]->GetSize());
         this->requestBuffers[SOURCE_ID]->Dequeue(message);
         this->requestBuffers[DEST_ID]->Enqueue(message);
     }
 
     while (!this->responseBuffers[DEST_ID]->IsEmpty()) {
-        SINUCA3_DEBUG_PRINTF("Res Size: %d\n",
-                             this->responseBuffers[DEST_ID]->GetSize());
         this->responseBuffers[DEST_ID]->Dequeue(message);
         this->responseBuffers[SOURCE_ID]->Enqueue(message);
     }
@@ -113,7 +109,7 @@ bool Connection::IsRequestBufferFull(int id) {
 }
 
 bool Connection::IsResponseBufferFull(int id) {
-    return this->responseBuffers[id]->IsFull(); 
+    return this->responseBuffers[id]->IsFull();
 }
 
 Linkable::Linkable(int messageSize)
@@ -160,9 +156,8 @@ int Linkable::ConnectUnsafe(int bufferSize) {
 }
 
 int Linkable::SendRequestUnsafe(int connectionID, void* messageInput) {
-
     if (this->connections[connectionID]->IsResponseBufferFull(DEST_ID)) {
-        return 1; 
+        return 1;
     }
     return this->connections[connectionID]->InsertIntoRequestBuffer(
         SOURCE_ID, messageInput);
@@ -174,7 +169,6 @@ int Linkable::GetRequestUnsafe(int connectionID, void* messageOutput) {
 }
 
 int Linkable::SendResponseUnsafe(int connectionID, void* messageInput) {
-
     if (this->connections[connectionID]->IsResponseBufferFull(SOURCE_ID)) {
         return 1;
     }
@@ -244,7 +238,8 @@ void Context::DestroyAllContexts() {
     contexts.clear();
 }
 
-void Context::SetCoreContext(int contextId, int engineConnId, Linkable* engine) {
+void Context::SetCoreContext(int contextId, int engineConnId,
+                             Linkable* engine) {
     this->core.contextId = contextId;
     this->core.engineConnId = engineConnId;
     this->core.engine = engine;

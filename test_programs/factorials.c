@@ -22,8 +22,8 @@ int __attribute__((noinline)) RecursiveFactorial(int x) {
 }
 
 int main(void) {
-    volatile int a = 5;
-    volatile int b = 5;
+    volatile int a = 1;
+    volatile int b = 1;
 
     BeginInstrumentationBlock();
 

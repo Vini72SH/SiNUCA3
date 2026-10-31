@@ -37,6 +37,7 @@
  */
 class EngineDebugComponent : public Component<InstructionPacket> {
   private:
+    const char* name;
     EngineDebugComponent*
         other; /** @brief Another component to test sending messages. */
     Component<FetchPacket>*
@@ -44,14 +45,21 @@ class EngineDebugComponent : public Component<InstructionPacket> {
     int otherConnectionID; /** @brief Connection ID for `other`. */
     int fetchConnectionID; /** @brief Connection ID for `fetch`. */
     bool send; /** @brief Tells wether we already sent a message to other. */
+    bool requestBufferTested;
+    bool responseBufferTested;
+    bool responseReceived;
 
   public:
     inline EngineDebugComponent()
-        : other(NULL),
+        : name(""),
+          other(NULL),
           fetch(NULL),
           otherConnectionID(-1),
           fetchConnectionID(-1),
-          send(false) {}
+          send(false),
+          requestBufferTested(false),
+          responseBufferTested(false),
+          responseReceived(false) {}
 
     virtual int Configure(Config config);
     virtual void Clock();
