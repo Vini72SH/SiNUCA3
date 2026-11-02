@@ -5,7 +5,7 @@ example: &example
 
 otherComponent: &otherComponent
   class: EngineDebugComponent
-  name: "B" 
+  name: "C"
   parameter1: 4.20
   parameter2: 69
   parameter3: true

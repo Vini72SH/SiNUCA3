@@ -98,12 +98,12 @@ void EngineDebugComponent::Clock() {
                         messageOutput.nextInstruction);
                 } else {
                     SINUCA3_DEBUG_PRINTF(
-                        "PASS: response arrived one cycle after B sent it.\n");
+                        "PASS: response arrived one cycle after C sent it.\n");
                     this->responseReceived = true;
                 }
             }
         }
-    } else if (strcmp(this->name, "B") == 0) {
+    } else if (strcmp(this->name, "C") == 0) {
         for (long i = 0; i < this->GetNumberOfConnections(); ++i) {
             if (this->ReceiveRequestFromConnection(i, &messageOutput) == 0) {
                 if (messageOutput.nextInstruction != REQUEST_MARKER) {
@@ -119,7 +119,7 @@ void EngineDebugComponent::Clock() {
                         "completed.\n");
                 } else {
                     SINUCA3_DEBUG_PRINTF(
-                        "PASS: request became visible to B in the next "
+                        "PASS: request became visible to C in the next "
                         "cycle.\n");
                 }
 
