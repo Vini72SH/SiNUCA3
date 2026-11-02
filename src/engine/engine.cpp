@@ -283,7 +283,7 @@ int Engine::Simulate(std::vector<TraceReader*>* traceReaders) {
             this->PrintTime(start, this->totalCycles + 1);
 
         SINUCA3_LOG_PRINTF(" == Current Cycle: %3ld ==\n", this->totalCycles);
-        for (long i = this->numberOfComponents - 1; i >= 0; --i)
+        for (long i = 0; i < this->numberOfComponents; ++i)
             this->components[i]->Clock();
 
         for (long i = 0; i < this->numberOfComponents; ++i)
