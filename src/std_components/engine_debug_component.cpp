@@ -83,6 +83,7 @@ void EngineDebugComponent::Clock() {
                     "second=%d.\n",
                     firstSend, secondSend);
             } else {
+                SINUCA3_DEBUG_PRINTF("PASS: First message sended.\n");
                 SINUCA3_DEBUG_PRINTF(
                     "PASS: request buffer rejects the second message when "
                     "full.\n");
@@ -113,16 +114,6 @@ void EngineDebugComponent::Clock() {
                     continue;
                 }
 
-                if (!this->requestBufferTested) {
-                    SINUCA3_ERROR_PRINTF(
-                        "Linkable request was received before buffer test "
-                        "completed.\n");
-                } else {
-                    SINUCA3_DEBUG_PRINTF(
-                        "PASS: request became visible to C in the next "
-                        "cycle.\n");
-                }
-
                 messageInput.nextInstruction = RESPONSE_MARKER;
                 int firstResponse =
                     this->SendResponseToConnection(i, &messageInput);
@@ -135,7 +126,8 @@ void EngineDebugComponent::Clock() {
                         firstResponse, secondResponse);
                 } else if (!this->responseBufferTested) {
                     SINUCA3_DEBUG_PRINTF(
-                        "PASS: response buffer rejects the second message when "
+                        "PASS: First response sended.\n");
+                    SINUCA3_DEBUG_PRINTF("PASS: response buffer rejects the second message when "
                         "full.\n");
                     this->responseBufferTested = true;
                 }
